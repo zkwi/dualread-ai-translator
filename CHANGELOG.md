@@ -36,6 +36,7 @@
 - Made the default README English and kept a Simplified Chinese README for local users.
 - Simplified README content, clarified privacy boundaries, and added a public-release audit script for keys, local paths, private files, and unsafe artifacts.
 - Improved GitHub SEO with keyword-focused README headings, use cases, FAQ, package keywords, and repository topics.
+- Fixed English popup layout overflow by allowing compact cards and buttons to wrap safely, and replaced leftover locale placeholder text with real English/Japanese copy.
 - Bumped the content script version so already-injected older scripts can clearly request a page refresh.
 
 ## 0.4.4

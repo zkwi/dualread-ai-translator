@@ -6,13 +6,13 @@
     "message": "現在のページの対照翻訳を切り替える"
   },
   "confirmClearCache": {
-    "message": "confirm Clear Cache"
+    "message": "ローカル翻訳キャッシュをすべて削除しますか？"
   },
   "confirmResetAll": {
-    "message": "confirm Reset All"
+    "message": "すべての設定を初期値に戻しますか？"
   },
   "confirmResetPrompt": {
-    "message": "confirm Reset Prompt"
+    "message": "既定の翻訳プロンプトに戻しますか？"
   },
   "contentErrorRetry": {
     "message": "翻訳失敗：$1（クリックで再試行）"
@@ -36,16 +36,16 @@
     "message": "選択テキストを翻訳"
   },
   "costHintBalanced": {
-    "message": "cost Hint Balanced"
+    "message": "日常的な読書におすすめです。"
   },
   "costHintCustom": {
-    "message": "cost Hint Custom"
+    "message": "下のカスタム上限を使用します。"
   },
   "costHintEager": {
-    "message": "cost Hint Eager"
+    "message": "近くの記事本文を多めに先読みします。token 消費は増えます。"
   },
   "costHintEconomy": {
-    "message": "cost Hint Economy"
+    "message": "近くのブロックを少なめに翻訳して token を節約します。"
   },
   "costProfileBalanced": {
     "message": "Balanced: recommended for daily use"
@@ -66,7 +66,7 @@
     "message": "対照"
   },
   "displayModeHelp": {
-    "message": "display Mode"
+    "message": "ページ上で訳文をどのように表示するかを選びます。"
   },
   "displayModeLabel": {
     "message": "表示モード"
@@ -132,16 +132,16 @@
     "message": "DualRead AI 翻訳"
   },
   "extensionShortName": {
-    "message": "extension Short Name"
+    "message": "DualRead AI"
   },
   "fieldApiUrl": {
-    "message": "field API URL"
+    "message": "API URL"
   },
   "fieldModelName": {
-    "message": "field Model Name"
+    "message": "モデル"
   },
   "fieldRequiredConfig": {
-    "message": "field Required Config"
+    "message": "必須設定"
   },
   "hide": {
     "message": "非表示"
@@ -186,10 +186,10 @@
     "message": "英語 -> 簡体字中国語"
   },
   "languageStatusDirection": {
-    "message": "language Status Direction"
+    "message": "現在の方向：$1 -> $2。"
   },
   "languageStatusSame": {
-    "message": "language Status Same"
+    "message": "元言語と目標言語がどちらも $1 のため、通常は翻訳不要です。"
   },
   "listSeparator": {
     "message": "、"
@@ -432,19 +432,19 @@
     "message": "Viewport Only"
   },
   "popupActionHintInitial": {
-    "message": "Click Start translation. Translations will appear below the original text."
+    "message": "ページ全体、または現在の画面だけを翻訳できます。"
   },
   "popupActive": {
-    "message": "Enabled."
+    "message": "有効です。"
   },
   "popupActiveHint": {
-    "message": "Active Hint"
+    "message": "スクロールすると新しく表示されたテキストを翻訳します。原文だけを見る場合は訳文を隠してください。"
   },
   "popupActiveWithCount": {
-    "message": "Enabled. Found $1 candidate text blocks."
+    "message": "有効です。$1 個のテキストブロックを検出しました。"
   },
   "popupApiPending": {
-    "message": "API not configured"
+    "message": "API 未設定"
   },
   "popupAutoDisabledStatus": {
     "message": "Auto Disabled Status"
@@ -456,13 +456,13 @@
     "message": "Auto Start Failed"
   },
   "popupAutoTranslateLabel": {
-    "message": "Auto translate foreign pages"
+    "message": "外国語ページを自動翻訳"
   },
   "popupAutoUnconfiguredHint": {
-    "message": "Auto Unconfigured Hint"
+    "message": "先に API を設定してからページを翻訳してください。"
   },
   "popupAutoUnconfiguredStatus": {
-    "message": "Auto Unconfigured Status"
+    "message": "自動翻訳は開始されませんでした：API Key とモデルが未設定です。"
   },
   "popupBadgeIdle": {
     "message": "待機中"
@@ -531,10 +531,10 @@
     "message": "Hiding Translations"
   },
   "popupIdleHint": {
-    "message": "Idle Hint"
+    "message": "ページ翻訳を開始するか、現在の画面だけを翻訳できます。"
   },
   "popupIdleStatus": {
-    "message": "Idle Status"
+    "message": "原文を保持し、その下に訳文を表示します。"
   },
   "popupLanguage": {
     "message": "Language"
@@ -558,10 +558,10 @@
     "message": "Showing Translations"
   },
   "popupSkippedTargetLanguageHint": {
-    "message": "Skipped Target Language Hint"
+    "message": "それでも翻訳したい場合は「翻訳開始」をクリックしてください。"
   },
   "popupSkippedTargetLanguageStatus": {
-    "message": "Skipped Target Language Status"
+    "message": "自動翻訳をスキップしました：このページはすでに目標言語です。"
   },
   "popupStartTranslation": {
     "message": "翻訳開始"
@@ -609,10 +609,10 @@
     "message": "現在の画面だけ翻訳"
   },
   "popupUnconfiguredHint": {
-    "message": "Unconfigured Hint"
+    "message": "設定を開いて API 接続を完了してから翻訳してください。"
   },
   "popupUnconfiguredStatus": {
-    "message": "Unconfigured Status"
+    "message": "未準備：API Key とモデルを先に入力してください。"
   },
   "popupUnsupportedConfiguredHint": {
     "message": "Unsupported Configured Hint"
@@ -627,37 +627,37 @@
     "message": "Unsupported Unconfigured Hint"
   },
   "presetAutoToZhCn": {
-    "message": "preset Auto To Zh Cn"
+    "message": "自動 -> 簡体字中国語"
   },
   "presetEnToZhCn": {
-    "message": "preset En To Zh Cn"
+    "message": "英語 -> 簡体字中国語"
   },
   "presetEnToZhTw": {
-    "message": "preset En To Zh Tw"
+    "message": "英語 -> 繁体字中国語"
   },
   "presetZhToEn": {
-    "message": "preset Zh To En"
+    "message": "中国語 -> 英語"
   },
   "providerCustom": {
     "message": "カスタム"
   },
   "providerHintCustom": {
-    "message": "provider Hint Custom"
+    "message": "カスタムの OpenAI 互換サービス向けです。API URL とモデルから思考制御を推定します。"
   },
   "providerHintDashscope": {
-    "message": "provider Hint Dashscope"
+    "message": "DashScope 互換 Qwen エンドポイントです。モデル名は手動で変更できます。"
   },
   "providerHintDeepseek": {
-    "message": "provider Hint Deepseek"
+    "message": "DeepSeek 公式 Chat Completions エンドポイントです。"
   },
   "providerHintLocal": {
-    "message": "provider Hint Local"
+    "message": "セルフホストまたはローカルの OpenAI 互換サービス向けです。"
   },
   "providerHintOpenai": {
-    "message": "provider Hint Openai"
+    "message": "OpenAI 公式 Chat Completions エンドポイントです。"
   },
   "providerHintOpenaiShort": {
-    "message": "provider Hint Openai Short"
+    "message": "OpenAI 公式エンドポイントです。"
   },
   "providerLocal": {
     "message": "ローカル互換サービス"
@@ -768,7 +768,7 @@
     "message": "API Key を表示"
   },
   "statAria": {
-    "message": "statAria"
+    "message": "$1：$2、$3"
   },
   "statCache": {
     "message": "キャッシュ"
@@ -807,22 +807,22 @@
     "message": "オン"
   },
   "summaryWithDot": {
-    "message": "summary With Dot"
+    "message": "$1・$2"
   },
   "testButtonMissingTitle": {
-    "message": "test Button Missing"
+    "message": "必須項目が未入力です。"
   },
   "thinkingHintDashscope": {
-    "message": "thinking Hint Dashscope"
+    "message": "DashScope リクエストに enable_thinking: false を追加します。"
   },
   "thinkingHintDisabled": {
-    "message": "thinking Hint Disabled"
+    "message": "無効：思考制御パラメータはリクエストに追加されません。"
   },
   "thinkingHintNone": {
-    "message": "thinking Hint None"
+    "message": "このサービスでは追加の思考パラメータは不要です。"
   },
   "thinkingHintSelfHosted": {
-    "message": "thinking Hint Self Hosted"
+    "message": "ローカル Qwen 互換サービス向けに chat_template_kwargs.enable_thinking = false を追加します。"
   },
   "tooltipAutoTranslate": {
     "message": "Auto Translate"

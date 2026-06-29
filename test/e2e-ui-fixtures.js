@@ -22,6 +22,7 @@ async function main() {
     await testPopupShowsAutoSkipNotice(browser);
     await testPopupShowsAutoUnconfiguredNotice(browser);
     await testPopupAutoToggleSavesAndTriggersCurrentTab(browser);
+    await testPopupEnglishLayoutDoesNotOverflow(browser);
     await testPopupPrimaryButtonsShowPendingText(browser);
     await testPopupDisplayModeToggleSavesAndApplies(browser);
     await testPopupExplainsUnsupportedPages(browser);
@@ -223,6 +224,70 @@ async function testPopupAutoToggleSavesAndTriggersCurrentTab(browser) {
 
   const status = await page.locator("#status").textContent();
   assert.match(status, /已开启|发现 2 个候选/);
+  await page.close();
+}
+
+async function testPopupEnglishLayoutDoesNotOverflow(browser) {
+  const localeMessages = JSON.parse(fs.readFileSync(path.join(extensionDir, "_locales", "en", "messages.json"), "utf8"));
+  const page = await createPopupPage(browser, {
+    localeMessages,
+    settings: {
+      apiKey: "saved-key",
+      model: "deepseek-chat",
+      provider: "deepseek",
+      sourceLanguage: "English",
+      targetLanguage: "Simplified Chinese",
+      autoTranslate: true
+    },
+    pageStats: {
+      ok: true,
+      active: true,
+      content: { count: 30 },
+      stats: {
+        translated: 0,
+        cacheHits: 0,
+        apiRequested: 0,
+        skippedBudget: 0,
+        failed: 0,
+        translationVisible: true
+      }
+    }
+  });
+
+  await page.setViewportSize({ width: 344, height: 760 });
+  await page.waitForFunction(() => document.getElementById("stateBadge").textContent === "Translating");
+  await page.waitForFunction(() => document.getElementById("configStatus").textContent.includes("DeepSeek"));
+  assert.strictEqual(await page.locator("#configStatus").textContent(), "On · DeepSeek · deepseek-chat");
+  assert.strictEqual(await page.locator("#actionHint").textContent(), "Scroll to translate newly visible text. Hide translations to view the original page.");
+
+  const overflow = await page.evaluate(() => {
+    const body = document.body;
+    const bodyRect = body.getBoundingClientRect();
+    const selectors = [
+      ".brand-bar",
+      ".summary-panel",
+      ".switch-row",
+      ".mode-panel",
+      ".stats",
+      ".button-row",
+      "#options"
+    ];
+
+    return {
+      bodyClientWidth: body.clientWidth,
+      bodyScrollWidth: body.scrollWidth,
+      offenders: selectors
+        .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
+        .map((node) => ({ selector: node.id ? `#${node.id}` : node.className, right: node.getBoundingClientRect().right }))
+        .filter((item) => item.right > bodyRect.right + 1)
+    };
+  });
+
+  assert.ok(
+    overflow.bodyScrollWidth <= overflow.bodyClientWidth + 1,
+    `popup has horizontal overflow: ${JSON.stringify(overflow)}`
+  );
+  assert.deepStrictEqual(overflow.offenders, []);
   await page.close();
 }
 
@@ -661,7 +726,7 @@ async function testOptionsResetPromptRequiresConfirm(browser) {
 async function createPopupPage(browser, options = {}) {
   const page = await browser.newPage();
   await page.setContent(readHtml("popup.html"));
-  await page.evaluate(({ pageStats, settings, autoTranslateResponse, tabUrl, deferredAction }) => {
+  await page.evaluate(({ pageStats, settings, autoTranslateResponse, tabUrl, deferredAction, localeMessages }) => {
     window.__popupSettings = {
       autoTranslate: false,
       apiKey: "",
@@ -673,6 +738,11 @@ async function createPopupPage(browser, options = {}) {
     window.__runtimeMessages = [];
     window.__confirmCalls = [];
     window.__confirmResult = true;
+    const getLocaleMessage = (name, substitutions = []) => {
+      const template = localeMessages?.[name]?.message || "";
+      const values = Array.isArray(substitutions) ? substitutions : [substitutions];
+      return template.replace(/\$(\d+)/g, (_, index) => values[Number(index) - 1] ?? "");
+    };
     window.confirm = (message) => {
       window.__confirmCalls.push(message);
       return window.__confirmResult;
@@ -690,6 +760,9 @@ async function createPopupPage(browser, options = {}) {
         async query() {
           return [{ id: 1, url: tabUrl || "https://example.com" }];
         }
+      },
+      i18n: {
+        getMessage: getLocaleMessage
       },
       runtime: {
         async sendMessage(request) {
@@ -716,7 +789,8 @@ async function createPopupPage(browser, options = {}) {
     settings: options.settings,
     autoTranslateResponse: options.autoTranslateResponse,
     tabUrl: options.tabUrl,
-    deferredAction: options.deferredAction
+    deferredAction: options.deferredAction,
+    localeMessages: options.localeMessages
   });
   await page.evaluate(readText("shared.js"));
   await page.evaluate(readText("popup.js"));

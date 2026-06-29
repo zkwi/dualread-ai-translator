@@ -6,13 +6,13 @@
     "message": "Toggle bilingual translation on the current page"
   },
   "confirmClearCache": {
-    "message": "confirm Clear Cache"
+    "message": "Clear all local translation cache?"
   },
   "confirmResetAll": {
-    "message": "confirm Reset All"
+    "message": "Restore all settings to defaults?"
   },
   "confirmResetPrompt": {
-    "message": "confirm Reset Prompt"
+    "message": "Restore the default translation prompt?"
   },
   "contentErrorRetry": {
     "message": "Translation failed: $1 (click to retry)"
@@ -36,16 +36,16 @@
     "message": "Translate selected text"
   },
   "costHintBalanced": {
-    "message": "cost Hint Balanced"
+    "message": "Recommended for daily reading."
   },
   "costHintCustom": {
-    "message": "cost Hint Custom"
+    "message": "Use your custom limits below."
   },
   "costHintEager": {
-    "message": "cost Hint Eager"
+    "message": "Prefetch more nearby article text for smoother reading, with higher token cost."
   },
   "costHintEconomy": {
-    "message": "cost Hint Economy"
+    "message": "Save tokens by translating fewer nearby blocks."
   },
   "costProfileBalanced": {
     "message": "Balanced: recommended for daily use"
@@ -66,7 +66,7 @@
     "message": "Bilingual"
   },
   "displayModeHelp": {
-    "message": "display Mode"
+    "message": "Choose how translations are displayed in webpages."
   },
   "displayModeLabel": {
     "message": "Display mode"
@@ -75,7 +75,7 @@
     "message": "Translation first: dim original text"
   },
   "displayModeTranslationFirstShort": {
-    "message": "Translation first"
+    "message": "Translation-first"
   },
   "errorApiKeyMissing": {
     "message": "API Key Missing"
@@ -129,19 +129,19 @@
     "message": "AI bilingual webpage translation with original text preserved and translations shown nearby."
   },
   "extensionName": {
-    "message": "extension Name"
+    "message": "DualRead AI Translator"
   },
   "extensionShortName": {
-    "message": "extension Short Name"
+    "message": "DualRead AI"
   },
   "fieldApiUrl": {
-    "message": "field API URL"
+    "message": "API URL"
   },
   "fieldModelName": {
-    "message": "field Model Name"
+    "message": "Model"
   },
   "fieldRequiredConfig": {
-    "message": "field Required Config"
+    "message": "Required config"
   },
   "hide": {
     "message": "Hide"
@@ -186,10 +186,10 @@
     "message": "English -> Simplified Chinese"
   },
   "languageStatusDirection": {
-    "message": "language Status Direction"
+    "message": "Current direction: $1 -> $2."
   },
   "languageStatusSame": {
-    "message": "language Status Same"
+    "message": "Source and target are both $1, so translation is usually unnecessary."
   },
   "listSeparator": {
     "message": ", "
@@ -432,16 +432,16 @@
     "message": "Viewport Only"
   },
   "popupActionHintInitial": {
-    "message": "Click Start translation. Translations will appear below the original text."
+    "message": "Start translating the current page or only the current screen."
   },
   "popupActive": {
     "message": "Enabled."
   },
   "popupActiveHint": {
-    "message": "Active Hint"
+    "message": "Scroll to translate newly visible text. Hide translations to view the original page."
   },
   "popupActiveWithCount": {
-    "message": "Enabled. Found $1 candidate text blocks."
+    "message": "Enabled. $1 text blocks found."
   },
   "popupApiPending": {
     "message": "API not configured"
@@ -459,10 +459,10 @@
     "message": "Auto translate foreign pages"
   },
   "popupAutoUnconfiguredHint": {
-    "message": "Auto Unconfigured Hint"
+    "message": "Configure the API first, then translate the page."
   },
   "popupAutoUnconfiguredStatus": {
-    "message": "Auto Unconfigured Status"
+    "message": "Auto translation did not start: API Key and model are missing."
   },
   "popupBadgeIdle": {
     "message": "Idle"
@@ -531,10 +531,10 @@
     "message": "Hiding Translations"
   },
   "popupIdleHint": {
-    "message": "Idle Hint"
+    "message": "Start page translation, or translate only the current screen."
   },
   "popupIdleStatus": {
-    "message": "Idle Status"
+    "message": "Original text is preserved. Translations appear below it."
   },
   "popupLanguage": {
     "message": "Language"
@@ -558,10 +558,10 @@
     "message": "Showing Translations"
   },
   "popupSkippedTargetLanguageHint": {
-    "message": "Skipped Target Language Hint"
+    "message": "Click Start translation if you still want to force translation."
   },
   "popupSkippedTargetLanguageStatus": {
-    "message": "Skipped Target Language Status"
+    "message": "Auto translation skipped: this page is already in the target language."
   },
   "popupStartTranslation": {
     "message": "Start translation"
@@ -606,13 +606,13 @@
     "message": "Switching Display Mode"
   },
   "popupTranslateCurrentScreen": {
-    "message": "Translate current screen"
+    "message": "Translate screen"
   },
   "popupUnconfiguredHint": {
-    "message": "Unconfigured Hint"
+    "message": "Open settings, complete the API connection, then return to translate."
   },
   "popupUnconfiguredStatus": {
-    "message": "Unconfigured Status"
+    "message": "Not ready: enter an API Key and model first."
   },
   "popupUnsupportedConfiguredHint": {
     "message": "Unsupported Configured Hint"
@@ -627,37 +627,37 @@
     "message": "Unsupported Unconfigured Hint"
   },
   "presetAutoToZhCn": {
-    "message": "preset Auto To Zh Cn"
+    "message": "Auto -> Simplified Chinese"
   },
   "presetEnToZhCn": {
-    "message": "preset En To Zh Cn"
+    "message": "English -> Simplified Chinese"
   },
   "presetEnToZhTw": {
-    "message": "preset En To Zh Tw"
+    "message": "English -> Traditional Chinese"
   },
   "presetZhToEn": {
-    "message": "preset Zh To En"
+    "message": "Chinese -> English"
   },
   "providerCustom": {
     "message": "Custom"
   },
   "providerHintCustom": {
-    "message": "provider Hint Custom"
+    "message": "For custom OpenAI-compatible services. Thinking controls are inferred from the API URL and model."
   },
   "providerHintDashscope": {
-    "message": "provider Hint Dashscope"
+    "message": "DashScope-compatible Qwen endpoint. The model name can be changed manually."
   },
   "providerHintDeepseek": {
-    "message": "provider Hint Deepseek"
+    "message": "Official DeepSeek Chat Completions endpoint."
   },
   "providerHintLocal": {
-    "message": "provider Hint Local"
+    "message": "For self-hosted or local OpenAI-compatible services."
   },
   "providerHintOpenai": {
-    "message": "provider Hint Openai"
+    "message": "Official OpenAI Chat Completions endpoint."
   },
   "providerHintOpenaiShort": {
-    "message": "provider Hint Openai Short"
+    "message": "Official OpenAI endpoint."
   },
   "providerLocal": {
     "message": "Local compatible service"
@@ -684,7 +684,7 @@
     "message": "Testing"
   },
   "scopeCurrentViewport": {
-    "message": "Current screen area"
+    "message": "Current screen"
   },
   "scopeWholePageBudget": {
     "message": "Within page budget"
@@ -768,7 +768,7 @@
     "message": "Show API Key"
   },
   "statAria": {
-    "message": "statAria"
+    "message": "$1: $2, $3"
   },
   "statCache": {
     "message": "Cache"
@@ -795,7 +795,7 @@
     "message": "Skipped"
   },
   "statTranslated": {
-    "message": "Translated"
+    "message": "Done"
   },
   "statTranslatedTitle": {
     "message": "Translated"
@@ -807,22 +807,22 @@
     "message": "On"
   },
   "summaryWithDot": {
-    "message": "summary With Dot"
+    "message": "$1 · $2"
   },
   "testButtonMissingTitle": {
-    "message": "test Button Missing"
+    "message": "Required fields are missing."
   },
   "thinkingHintDashscope": {
-    "message": "thinking Hint Dashscope"
+    "message": "Adds enable_thinking: false to DashScope requests."
   },
   "thinkingHintDisabled": {
-    "message": "thinking Hint Disabled"
+    "message": "Disabled: requests will not include thinking-control parameters."
   },
   "thinkingHintNone": {
-    "message": "thinking Hint None"
+    "message": "This provider does not need extra thinking parameters."
   },
   "thinkingHintSelfHosted": {
-    "message": "thinking Hint Self Hosted"
+    "message": "Adds chat_template_kwargs.enable_thinking = false for local Qwen-compatible services."
   },
   "tooltipAutoTranslate": {
     "message": "Auto Translate"
