@@ -35,6 +35,7 @@
 - Added Chrome extension localization for Simplified Chinese, Traditional Chinese, English, and Japanese across manifest, popup, options, context menus, and in-page prompts.
 - Made the default README English and kept a Simplified Chinese README for local users.
 - Simplified README content, clarified privacy boundaries, and added a public-release audit script for keys, local paths, private files, and unsafe artifacts.
+- Improved GitHub SEO with keyword-focused README headings, use cases, FAQ, package keywords, and repository topics.
 - Bumped the content script version so already-injected older scripts can clearly request a page refresh.
 
 ## 0.4.4

@@ -1,10 +1,14 @@
-# DualRead AI Translator
+# DualRead AI Translator - AI 网页对照翻译 Chrome 插件
 
 [English](README.md)
 
-DualRead AI Translator 是一个个人向 Chrome MV3 网页对照翻译插件。它保留原文，并在附近插入 AI 译文，适合阅读新闻、社交媒体、问答页面、技术文档和长文章。
+DualRead AI Translator 是一个开源 Chrome MV3 AI 网页翻译插件。它保留网页原文，并在附近插入 AI 译文，适合阅读英文新闻、社交媒体、问答页面、技术文档和长文章。
 
-默认翻译方向：英语 -> 简体中文。扩展 UI 支持简体中文、繁體中文、英语和日语。
+它的定位是轻量的 OpenAI-compatible 网页对照翻译工具：使用你自己的 API Key，选择模型，只翻译当前阅读区域，并尽量控制 token 成本。
+
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-4285F4.svg)
+![OpenAI Compatible](https://img.shields.io/badge/API-OpenAI--compatible-111827.svg)
 
 ## 效果预览
 
@@ -12,16 +16,27 @@ DualRead AI Translator 是一个个人向 Chrome MV3 网页对照翻译插件。
 
 ![插件弹窗控制面板](docs/images/popup-demo.png)
 
-## 功能特性
+## 为什么使用 DualRead AI Translator
 
-- 默认对照显示：先显示原文，下方显示译文。
-- 译文优先模式：弱化已翻译原文，但不隐藏原文。
-- 可视区域优先：翻译当前屏及附近内容，而不是默认整页翻译。
-- 支持滚动页、展开正文和延迟加载内容。
-- 自动翻译会检测目标语言，页面已以目标语言为主时自动跳过。
-- 右键翻译当前页面或选中文本。
-- 批量请求、小并发、本地缓存和每页预算，控制 token 成本。
-- 支持自定义提示词和 OpenAI-compatible API 服务。
+- **网页对照翻译**：原文保留在页面中，译文显示在原文下方。
+- **Chrome AI 翻译插件体验**：支持 OpenAI、DeepSeek、DashScope/Qwen、本地模型和自定义 OpenAI-compatible API。
+- **可视区域优先**：优先翻译当前屏及附近内容，而不是默认发送整页文本。
+- **动态页面支持**：支持滚动信息流、展开正文、延迟加载内容和长文章。
+- **自动翻译并跳过目标语言页面**：外文页面自动翻译，已以目标语言为主的页面自动跳过。
+- **右键翻译**：可翻译当前网页，也可只翻译选中文本。
+- **控制 token 成本**：批量请求、小并发、每页预算和本地段落缓存。
+- **隐私边界清晰**：没有项目自有服务器，没有统计分析，没有内置开发者 API Key。
+
+## 适合场景
+
+DualRead 适合：
+
+- 阅读英文新闻网站，并在原文下方查看简体中文译文。
+- 翻译 X/Twitter 帖子、Reddit 讨论、Quora 回答和论坛页面。
+- 阅读技术文档、GitHub README、Wikipedia 文章和技术博客。
+- 学习语言时对照查看原文段落和译文段落。
+
+默认翻译方向：英语 -> 简体中文。扩展 UI 支持简体中文、繁體中文、英语和日语。
 
 ## 安装
 
@@ -47,6 +62,7 @@ API 地址：OpenAI-compatible Chat Completions 接口
 ```text
 OpenAI    https://api.openai.com/v1/chat/completions
 DeepSeek  https://api.deepseek.com/v1/chat/completions
+DashScope https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
 本地服务  http://localhost:8000/v1/chat/completions
 ```
 
@@ -62,6 +78,24 @@ DeepSeek  https://api.deepseek.com/v1/chat/completions
 - **右键选中文本**：只翻译选中的文本。
 
 手动翻译会绕过自动语言跳过判断。自动翻译仍遵守可视区域、每页请求上限和语言检测。
+
+## 常见问题
+
+### DualRead 会翻译整个网页吗？
+
+默认不会。DualRead 优先处理当前可视区域及附近内容，以减少 API 请求和 token 成本。
+
+### 支持哪些 AI 服务商？
+
+任何 OpenAI-compatible Chat Completions API 都可以使用。内置预设包括 OpenAI、DeepSeek、DashScope/Qwen、本地兼容服务和自定义接口。
+
+### API Key 保存在哪里？
+
+API Key 只保存在本机 Chrome 扩展存储中，不会发送到项目自有服务器。
+
+### UI 支持中文、繁体中文和日语吗？
+
+支持。扩展 UI 已包含简体中文、繁體中文、英语和日语。
 
 ## 隐私
 
@@ -98,6 +132,10 @@ node scripts/generate-locales.js
 2. 确认截图不包含 API Key、账号或私人页面。
 3. 确认没有提交 `.env`、`.npmrc`、压缩包、CRX 文件和私钥。
 4. 如果要发布 Git 历史，先检查提交作者姓名和邮箱。
+
+## 关键词
+
+Chrome 翻译插件、AI 网页翻译、网页对照翻译、双语网页翻译、OpenAI-compatible 翻译、DeepSeek 翻译、Qwen 翻译、英译中网页翻译。
 
 ## 链接
 

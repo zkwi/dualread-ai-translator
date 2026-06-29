@@ -1,10 +1,14 @@
-# DualRead AI Translator
+# DualRead AI Translator - AI Bilingual Webpage Translation Chrome Extension
 
 [简体中文](README.zh-CN.md)
 
-DualRead AI Translator is a personal Chrome MV3 extension for bilingual webpage translation. It keeps the original text visible and inserts AI translations nearby, so you can read news, social posts, Q&A pages, documentation, and long articles without losing the source context.
+DualRead AI Translator is an open-source Chrome extension for AI bilingual webpage translation. It keeps the original webpage text visible and inserts AI translations nearby, making it easier to read foreign-language news, social posts, Q&A pages, documentation, and long articles without losing source context.
 
-Default direction: English -> Simplified Chinese. The extension UI supports Simplified Chinese, Traditional Chinese, English, and Japanese.
+It is designed as a lightweight OpenAI-compatible web translator: bring your own API key, choose a model, translate only the current reading area, and keep token cost under control.
+
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Chrome MV3](https://img.shields.io/badge/Chrome-MV3-4285F4.svg)
+![OpenAI Compatible](https://img.shields.io/badge/API-OpenAI--compatible-111827.svg)
 
 ## Preview
 
@@ -12,16 +16,27 @@ Default direction: English -> Simplified Chinese. The extension UI supports Simp
 
 ![Popup control panel](docs/images/popup-demo.png)
 
-## Features
+## Why DualRead AI Translator
 
-- Bilingual display by default: original text first, translation underneath.
-- Translation-first mode: dim translated original text without hiding it.
-- Viewport-first translation: translate the current screen and nearby content instead of the whole page.
-- Dynamic content support for scrolling pages, expanded posts, and delayed loading.
-- Auto translation with target-language skip, so pages already dominated by the target language are ignored.
-- Right-click translation for the current page or selected text.
-- Batch requests, small concurrency, local cache, and per-page budgets to control token cost.
-- Custom prompt and OpenAI-compatible API providers.
+- **Bilingual webpage translation**: original text stays in place, translation appears underneath.
+- **Chrome AI translator workflow**: translate with OpenAI, DeepSeek, DashScope/Qwen, local models, or any OpenAI-compatible API.
+- **Viewport-first translation**: translate the current screen and nearby content instead of sending the whole page.
+- **Dynamic page support**: handle scrolling feeds, expanded posts, late-loaded content, and long articles.
+- **Auto translate with language skip**: translate foreign-language pages automatically and skip pages already dominated by the target language.
+- **Right-click translation**: translate the current webpage or selected text from the context menu.
+- **Cost-aware design**: batch requests, small concurrency, per-page budgets, and local paragraph cache.
+- **Privacy-conscious**: no project server, no analytics, no bundled developer API key.
+
+## Use Cases
+
+DualRead works best for:
+
+- Reading English news websites with Simplified Chinese translations.
+- Translating X/Twitter posts, Reddit threads, Quora answers, and forum pages.
+- Reading documentation, GitHub README files, Wikipedia articles, and technical blogs.
+- Comparing the original paragraph with the translated paragraph while learning a language.
+
+Default direction: English -> Simplified Chinese. The extension UI supports Simplified Chinese, Traditional Chinese, English, and Japanese.
 
 ## Install
 
@@ -47,6 +62,7 @@ Common API URLs:
 ```text
 OpenAI    https://api.openai.com/v1/chat/completions
 DeepSeek  https://api.deepseek.com/v1/chat/completions
+DashScope https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
 Local     http://localhost:8000/v1/chat/completions
 ```
 
@@ -62,6 +78,24 @@ Settings are saved automatically. The project does not include or require any de
 - **Right-click selected text**: translate only the selected text.
 
 Manual translation bypasses the auto-skip decision. Auto translation still respects viewport scope, per-page request limits, and language detection.
+
+## FAQ
+
+### Does DualRead translate the whole page?
+
+Not by default. DualRead focuses on the current viewport and nearby content to reduce API requests and token cost.
+
+### Which AI providers are supported?
+
+Any OpenAI-compatible Chat Completions API can work. Built-in presets cover OpenAI, DeepSeek, DashScope/Qwen, local compatible services, and custom endpoints.
+
+### Where is my API key stored?
+
+The API key is stored locally in Chrome extension storage. It is not sent to any project-owned server.
+
+### Can I use it for Chinese, Japanese, or Traditional Chinese UI?
+
+Yes. The extension UI includes Simplified Chinese, Traditional Chinese, English, and Japanese localization.
 
 ## Privacy
 
@@ -98,6 +132,10 @@ Before sharing or publishing:
 2. Confirm screenshots do not show API keys, accounts, or private pages.
 3. Confirm `.env`, `.npmrc`, archives, CRX files, and private keys are not committed.
 4. If publishing the Git history, check commit author name/email first.
+
+## Keywords
+
+Chrome extension, AI translator, bilingual webpage translation, webpage translator, OpenAI-compatible translator, DeepSeek translator, Qwen translator, browser extension translation, English to Chinese translator.
 
 ## Links
 

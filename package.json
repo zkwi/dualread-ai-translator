@@ -1,9 +1,20 @@
 {
   "name": "dualread-ai-translator",
   "version": "0.4.5",
-  "description": "Chrome MV3 extension for AI bilingual webpage translation.",
+  "description": "Open-source Chrome MV3 extension for AI bilingual webpage translation with OpenAI-compatible providers.",
   "license": "MIT",
   "private": true,
+  "keywords": [
+    "chrome-extension",
+    "ai-translator",
+    "bilingual-translation",
+    "webpage-translation",
+    "openai-compatible",
+    "deepseek",
+    "qwen",
+    "browser-extension",
+    "translation"
+  ],
   "scripts": {
     "audit:public": "node scripts/audit-publication.js",
     "check": "npm run audit:public && node --check shared.js && node --check background.js && node --check content.js && node --check popup.js && node --check options.js && node --check scripts/generate-locales.js && node --check scripts/audit-publication.js && node --check test/shared.test.js && node --check test/background.test.js && node --check test/e2e-local-fixtures.js && node --check test/e2e-ui-fixtures.js && node --check test/e2e-content-samples.js && node --check test/extension-smoke.js",
