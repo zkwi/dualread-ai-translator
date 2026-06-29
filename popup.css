@@ -1,0 +1,384 @@
+body {
+  width: 344px;
+  margin: 0;
+  font-family: "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #172033;
+  background:
+    linear-gradient(180deg, rgba(37, 99, 235, 0.08), transparent 136px),
+    #f7f9fc;
+}
+
+main {
+  padding: 14px;
+}
+
+.brand-bar {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.brand-bar img {
+  border-radius: 50%;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+}
+
+h1 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.15;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+p {
+  min-height: 20px;
+  margin: 3px 0 0;
+  color: #5f6f86;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.badge {
+  min-width: 44px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #e8eef8;
+  color: #42526b;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.badge.is-active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge.is-warning {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.config-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #fed7aa;
+  border-left: 4px solid #f97316;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 13px;
+}
+
+.config-notice span,
+.config-notice strong,
+.config-notice small {
+  display: block;
+}
+
+.config-notice small {
+  margin-top: 2px;
+  color: #b45309;
+  line-height: 1.35;
+}
+
+.config-notice[hidden] {
+  display: none;
+}
+
+.summary-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.summary-panel div {
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 1px solid #dde5f0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.summary-panel span,
+.summary-panel strong {
+  display: block;
+}
+
+.summary-panel span {
+  color: #6b7a90;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.summary-panel strong {
+  overflow: hidden;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  margin-bottom: 10px;
+  padding: 9px 10px;
+  border: 1px solid #dde5f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.switch-row strong,
+.switch-row small {
+  display: block;
+}
+
+.switch-row strong {
+  font-size: 13px;
+}
+
+.switch-row small {
+  margin-top: 2px;
+  color: #6b7a90;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.switch-row input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  accent-color: #2563eb;
+}
+
+.mode-panel {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid #dde5f0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.mode-panel > span {
+  color: #6b7a90;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 8px;
+  background: #e6edf6;
+}
+
+.segmented-control button {
+  height: 30px;
+  margin: 0;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: transparent;
+  color: #42526b;
+  font-size: 12px;
+}
+
+.segmented-control button.is-selected {
+  background: #ffffff;
+  color: #172033;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.stat {
+  min-height: 42px;
+  padding: 7px 6px;
+  border: 1px solid #dde5f0;
+  border-radius: 8px;
+  background: white;
+  text-align: center;
+}
+
+.stat strong {
+  display: block;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1;
+  text-overflow: ellipsis;
+}
+
+.stat span {
+  display: block;
+  margin-top: 5px;
+  color: #6b7a90;
+  font-size: 11px;
+}
+
+.action-hint {
+  min-height: 0;
+  margin: -2px 0 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  background: rgba(37, 99, 235, 0.07);
+  color: #31527c;
+  font-size: 12px;
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+button {
+  width: 100%;
+  height: 38px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+button.secondary {
+  background: #e6edf6;
+  color: #172033;
+}
+
+button.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+button.link {
+  height: 32px;
+  background: transparent;
+  color: #2563eb;
+}
+
+.config-notice button {
+  width: auto;
+  height: 30px;
+  margin: 0;
+  padding: 0 12px;
+  background: #f97316;
+  font-size: 13px;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: #e5edf7;
+    background:
+      linear-gradient(180deg, rgba(96, 165, 250, 0.14), transparent 136px),
+      #0b1120;
+  }
+
+  p,
+  .summary-panel span,
+  .switch-row small,
+  .mode-panel > span,
+  .stat span {
+    color: #9aa8ba;
+  }
+
+  .badge {
+    background: #1e293b;
+    color: #cbd5e1;
+  }
+
+  .badge.is-active {
+    background: rgba(22, 101, 52, 0.32);
+    color: #86efac;
+  }
+
+  .badge.is-warning {
+    background: rgba(154, 52, 18, 0.28);
+    color: #fdba74;
+  }
+
+  .summary-panel div,
+  .switch-row,
+  .mode-panel,
+  .stat {
+    border-color: #263247;
+    background: rgba(17, 24, 39, 0.86);
+  }
+
+  .config-notice {
+    border-color: rgba(251, 146, 60, 0.38);
+    border-left-color: #fb923c;
+    background: rgba(154, 52, 18, 0.22);
+    color: #fed7aa;
+  }
+
+  .config-notice small {
+    color: #fdba74;
+  }
+
+  .action-hint {
+    border-color: rgba(96, 165, 250, 0.24);
+    background: rgba(96, 165, 250, 0.13);
+    color: #bfdbfe;
+  }
+
+  .segmented-control {
+    background: #1e293b;
+  }
+
+  .segmented-control button {
+    color: #cbd5e1;
+  }
+
+  .segmented-control button.is-selected {
+    background: #0f172a;
+    color: #f8fafc;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  button.secondary {
+    background: #1e293b;
+    color: #e5edf7;
+  }
+
+  button.danger {
+    background: rgba(127, 29, 29, 0.38);
+    color: #fecaca;
+  }
+}

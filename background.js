@@ -1,0 +1,994 @@
+importScripts("shared.js");
+
+const DEFAULT_SETTINGS = LLMTranslatorShared.DEFAULT_SETTINGS;
+const LEGACY_DEFAULT_API_TIMEOUT_MS = LLMTranslatorShared.LEGACY_DEFAULT_API_TIMEOUT_MS;
+const THINKING_CONTROL = {
+  NONE: "none",
+  DASHSCOPE: "dashscope",
+  SELF_HOSTED: "self-hosted"
+};
+const CONTEXT_MENU_TRANSLATE_PAGE = "llm_translate_page";
+const CONTEXT_MENU_TRANSLATE_SELECTION = "llm_translate_selection";
+const CACHE_PRUNE_INTERVAL_MS = 30000;
+const activeTabs = new Map();
+const tabNotices = new Map();
+let lastCachePruneAt = 0;
+let cachePrunePromise = null;
+
+chrome.runtime.onInstalled.addListener(async () => {
+  const existing = await chrome.storage.local.get(Object.keys(DEFAULT_SETTINGS));
+  const missing = {};
+
+  for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+    if (existing[key] === undefined) {
+      missing[key] = value;
+    }
+  }
+
+  if (Object.keys(missing).length > 0) {
+    await chrome.storage.local.set(missing);
+  }
+
+  await setupContextMenus();
+  await autoTranslateActiveTabs();
+});
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  return handleContextMenuClick(info, tab).catch((error) => {
+    console.warn("Context menu translation failed:", error);
+  });
+});
+
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command !== "toggle_translation") return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id) {
+    await toggleTranslation(tab);
+  }
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  return autoTranslateActiveTabs().catch((error) => {
+    console.warn("Startup auto translation failed:", error);
+  });
+});
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "get_settings") {
+    getSettings().then(sendResponse);
+    return true;
+  }
+
+  if (request.action === "toggle_translation") {
+    toggleTranslation(request.tab)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (request.action === "clear_translation") {
+    clearTranslation(request.tab)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (request.action === "scan_current_area") {
+    scanCurrentArea(request.tab)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (request.action === "auto_translate_tab") {
+    autoTranslateTab(request.tab)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (request.action === "set_translation_visibility") {
+    setTranslationVisibility(request.tab, request.visible)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (request.action === "set_display_mode") {
+    setDisplayMode(request.tab, request.displayMode)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (request.action === "get_page_stats") {
+    getPageStats(request.tab)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message, active: false, stats: getEmptyStats() }));
+    return true;
+  }
+
+  if (request.action === "translate_batch") {
+    translateBatch(request.items || [])
+      .then(sendResponse)
+      .catch((error) => {
+        const items = request.items || [];
+        sendResponse({
+          ok: false,
+          error: error.message,
+          results: items.map((item) => ({ id: item.id, error: error.message }))
+        });
+      });
+    return true;
+  }
+
+  if (request.action === "test_api") {
+    testApi(request.settings)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (request.action === "clear_cache") {
+    clearTranslationCache()
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (request.action === "get_tab_state") {
+    sendResponse({ ok: true, active: !!activeTabs.get(request.tabId) });
+    return false;
+  }
+
+  return false;
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local") return;
+  if (!shouldRecheckAutoTranslate(changes)) return;
+
+  return getSettings()
+    .then((settings) => {
+      if (!settings.autoTranslate || !settings.apiKey || !settings.model) return [];
+      return autoTranslateActiveTabs();
+    })
+    .catch((error) => {
+      console.warn("Auto translation after settings change failed:", error);
+    });
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  activeTabs.delete(tabId);
+  tabNotices.delete(tabId);
+});
+
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  return chrome.tabs.get(activeInfo.tabId)
+    .then((tab) => autoTranslateTab(tab))
+    .catch((error) => {
+      console.warn("Auto translation on tab activation failed:", error);
+    });
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === "loading") {
+    activeTabs.delete(tabId);
+    tabNotices.delete(tabId);
+  }
+});
+
+async function getSettings() {
+  const settings = await chrome.storage.local.get(DEFAULT_SETTINGS);
+  const updates = {};
+  if (LLMTranslatorShared.isLegacyDefaultTranslationPrompt(settings.translationPrompt)) {
+    settings.translationPrompt = DEFAULT_SETTINGS.translationPrompt;
+    updates.translationPrompt = settings.translationPrompt;
+  }
+  if (LEGACY_DEFAULT_API_TIMEOUT_MS.includes(Number(settings.apiTimeoutMs))) {
+    settings.apiTimeoutMs = DEFAULT_SETTINGS.apiTimeoutMs;
+    updates.apiTimeoutMs = settings.apiTimeoutMs;
+  }
+  if (Object.keys(updates).length > 0) {
+    await chrome.storage.local.set(updates);
+  }
+  return settings;
+}
+
+function isInjectableTab(tab) {
+  if (!tab?.id || !tab.url) return false;
+  return tab.url.startsWith("http://") || tab.url.startsWith("https://") || tab.url.startsWith("file://");
+}
+
+function shouldRecheckAutoTranslate(changes) {
+  const keys = [
+    "autoTranslate",
+    "apiKey",
+    "provider",
+    "apiUrl",
+    "model",
+    "sourceLanguage",
+    "targetLanguage",
+    "translationPrompt",
+    "viewportOnly",
+    "maxElementsPerScan",
+    "maxTextLength",
+    "maxRequestsPerPage",
+    "maxCharsPerPage",
+    "maxCharsPerBatch",
+    "maxConcurrentBatches"
+  ];
+  return keys.some((key) => Object.prototype.hasOwnProperty.call(changes, key));
+}
+
+async function ensureContentScript(tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["shared.js", "content.js"]
+  });
+}
+
+async function setupContextMenus() {
+  await chrome.contextMenus.removeAll();
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_TRANSLATE_PAGE,
+    title: "翻译当前页面",
+    contexts: ["page"]
+  });
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_TRANSLATE_SELECTION,
+    title: "翻译选中文本",
+    contexts: ["selection"]
+  });
+}
+
+async function handleContextMenuClick(info, tab) {
+  if (info.menuItemId === CONTEXT_MENU_TRANSLATE_PAGE) {
+    const response = await startTranslation(tab);
+    if (!response.ok) {
+      await showPageNotice(tab, response.error || "翻译启动失败。", true);
+    } else if (response.content?.message === "already active") {
+      await showPageNotice(tab, "翻译已开启。可滚动页面或点击插件里的“只翻译当前屏”。");
+    }
+    return;
+  }
+
+  if (info.menuItemId === CONTEXT_MENU_TRANSLATE_SELECTION) {
+    await translateSelection(tab, info.selectionText || "");
+  }
+}
+
+async function showPageNotice(tab, text, isError = false) {
+  if (!isInjectableTab(tab)) return;
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: renderPageNotice,
+      args: [String(text || ""), !!isError]
+    });
+  } catch (error) {
+    console.warn("Failed to show page notice:", error);
+  }
+}
+
+function renderPageNotice(text, isError) {
+  const existing = document.querySelector(".llm-bilingual-page-notice");
+  if (existing) existing.remove();
+
+  const notice = document.createElement("div");
+  notice.className = `llm-bilingual-page-notice${isError ? " is-error" : ""}`;
+  notice.textContent = text;
+  notice.setAttribute("role", "status");
+  notice.style.position = "fixed";
+  notice.style.top = "16px";
+  notice.style.right = "16px";
+  notice.style.zIndex = "2147483647";
+  notice.style.maxWidth = "min(420px, calc(100vw - 32px))";
+  notice.style.padding = "12px 14px";
+  notice.style.borderRadius = "8px";
+  notice.style.boxShadow = "0 14px 32px rgba(15, 23, 42, 0.18)";
+  notice.style.font = "15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  notice.style.whiteSpace = "normal";
+  notice.style.wordBreak = "break-word";
+  notice.style.color = isError ? "#991b1b" : "#1e3a8a";
+  notice.style.background = isError ? "#fff1f2" : "#eff6ff";
+  notice.style.border = `1px solid ${isError ? "#fecdd3" : "#bfdbfe"}`;
+  notice.style.borderLeft = `4px solid ${isError ? "#ef4444" : "#2563eb"}`;
+
+  document.documentElement.appendChild(notice);
+  window.setTimeout(() => notice.remove(), 5000);
+}
+
+async function toggleTranslation(tab) {
+  if (!isInjectableTab(tab)) {
+    return { ok: false, error: "当前页面不支持注入脚本，请换一个普通网页测试。" };
+  }
+
+  const isActive = !!activeTabs.get(tab.id);
+  if (!isActive) {
+    const configured = await ensureTranslationConfigured(tab);
+    if (!configured.ok) return configured;
+  }
+
+  await ensureContentScript(tab.id);
+
+  const nextAction = isActive ? "stop_translation" : "start_translation";
+  const response = await chrome.tabs.sendMessage(tab.id, { action: nextAction });
+
+  activeTabs.set(tab.id, !isActive);
+  tabNotices.delete(tab.id);
+  return { ok: true, active: !isActive, content: response };
+}
+
+async function startTranslation(tab, options = {}) {
+  if (!isInjectableTab(tab)) {
+    return { ok: false, error: "当前页面不支持注入脚本。" };
+  }
+
+  if (!options.auto) {
+    const configured = await ensureTranslationConfigured(tab);
+    if (!configured.ok) return configured;
+  }
+
+  await ensureContentScript(tab.id);
+  const message = options.auto ? { action: "start_translation", auto: true } : { action: "start_translation" };
+  const response = await chrome.tabs.sendMessage(tab.id, message);
+  const active = !!response?.ok && !response.skipped;
+  activeTabs.set(tab.id, active);
+  if (response?.skipped) {
+    tabNotices.set(tab.id, {
+      type: "info",
+      reason: response.reason || "skipped"
+    });
+  } else {
+    tabNotices.delete(tab.id);
+  }
+
+  return { ok: true, active, content: response };
+}
+
+async function autoTranslateTab(tab) {
+  if (!isInjectableTab(tab)) {
+    return { ok: false, skipped: true, reason: "unsupported-tab" };
+  }
+
+  const settings = await getSettings();
+  if (!settings.autoTranslate) {
+    return { ok: true, skipped: true, reason: "disabled" };
+  }
+
+  if (!settings.apiKey || !settings.model) {
+    tabNotices.set(tab.id, {
+      type: "warning",
+      reason: "unconfigured"
+    });
+    return { ok: true, skipped: true, reason: "unconfigured" };
+  }
+
+  return startTranslation(tab, { auto: true });
+}
+
+async function ensureTranslationConfigured(tab) {
+  const settings = await getSettings();
+
+  try {
+    validateSettings(settings);
+  } catch (error) {
+    if (tab?.id) {
+      tabNotices.set(tab.id, {
+        type: "warning",
+        reason: "unconfigured"
+      });
+    }
+    return { ok: false, error: error.message, active: false };
+  }
+
+  if (tab?.id) {
+    tabNotices.delete(tab.id);
+  }
+  return { ok: true };
+}
+
+async function autoTranslateActiveTabs() {
+  const tabs = await chrome.tabs.query({ active: true });
+  const results = [];
+
+  for (const tab of tabs) {
+    if (!isInjectableTab(tab)) continue;
+    results.push(await autoTranslateTab(tab));
+  }
+
+  return results;
+}
+
+async function translateSelection(tab, selectionText) {
+  if (!isInjectableTab(tab)) {
+    return { ok: false, error: "当前页面不支持注入脚本。" };
+  }
+
+  await ensureContentScript(tab.id);
+
+  const settings = await getSettings();
+  try {
+    validateSettings(settings);
+  } catch (error) {
+    await chrome.tabs.sendMessage(tab.id, {
+      action: "show_selection_translation",
+      originalText: normalizeSelectionText(selectionText),
+      error: error.message
+    });
+    return { ok: false, error: error.message };
+  }
+
+  const costSettings = LLMTranslatorShared.normalizeCostSettings(settings);
+  const originalText = normalizeSelectionText(selectionText).slice(0, costSettings.maxTextLength);
+  if (!originalText) {
+    return { ok: false, error: "没有可翻译的选中文本。" };
+  }
+
+  if (LLMTranslatorShared.isLikelyTargetLanguageText(originalText, settings.targetLanguage)) {
+    await chrome.tabs.sendMessage(tab.id, {
+      action: "show_selection_translation",
+      originalText,
+      notice: "选中文本已是目标语言，无需翻译。"
+    });
+    return { ok: true, skipped: true, reason: "target-language" };
+  }
+
+  try {
+    const response = await translateBatch([{ id: "selection", text: originalText }]);
+    const result = response.results?.[0];
+    await chrome.tabs.sendMessage(tab.id, {
+      action: "show_selection_translation",
+      originalText,
+      translatedText: result?.text || "",
+      error: result?.error || ""
+    });
+    return { ok: true };
+  } catch (error) {
+    await chrome.tabs.sendMessage(tab.id, {
+      action: "show_selection_translation",
+      originalText,
+      error: error.message
+    });
+    return { ok: false, error: error.message };
+  }
+}
+
+function normalizeSelectionText(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+async function clearTranslation(tab) {
+  if (!isInjectableTab(tab)) {
+    return { ok: false, error: "当前页面不支持注入脚本。" };
+  }
+
+  await ensureContentScript(tab.id);
+  activeTabs.set(tab.id, false);
+  tabNotices.delete(tab.id);
+  const response = await chrome.tabs.sendMessage(tab.id, { action: "clear_translation" });
+  return { ok: true, active: false, content: response };
+}
+
+async function scanCurrentArea(tab) {
+  if (!isInjectableTab(tab)) {
+    return { ok: false, error: "当前页面不支持注入脚本。" };
+  }
+
+  const configured = await ensureTranslationConfigured(tab);
+  if (!configured.ok) return configured;
+
+  await ensureContentScript(tab.id);
+  const response = await chrome.tabs.sendMessage(tab.id, { action: "scan_current_area" });
+  if (response?.ok) {
+    activeTabs.set(tab.id, true);
+    tabNotices.delete(tab.id);
+  }
+
+  return { ok: true, active: true, content: response };
+}
+
+async function setTranslationVisibility(tab, visible) {
+  if (!isInjectableTab(tab)) {
+    return { ok: false, error: "当前页面不支持注入脚本。" };
+  }
+
+  await ensureContentScript(tab.id);
+  const response = await chrome.tabs.sendMessage(tab.id, {
+    action: "set_translation_visibility",
+    visible
+  });
+
+  return { ok: true, active: !!activeTabs.get(tab.id), content: response };
+}
+
+async function setDisplayMode(tab, displayMode) {
+  if (!isInjectableTab(tab)) {
+    return { ok: false, error: "当前页面不支持注入脚本。" };
+  }
+
+  await ensureContentScript(tab.id);
+  const response = await chrome.tabs.sendMessage(tab.id, {
+    action: "set_display_mode",
+    displayMode
+  });
+
+  return { ok: true, active: !!activeTabs.get(tab.id), content: response };
+}
+
+async function getPageStats(tab) {
+  if (!isInjectableTab(tab)) {
+    return { ok: true, active: false, stats: getEmptyStats() };
+  }
+
+  try {
+    const response = await chrome.tabs.sendMessage(tab.id, { action: "get_page_stats" });
+    return {
+      ok: true,
+      active: !!response?.active,
+      stats: response?.stats || getEmptyStats(),
+      notice: tabNotices.get(tab.id) || null
+    };
+  } catch (error) {
+    activeTabs.set(tab.id, false);
+    return { ok: true, active: false, stats: getEmptyStats(), notice: tabNotices.get(tab.id) || null };
+  }
+}
+
+async function translateBatch(items) {
+  if (!items.length) {
+    return { ok: true, results: [], meta: { cacheHits: 0, requested: 0 } };
+  }
+
+  const settings = await getSettings();
+  validateSettings(settings);
+
+  // 按文本块内部换行拆分缓存，批量请求仍高效，重复段落也能单独命中缓存。
+  const segmentPlan = createSegmentCachePlan(items);
+  if (!segmentPlan.segments.length) {
+    return {
+      ok: true,
+      results: items.map((item) => ({ id: item.id, error: "没有获取到译文。" })),
+      meta: { cacheHits: 0, requested: 0 }
+    };
+  }
+
+  const cachedResults = await getCachedResults(settings, segmentPlan.segments);
+  const missingSegments = segmentPlan.segments.filter((segment) => !cachedResults.has(segment.id));
+  const freshResults = missingSegments.length > 0
+    ? await requestTranslations(settings, missingSegments)
+    : [];
+
+  if (freshResults.length > 0) {
+    await saveResultsToCache(settings, missingSegments, freshResults);
+  }
+
+  const segmentResults = new Map(cachedResults);
+  for (const result of freshResults) {
+    segmentResults.set(result.id, result);
+  }
+
+  const results = segmentPlan.parents.map((parent) => composeParentTranslation(parent, segmentResults));
+
+  return {
+    ok: true,
+    results,
+    meta: {
+      cacheHits: cachedResults.size,
+      requested: missingSegments.length
+    }
+  };
+}
+
+function createSegmentCachePlan(items) {
+  const segments = [];
+  const parents = items.map((item) => {
+    const parts = splitItemIntoCacheParts(item);
+    for (const part of parts) {
+      if (part.type === "segment") {
+        segments.push({
+          id: part.id,
+          parentId: item.id,
+          text: part.text
+        });
+      }
+    }
+    return { id: item.id, parts };
+  });
+
+  return { parents, segments };
+}
+
+function splitItemIntoCacheParts(item) {
+  const text = String(item?.text || "").replace(/\r\n?/g, "\n");
+  const tokens = text.split(/(\n+)/);
+  const parts = [];
+
+  for (const token of tokens) {
+    if (!token) continue;
+
+    if (/^\n+$/.test(token)) {
+      if (parts.length > 0) {
+        parts.push({ type: "separator", text: token });
+      }
+      continue;
+    }
+
+    const segmentText = token.trim();
+    if (!segmentText) continue;
+
+    parts.push({
+      type: "segment",
+      id: "",
+      text: segmentText
+    });
+  }
+
+  const segmentCount = parts.filter((part) => part.type === "segment").length;
+  let segmentIndex = 0;
+  for (const part of parts) {
+    if (part.type !== "segment") continue;
+    part.id = segmentCount === 1 ? item.id : `${item.id}::segment-${segmentIndex}`;
+    segmentIndex += 1;
+  }
+
+  return parts;
+}
+
+function composeParentTranslation(parent, segmentResults) {
+  let text = "";
+
+  for (const part of parent.parts) {
+    if (part.type === "separator") {
+      text += part.text;
+      continue;
+    }
+
+    const result = segmentResults.get(part.id);
+    if (!result || result.error || !result.text) {
+      return {
+        id: parent.id,
+        error: result?.error || "模型未返回该段落的译文。"
+      };
+    }
+
+    text += String(result.text).trim();
+  }
+
+  return {
+    id: parent.id,
+    text: text.replace(/\n{3,}/g, "\n\n").trim()
+  };
+}
+
+function getEmptyStats() {
+  return {
+    scanned: 0,
+    queued: 0,
+    translated: 0,
+    failed: 0,
+    skippedBudget: 0,
+    cacheHits: 0,
+    apiRequested: 0,
+    translationVisible: true
+  };
+}
+
+async function testApi(settings) {
+  const mergedSettings = { ...DEFAULT_SETTINGS, ...(settings || {}) };
+  validateSettings(mergedSettings);
+
+  const results = await requestTranslations(mergedSettings, [
+    { id: "test", text: "Hello world." }
+  ]);
+
+  const result = results[0];
+  if (!result || result.error) {
+    throw new Error(result?.error || "测试请求没有返回译文。");
+  }
+
+  return { ok: true, text: result.text };
+}
+
+function validateSettings(settings) {
+  if (!settings.apiKey) {
+    throw new Error("当前扩展没有读取到 API Key。请打开设置页确认已保存；如果已经填过，可能是加载了另一个扩展实例。");
+  }
+
+  if (!settings.model) {
+    throw new Error("请先在选项页填写模型名称。");
+  }
+}
+
+async function getCachedResults(settings, items) {
+  const keysById = new Map(items.map((item) => [
+    item.id,
+    LLMTranslatorShared.createTranslationCacheKey(settings, item.text)
+  ]));
+
+  const cached = await chrome.storage.local.get(Array.from(keysById.values()));
+  const results = new Map();
+  const staleKeys = [];
+
+  for (const item of items) {
+    const key = keysById.get(item.id);
+    const value = cached[key];
+    if (LLMTranslatorShared.isTranslationCacheEntryFresh(value, settings)) {
+      results.set(item.id, { id: item.id, text: value.text, cached: true });
+    } else if (value?.text) {
+      staleKeys.push(key);
+    }
+  }
+
+  if (staleKeys.length > 0) {
+    await chrome.storage.local.remove(staleKeys);
+  }
+
+  return results;
+}
+
+async function saveResultsToCache(settings, items, results) {
+  const textById = new Map(items.map((item) => [item.id, item.text]));
+  const updates = {};
+
+  for (const result of results) {
+    if (!result?.text || result.error) continue;
+    const originalText = textById.get(result.id);
+    if (!originalText) continue;
+
+    const key = LLMTranslatorShared.createTranslationCacheKey(settings, originalText);
+    updates[key] = {
+      text: result.text,
+      savedAt: Date.now()
+    };
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await chrome.storage.local.set(updates);
+    await maybePruneTranslationCache(settings);
+  }
+}
+
+async function maybePruneTranslationCache(settings) {
+  if (cachePrunePromise) return cachePrunePromise;
+
+  const now = Date.now();
+  if (lastCachePruneAt > 0 && now - lastCachePruneAt < CACHE_PRUNE_INTERVAL_MS) {
+    return;
+  }
+
+  lastCachePruneAt = now;
+  cachePrunePromise = pruneTranslationCache(settings).finally(() => {
+    cachePrunePromise = null;
+  });
+  return cachePrunePromise;
+}
+
+async function pruneTranslationCache(settings) {
+  const cacheSettings = LLMTranslatorShared.normalizeCacheSettings(settings);
+  const all = await chrome.storage.local.get(null);
+  const entries = Object.entries(all)
+    .filter(([key, value]) => key.startsWith(LLMTranslatorShared.CACHE_PREFIX) && value?.text)
+    .map(([key, value]) => ({
+      key,
+      savedAt: Number(value.savedAt) || 0
+    }));
+
+  if (entries.length <= cacheSettings.maxCacheEntries) return;
+
+  entries.sort((a, b) => a.savedAt - b.savedAt);
+  const removeKeys = entries
+    .slice(0, entries.length - cacheSettings.maxCacheEntries)
+    .map((entry) => entry.key);
+
+  if (removeKeys.length > 0) {
+    await chrome.storage.local.remove(removeKeys);
+  }
+}
+
+async function clearTranslationCache() {
+  const all = await chrome.storage.local.get(null);
+  const cacheKeys = Object.keys(all).filter((key) => key.startsWith(LLMTranslatorShared.CACHE_PREFIX));
+  if (cacheKeys.length > 0) {
+    await chrome.storage.local.remove(cacheKeys);
+  }
+
+  return { ok: true, count: cacheKeys.length };
+}
+
+async function requestTranslations(settings, items) {
+  const url = LLMTranslatorShared.normalizeChatCompletionsUrl(settings.apiUrl);
+  const prompt = buildTranslationPrompt(settings, items);
+  const body = buildChatCompletionBody(settings, prompt);
+
+  const response = await fetchWithOneRetry(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${settings.apiKey}`
+    },
+    body: JSON.stringify(body)
+  }, settings);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API 请求失败：${response.status} ${errorText.slice(0, 240)}`);
+  }
+
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error("API 返回中没有 choices[0].message.content。");
+  }
+
+  const parsed = parseTranslationJson(content);
+  return normalizeResults(parsed, items);
+}
+
+function buildChatCompletionBody(settings, prompt) {
+  const body = {
+    model: settings.model,
+    temperature: 0.2,
+    messages: [
+      {
+        role: "system",
+        content: "You are a precise webpage translation engine. Keep meaning, tone, names, numbers, URLs, and code unchanged. Output only valid JSON."
+      },
+      {
+        role: "user",
+        content: prompt
+      }
+    ]
+  };
+
+  applyThinkingControl(body, settings);
+  return body;
+}
+
+function applyThinkingControl(body, settings) {
+  if (settings.disableThinking !== true) return;
+
+  const control = getThinkingControlType(settings);
+  if (control === THINKING_CONTROL.DASHSCOPE) {
+    body.enable_thinking = false;
+    return;
+  }
+
+  if (control === THINKING_CONTROL.SELF_HOSTED) {
+    body.chat_template_kwargs = {
+      ...(body.chat_template_kwargs || {}),
+      enable_thinking: false
+    };
+  }
+}
+
+function getThinkingControlType(settings) {
+  const provider = String(settings.provider || "").toLowerCase();
+  const apiUrl = String(settings.apiUrl || "").toLowerCase();
+  const model = String(settings.model || "").toLowerCase();
+
+  if (provider === "dashscope" || apiUrl.includes("dashscope") || apiUrl.includes("aliyuncs.com")) {
+    return THINKING_CONTROL.DASHSCOPE;
+  }
+  if (isQwenLikeModel(model) && (provider === "local" || isLocalOrTemplateServer(apiUrl))) {
+    return THINKING_CONTROL.SELF_HOSTED;
+  }
+  if (provider === "openai" || provider === "deepseek") return THINKING_CONTROL.NONE;
+
+  return THINKING_CONTROL.NONE;
+}
+
+function isQwenLikeModel(model) {
+  return String(model || "").includes("qwen");
+}
+
+function isLocalOrTemplateServer(apiUrl) {
+  const value = String(apiUrl || "");
+  return (
+    value.includes("localhost") ||
+    value.includes("127.0.0.1") ||
+    value.includes("vllm") ||
+    value.includes("sglang")
+  );
+}
+
+async function fetchWithOneRetry(url, options, settings) {
+  let lastError = null;
+  const timeoutMs = getApiTimeoutMs(settings);
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetchWithTimeout(url, options, timeoutMs);
+      if (response.ok || !isRetriableStatus(response.status) || attempt === 1) {
+        return response;
+      }
+    } catch (error) {
+      lastError = error;
+      if (isTimeoutError(error)) {
+        throw error;
+      }
+      if (attempt === 1) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError || new Error("API 请求失败。");
+}
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      const timeoutError = new Error(`API 请求超时（${Math.round(timeoutMs / 1000)} 秒）。`);
+      timeoutError.name = "TimeoutError";
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function getApiTimeoutMs(settings) {
+  const value = Number(settings?.apiTimeoutMs);
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_SETTINGS.apiTimeoutMs;
+}
+
+function isTimeoutError(error) {
+  return error?.name === "TimeoutError";
+}
+
+function isRetriableStatus(status) {
+  return status === 429 || status >= 500;
+}
+
+function buildTranslationPrompt(settings, items) {
+  return [
+    LLMTranslatorShared.resolveTranslationPrompt(settings),
+    "",
+    "Input JSON array:",
+    JSON.stringify(items.map((item) => ({ id: item.id, text: item.text })))
+  ].join("\n");
+}
+
+function parseTranslationJson(content) {
+  const cleaned = content
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch (error) {
+    const start = cleaned.indexOf("[");
+    const end = cleaned.lastIndexOf("]");
+    if (start >= 0 && end > start) {
+      return JSON.parse(cleaned.slice(start, end + 1));
+    }
+    throw new Error(`无法解析模型返回的 JSON：${error.message}`);
+  }
+}
+
+function normalizeResults(parsed, originalItems) {
+  const array = Array.isArray(parsed) ? parsed : parsed.results;
+  if (!Array.isArray(array)) {
+    throw new Error("模型返回不是 JSON 数组。");
+  }
+
+  const byId = new Map(array.map((item) => [String(item.id), item]));
+  return originalItems.map((item) => {
+    const translated = byId.get(String(item.id));
+    if (!translated?.text) {
+      return { id: item.id, error: "模型未返回该段落的译文。" };
+    }
+    return { id: item.id, text: String(translated.text).trim() };
+  });
+}

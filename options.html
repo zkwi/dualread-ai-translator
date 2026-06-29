@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DualRead AI 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <img src="icons/icon48.png" alt="" width="44" height="44">
+      <div>
+        <h1>DualRead AI</h1>
+        <p>网页对照翻译设置。修改后会自动保存。</p>
+      </div>
+      <span id="saveState" class="save-state">自动保存</span>
+    </header>
+
+    <section class="section setup-section">
+      <div class="section-head">
+        <div>
+          <h2>快速开始</h2>
+          <p>多数情况下只需要完成这三步。</p>
+        </div>
+        <span>API</span>
+      </div>
+
+      <ol class="setup-steps">
+        <li>选择服务商</li>
+        <li>填写 API Key</li>
+        <li>点击测试 API</li>
+      </ol>
+
+      <div class="grid">
+        <label>
+          服务商
+          <select id="provider">
+            <option value="openai">OpenAI</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="dashscope">DashScope / Qwen</option>
+            <option value="local">本地兼容服务</option>
+            <option value="custom">自定义</option>
+          </select>
+          <small id="providerHint" class="field-help">使用 OpenAI 官方 Chat Completions 接口。</small>
+        </label>
+
+        <label>
+          模型名称
+          <input id="model" placeholder="gpt-4o-mini">
+          <small class="field-help">选择服务商后会自动填入推荐模型，也可以手动修改。</small>
+        </label>
+      </div>
+
+      <label>
+        API Key
+        <span class="secret-row">
+          <input id="apiKey" type="password" placeholder="sk-...">
+          <button id="toggleApiKey" type="button" class="inline-button">显示</button>
+        </span>
+        <small class="field-help">只保存在本机 Chrome 扩展存储中，不会上传到本项目服务器。</small>
+      </label>
+
+      <div class="connection-settings" aria-labelledby="connectionSettingsTitle">
+        <h3 id="connectionSettingsTitle">高级连接设置</h3>
+
+        <label>
+          Chat Completions API 地址
+          <input id="apiUrl" placeholder="https://api.openai.com/v1/chat/completions">
+          <small class="field-help">兼容 OpenAI 格式的代理或本地服务也可以填写这里。</small>
+        </label>
+
+        <div class="grid">
+          <label>
+            API 最长等待时间（秒）
+            <input id="apiTimeoutMs" type="number" min="1" max="300" step="1">
+            <small class="field-help">网络慢或模型响应慢时可以调大，默认 120 秒。</small>
+          </label>
+
+          <label class="checkbox compact-checkbox">
+            <input id="disableThinking" type="checkbox">
+            <span>
+              自动关闭可控思考模式
+              <small id="thinkingHint">当前服务商不会添加额外思考参数。</small>
+            </span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>语言</h2>
+          <p>默认英译中；如果页面已是目标语言，会自动跳过。</p>
+        </div>
+        <span>Language</span>
+      </div>
+
+      <div class="preset-row" aria-label="常用语言组合">
+        <button type="button" data-language-preset data-source="English" data-target="简体中文">英 -> 简中</button>
+        <button type="button" data-language-preset data-source="English" data-target="繁體中文">英 -> 繁中</button>
+        <button type="button" data-language-preset data-source="Auto detect" data-target="简体中文">自动 -> 简中</button>
+        <button type="button" data-language-preset data-source="简体中文" data-target="English">中 -> 英</button>
+      </div>
+
+      <div class="grid">
+        <label>
+          源语言
+          <select id="sourceLanguage">
+            <option value="English">英语</option>
+            <option value="Auto detect">自动检测</option>
+            <option value="简体中文">简体中文</option>
+            <option value="繁體中文">繁體中文</option>
+            <option value="Japanese">日语</option>
+            <option value="Korean">韩语</option>
+            <option value="Spanish">西班牙语</option>
+            <option value="French">法语</option>
+            <option value="German">德语</option>
+          </select>
+          <small class="field-help">不确定页面语言时，选择“自动检测”。</small>
+        </label>
+
+        <label>
+          目标语言
+          <select id="targetLanguage">
+            <option value="简体中文">简体中文</option>
+            <option value="繁體中文">繁體中文</option>
+            <option value="English">英语</option>
+            <option value="Japanese">日语</option>
+            <option value="Korean">韩语</option>
+            <option value="Spanish">西班牙语</option>
+            <option value="French">法语</option>
+            <option value="German">德语</option>
+          </select>
+          <small class="field-help">翻译结果会显示在原文下方。</small>
+        </label>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>使用体验</h2>
+          <p>偏向少打扰、低成本的默认行为。</p>
+        </div>
+        <span>Reading</span>
+      </div>
+
+      <label class="checkbox choice">
+        <input id="autoTranslate" type="checkbox">
+        <span>
+          访问外文网页时自动开始翻译
+          <small>会先检查页面语言，目标语言页面不会重复翻译。</small>
+        </span>
+      </label>
+
+      <label>
+        展示方式
+        <select id="displayMode">
+          <option value="bilingual">对照：原文下方显示译文</option>
+          <option value="translation-first">译文优先：原文降低透明度</option>
+        </select>
+        <small class="field-help">译文优先不会隐藏原文，只会弱化已翻译的原文块，避免破坏网页布局。</small>
+      </label>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>成本控制</h2>
+          <p>默认只处理当前可视区域附近内容，减少 token 消耗。</p>
+        </div>
+        <span>Token</span>
+      </div>
+
+      <label>
+        翻译范围
+        <select id="costProfile">
+          <option value="economy">省 Token：只翻译更少内容</option>
+          <option value="balanced">平衡：推荐日常使用</option>
+          <option value="eager">积极：多预取一些正文</option>
+          <option value="custom">自定义参数</option>
+        </select>
+      </label>
+
+      <p id="costProfileHint" class="hint-box">平衡模式适合日常阅读：控制请求数量，同时会预取当前屏附近的正文。</p>
+
+      <label class="checkbox choice">
+        <input id="viewportOnly" type="checkbox">
+        <span>
+          仅翻译当前可视区域附近
+          <small>推荐开启。关闭后仍会受每页请求预算限制。</small>
+        </span>
+      </label>
+    </section>
+
+    <details id="advancedSettings" class="section advanced-section">
+      <summary>
+        <span>
+          <strong>高级设置</strong>
+          <small>提示词、批量、并发、缓存和细粒度成本参数</small>
+        </span>
+      </summary>
+
+      <div class="section-head compact">
+        <h2>提示词</h2>
+        <button id="resetPrompt" type="button" class="inline-button">恢复默认</button>
+      </div>
+
+      <label>
+        翻译提示词
+        <textarea id="translationPrompt" rows="8" spellcheck="false"></textarea>
+      </label>
+
+      <p class="help">
+        支持 {{sourceLanguage}} 和 {{targetLanguage}} 占位符。请求时会自动追加待翻译文本的 JSON 数组。
+      </p>
+
+      <div class="grid">
+        <label>
+          每批段落数
+          <input id="batchSize" type="number" min="1" max="20" step="1">
+        </label>
+
+        <label>
+          每批最大字符数
+          <input id="maxCharsPerBatch" type="number" min="500" max="20000" step="500">
+        </label>
+      </div>
+
+      <div class="grid">
+        <label>
+          并发请求批次数
+          <input id="maxConcurrentBatches" type="number" min="1" max="3" step="1">
+          <small class="field-help">建议 2；网络和 API 稳定时可设为 3。</small>
+        </label>
+      </div>
+
+      <div class="grid">
+        <label>
+          每轮最多段落数
+          <input id="maxElementsPerScan" type="number" min="1" max="60" step="1">
+        </label>
+
+        <label>
+          单段最大字符数
+          <input id="maxTextLength" type="number" min="200" max="4000" step="100">
+        </label>
+      </div>
+
+      <div class="grid">
+        <label>
+          本页最多请求段落数
+          <input id="maxRequestsPerPage" type="number" min="1" max="300" step="1">
+        </label>
+
+        <label>
+          本页最多请求字符数
+          <input id="maxCharsPerPage" type="number" min="1000" max="200000" step="1000">
+        </label>
+      </div>
+
+      <div class="section-head compact">
+        <h2>缓存与维护</h2>
+        <span>Storage</span>
+      </div>
+
+      <div class="grid">
+        <label>
+          缓存保留天数
+          <input id="cacheTtlDays" type="number" min="1" max="365" step="1">
+        </label>
+
+        <label>
+          最多缓存条数
+          <input id="maxCacheEntries" type="number" min="100" max="10000" step="100">
+        </label>
+      </div>
+
+      <p class="privacy-note">API Key 保存在本机扩展存储中；网页文本只会发送到你配置的接口。</p>
+    </details>
+
+    <div class="actions">
+      <p id="message" role="status" aria-live="polite">设置会自动保存。</p>
+      <div>
+        <button id="save">立即保存</button>
+        <button id="test" type="button">测试 API</button>
+        <button id="clearCache" type="button" class="secondary danger">清空缓存</button>
+        <button id="reset" type="button" class="secondary danger">恢复默认</button>
+      </div>
+    </div>
+  </main>
+  <script src="shared.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

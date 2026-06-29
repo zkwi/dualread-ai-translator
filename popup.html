@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DualRead AI</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <header class="brand-bar">
+      <img src="icons/icon48.png" alt="" width="34" height="34">
+      <div>
+        <h1>DualRead AI</h1>
+        <p id="status" aria-live="polite">读取当前页面状态...</p>
+      </div>
+      <span id="stateBadge" class="badge">待机</span>
+    </header>
+
+    <section id="configNotice" class="config-notice" hidden>
+      <span>
+        <strong>还不能翻译</strong>
+        <small>请先填写 API Key 和模型。</small>
+      </span>
+      <button id="quickOptions" type="button">去设置</button>
+    </section>
+
+    <section class="summary-panel" aria-label="当前翻译配置">
+      <div>
+        <span>语言</span>
+        <strong id="languageSummary">英语 -> 简体中文</strong>
+      </div>
+      <div>
+        <span>范围</span>
+        <strong id="scopeSummary">当前屏附近</strong>
+      </div>
+    </section>
+
+    <label class="switch-row">
+      <span>
+        <strong>打开外文网页时自动翻译</strong>
+        <small id="configStatus">读取配置...</small>
+      </span>
+      <input id="autoTranslateToggle" type="checkbox">
+    </label>
+    <section class="mode-panel" aria-label="展示方式">
+      <span>展示方式</span>
+      <div class="segmented-control" role="group" aria-label="展示方式">
+        <button type="button" data-display-mode="bilingual">对照</button>
+        <button type="button" data-display-mode="translation-first">译文优先</button>
+      </div>
+    </section>
+    <div id="stats" class="stats" aria-live="polite"></div>
+    <p id="actionHint" class="action-hint">点击开始翻译，译文会显示在原文下方。</p>
+    <div class="button-row">
+      <button id="toggle">开始翻译</button>
+      <button id="scan" class="secondary">只翻译当前屏</button>
+    </div>
+    <div class="button-row">
+      <button id="visibility" class="secondary">隐藏译文</button>
+      <button id="clear" class="danger">清除译文</button>
+    </div>
+    <button id="options" class="link">打开设置</button>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

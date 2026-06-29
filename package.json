@@ -1,0 +1,21 @@
+{
+  "name": "dualread-ai-translator",
+  "version": "0.4.4",
+  "description": "Chrome MV3 extension for AI bilingual webpage translation.",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "check": "node --check shared.js && node --check background.js && node --check content.js && node --check popup.js && node --check options.js && node --check test/shared.test.js && node --check test/background.test.js && node --check test/e2e-local-fixtures.js && node --check test/e2e-ui-fixtures.js && node --check test/e2e-content-samples.js && node --check test/extension-smoke.js",
+    "test:shared": "node test/shared.test.js",
+    "test:background": "node test/background.test.js",
+    "test:ui": "npx --yes --package playwright node test/e2e-ui-fixtures.js",
+    "test:local": "npx --yes --package playwright node test/e2e-local-fixtures.js",
+    "test:smoke": "npx --yes --package playwright node test/extension-smoke.js",
+    "test:samples": "npx --yes --package playwright node test/e2e-content-samples.js",
+    "test": "npm run check && npm run test:shared && npm run test:background && npm run test:ui && npm run test:local && npm run test:smoke",
+    "test:all": "npm test && npm run test:samples"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1"
+  }
+}
