@@ -1,6 +1,6 @@
 # Privacy
 
-DualRead AI does not run a project-owned server and does not include analytics.
+DualRead AI does not run a project-owned server, does not include analytics, and does not bundle any developer-owned API key.
 
 ## What Stays Local
 
@@ -13,6 +13,8 @@ DualRead AI does not run a project-owned server and does not include analytics.
 When translation is triggered, selected webpage text is sent to the API endpoint configured by the user in the options page. The endpoint can be OpenAI, DeepSeek, DashScope, a local service, or another OpenAI-compatible service.
 
 The extension sends only the text blocks it decides to translate, plus the model, language settings, and translation prompt needed for the request. It does not intentionally send cookies, browsing history, or page screenshots.
+
+Provider behavior is controlled by the provider selected by the user. Review that provider's privacy policy if webpage text is sensitive.
 
 ## User Controls
 

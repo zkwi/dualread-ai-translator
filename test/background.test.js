@@ -30,6 +30,8 @@ async function main() {
   await testAutoTranslateStartsActiveTabsWhenSettingEnabled();
   await testAutoTranslateStartsActiveTabsWhenApiKeySaved();
   await testAutoTranslateTabRuntimeMessageStartsCurrentTab();
+  await testContentAutoStartMarkActiveMakesFirstToggleStop();
+  await testGetPageStatsSyncsActiveTabCache();
   await testAutoTranslateReportsUnconfiguredNotice();
   await testManualTranslationReportsMissingApiKeyBeforeInjecting();
   await testScanCurrentAreaReportsMissingApiKeyBeforeInjecting();
@@ -648,6 +650,61 @@ async function testAutoTranslateTabRuntimeMessageStartsCurrentTab() {
   assert.strictEqual(tabMessages[0].message.auto, true);
 }
 
+async function testContentAutoStartMarkActiveMakesFirstToggleStop() {
+  const tabMessages = [];
+  const context = createBackgroundContext({
+    sendMessage: async (tabId, message) => {
+      tabMessages.push({ tabId, message });
+      if (message.action === "start_translation") {
+        throw new Error("First toggle after content auto-start should stop, not start again.");
+      }
+      return { ok: true };
+    }
+  });
+
+  loadBackground(context);
+
+  const markResponse = await sendRuntimeMessageFromTab(
+    context,
+    { action: "mark_tab_active", active: true },
+    { id: 42, url: "https://www.bbc.com/" }
+  );
+  assert.strictEqual(markResponse.ok, true);
+  assert.strictEqual(markResponse.active, true);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "toggle_translation",
+    tab: { id: 42, url: "https://www.bbc.com/" }
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.strictEqual(response.active, false);
+  assert.strictEqual(tabMessages.length, 1);
+  assert.strictEqual(tabMessages[0].message.action, "stop_translation");
+}
+
+async function testGetPageStatsSyncsActiveTabCache() {
+  const context = createBackgroundContext({
+    sendMessage: async (tabId, message) => {
+      assert.strictEqual(tabId, 43);
+      assert.strictEqual(message.action, "get_page_stats");
+      return { ok: true, active: true, stats: { translated: 2, translationVisible: true } };
+    }
+  });
+
+  loadBackground(context);
+
+  const stats = await sendRuntimeMessage(context, {
+    action: "get_page_stats",
+    tab: { id: 43, url: "https://www.bbc.com/" }
+  });
+  assert.strictEqual(stats.ok, true);
+  assert.strictEqual(stats.active, true);
+
+  const state = await sendRuntimeMessage(context, { action: "get_tab_state", tabId: 43 });
+  assert.strictEqual(state.active, true);
+}
+
 async function testAutoTranslateReportsUnconfiguredNotice() {
   const context = createBackgroundContext({
     storage: { autoTranslate: true, apiKey: "" },
@@ -1116,6 +1173,15 @@ function loadBackground(context) {
 async function sendRuntimeMessage(context, message) {
   return new Promise((resolve, reject) => {
     const result = context.runtimeMessageListener(message, {}, resolve);
+    if (result !== true) {
+      reject(new Error("background listener should return true for async responses"));
+    }
+  });
+}
+
+async function sendRuntimeMessageFromTab(context, message, tab) {
+  return new Promise((resolve, reject) => {
+    const result = context.runtimeMessageListener(message, { tab }, resolve);
     if (result !== true) {
       reject(new Error("background listener should return true for async responses"));
     }

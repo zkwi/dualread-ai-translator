@@ -1,0 +1,863 @@
+{
+  "close": {
+    "message": "閉じる"
+  },
+  "commandToggleTranslation": {
+    "message": "現在のページの対照翻訳を切り替える"
+  },
+  "confirmClearCache": {
+    "message": "confirm Clear Cache"
+  },
+  "confirmResetAll": {
+    "message": "confirm Reset All"
+  },
+  "confirmResetPrompt": {
+    "message": "confirm Reset Prompt"
+  },
+  "contentErrorRetry": {
+    "message": "翻訳失敗：$1（クリックで再試行）"
+  },
+  "contentLoading": {
+    "message": "翻訳中..."
+  },
+  "contentNoOperationResult": {
+    "message": "No Operation Result"
+  },
+  "contentReloadRequired": {
+    "message": "Reload Required"
+  },
+  "contentStoppedRetryUnavailable": {
+    "message": "Stopped Retry Unavailable"
+  },
+  "contextTranslatePage": {
+    "message": "このページを翻訳"
+  },
+  "contextTranslateSelection": {
+    "message": "選択テキストを翻訳"
+  },
+  "costHintBalanced": {
+    "message": "cost Hint Balanced"
+  },
+  "costHintCustom": {
+    "message": "cost Hint Custom"
+  },
+  "costHintEager": {
+    "message": "cost Hint Eager"
+  },
+  "costHintEconomy": {
+    "message": "cost Hint Economy"
+  },
+  "costProfileBalanced": {
+    "message": "Balanced: recommended for daily use"
+  },
+  "costProfileCustom": {
+    "message": "Custom parameters"
+  },
+  "costProfileEager": {
+    "message": "Eager: prefetch more article text"
+  },
+  "costProfileEconomy": {
+    "message": "Save tokens: translate less content"
+  },
+  "displayModeBilingual": {
+    "message": "対照：原文の下に訳文を表示"
+  },
+  "displayModeBilingualShort": {
+    "message": "対照"
+  },
+  "displayModeHelp": {
+    "message": "display Mode"
+  },
+  "displayModeLabel": {
+    "message": "表示モード"
+  },
+  "displayModeTranslationFirst": {
+    "message": "訳文優先：原文を薄く表示"
+  },
+  "displayModeTranslationFirstShort": {
+    "message": "訳文優先"
+  },
+  "errorApiKeyMissing": {
+    "message": "API Key Missing"
+  },
+  "errorApiMissingContent": {
+    "message": "API Missing Content"
+  },
+  "errorApiRequestFailed": {
+    "message": "API Request Failed"
+  },
+  "errorApiRequestGeneric": {
+    "message": "API Request Generic"
+  },
+  "errorApiTimeout": {
+    "message": "API Timeout"
+  },
+  "errorMissingParagraphTranslation": {
+    "message": "Missing Paragraph Translation"
+  },
+  "errorModelMissing": {
+    "message": "Model Missing"
+  },
+  "errorModelReturnedNonArray": {
+    "message": "Model Returned Non Array"
+  },
+  "errorNoSelectionText": {
+    "message": "No Selection"
+  },
+  "errorNoTranslationResult": {
+    "message": "No Translation Result"
+  },
+  "errorParseJson": {
+    "message": "Parse Json"
+  },
+  "errorTestNoTranslation": {
+    "message": "Test No Translation"
+  },
+  "errorTranslationFailed": {
+    "message": "Translation Failed"
+  },
+  "errorTranslationStartFailed": {
+    "message": "Translation Start Failed"
+  },
+  "errorUnsupportedTab": {
+    "message": "Unsupported Tab"
+  },
+  "errorUnsupportedTabTest": {
+    "message": "Unsupported Tab Test"
+  },
+  "extensionDescription": {
+    "message": "原文を残したまま近くに訳文を表示する AI 対照翻訳拡張機能です。"
+  },
+  "extensionName": {
+    "message": "DualRead AI 翻訳"
+  },
+  "extensionShortName": {
+    "message": "extension Short Name"
+  },
+  "fieldApiUrl": {
+    "message": "field API URL"
+  },
+  "fieldModelName": {
+    "message": "field Model Name"
+  },
+  "fieldRequiredConfig": {
+    "message": "field Required Config"
+  },
+  "hide": {
+    "message": "非表示"
+  },
+  "hideApiKey": {
+    "message": "API Key を隠す"
+  },
+  "htmlLang": {
+    "message": "ja"
+  },
+  "langAutoDetect": {
+    "message": "自動検出"
+  },
+  "langEnglish": {
+    "message": "英語"
+  },
+  "langFrench": {
+    "message": "フランス語"
+  },
+  "langGerman": {
+    "message": "ドイツ語"
+  },
+  "langJapanese": {
+    "message": "日本語"
+  },
+  "langKorean": {
+    "message": "韓国語"
+  },
+  "langSimplifiedChinese": {
+    "message": "簡体字中国語"
+  },
+  "langSpanish": {
+    "message": "スペイン語"
+  },
+  "langTraditionalChinese": {
+    "message": "繁体字中国語"
+  },
+  "languageDirection": {
+    "message": "$1 -> $2"
+  },
+  "languageDirectionDefault": {
+    "message": "英語 -> 簡体字中国語"
+  },
+  "languageStatusDirection": {
+    "message": "language Status Direction"
+  },
+  "languageStatusSame": {
+    "message": "language Status Same"
+  },
+  "listSeparator": {
+    "message": "、"
+  },
+  "messageApiTestFailed": {
+    "message": "API Test Failed"
+  },
+  "messageApiTestSuccess": {
+    "message": "API Test Success"
+  },
+  "messageApiUrlModelRequired": {
+    "message": "API URL Model Required"
+  },
+  "messageAutoSaveFailed": {
+    "message": "Auto Save Failed"
+  },
+  "messageAutoSaveMissing": {
+    "message": "Auto Save Missing"
+  },
+  "messageAutoSaved": {
+    "message": "Auto Saved"
+  },
+  "messageAutoSaving": {
+    "message": "Auto Saving"
+  },
+  "messageClearCacheDone": {
+    "message": "Clear Cache Done"
+  },
+  "messageClearCacheFailed": {
+    "message": "Clear Cache Failed"
+  },
+  "messageCompleteConnectionFirst": {
+    "message": "Complete Connection First"
+  },
+  "messagePromptAlreadyDefault": {
+    "message": "Prompt Already Default"
+  },
+  "messagePromptResetSaving": {
+    "message": "Prompt Reset Saving"
+  },
+  "messageResetAllDone": {
+    "message": "Reset All Done"
+  },
+  "messageSettingsSaved": {
+    "message": "Settings Saved"
+  },
+  "messageTestingApi": {
+    "message": "Testing API"
+  },
+  "noticeSelectionAlreadyTarget": {
+    "message": "Selection Already Target"
+  },
+  "noticeTranslationAlreadyActive": {
+    "message": "Translation Already Active"
+  },
+  "optionsAdvancedConnection": {
+    "message": "Advanced connection settings"
+  },
+  "optionsAdvancedSettings": {
+    "message": "詳細設定"
+  },
+  "optionsAdvancedSettingsDesc": {
+    "message": "Advanced Settings"
+  },
+  "optionsApiKeyHelp": {
+    "message": "API Key"
+  },
+  "optionsApiTimeout": {
+    "message": "API maximum wait time (seconds)"
+  },
+  "optionsApiTimeoutHelp": {
+    "message": "API Timeout"
+  },
+  "optionsApiUrl": {
+    "message": "Chat Completions API URL"
+  },
+  "optionsApiUrlHelp": {
+    "message": "API URL"
+  },
+  "optionsAutoSave": {
+    "message": "自動保存"
+  },
+  "optionsAutoSaveMessage": {
+    "message": "Auto Save Message"
+  },
+  "optionsAutoTranslateHelp": {
+    "message": "Auto Translate"
+  },
+  "optionsAutoTranslateLabel": {
+    "message": "Auto start translation on foreign-language pages"
+  },
+  "optionsBatchSize": {
+    "message": "Paragraphs per batch"
+  },
+  "optionsCacheMaintenance": {
+    "message": "Cache and maintenance"
+  },
+  "optionsCacheTtlDays": {
+    "message": "Cache retention days"
+  },
+  "optionsClearCache": {
+    "message": "Clear cache"
+  },
+  "optionsCostControl": {
+    "message": "コスト制御"
+  },
+  "optionsCostControlDesc": {
+    "message": "Cost Control"
+  },
+  "optionsDisableThinking": {
+    "message": "Automatically disable controllable thinking mode"
+  },
+  "optionsLanguage": {
+    "message": "言語"
+  },
+  "optionsLanguageDesc": {
+    "message": "Language"
+  },
+  "optionsLanguagePresetsAria": {
+    "message": "Language Presets"
+  },
+  "optionsLanguageStatusInitial": {
+    "message": "Language Status"
+  },
+  "optionsMaintenanceActions": {
+    "message": "Maintenance Actions"
+  },
+  "optionsMaxCacheEntries": {
+    "message": "Max cache entries"
+  },
+  "optionsMaxCharsPerBatch": {
+    "message": "Max characters per batch"
+  },
+  "optionsMaxCharsPerPage": {
+    "message": "Max requested characters per page"
+  },
+  "optionsMaxConcurrentBatches": {
+    "message": "Concurrent request batches"
+  },
+  "optionsMaxConcurrentHelp": {
+    "message": "Max Concurrent"
+  },
+  "optionsMaxElementsPerScan": {
+    "message": "Max paragraphs per scan"
+  },
+  "optionsMaxRequestsPerPage": {
+    "message": "Max requested paragraphs per page"
+  },
+  "optionsMaxTextLength": {
+    "message": "Max characters per block"
+  },
+  "optionsModelHelp": {
+    "message": "Model"
+  },
+  "optionsModelName": {
+    "message": "モデル名"
+  },
+  "optionsPrivacyNote": {
+    "message": "Privacy Note"
+  },
+  "optionsPrompt": {
+    "message": "プロンプト"
+  },
+  "optionsPromptHelp": {
+    "message": "Prompt"
+  },
+  "optionsProvider": {
+    "message": "サービス"
+  },
+  "optionsQuickStart": {
+    "message": "クイックスタート"
+  },
+  "optionsQuickStartDesc": {
+    "message": "Quick Start"
+  },
+  "optionsReadingExperience": {
+    "message": "読書体験"
+  },
+  "optionsReadingExperienceDesc": {
+    "message": "Reading Experience"
+  },
+  "optionsResetAll": {
+    "message": "Restore all defaults"
+  },
+  "optionsResetPrompt": {
+    "message": "Restore default prompt"
+  },
+  "optionsSaveNow": {
+    "message": "今すぐ保存"
+  },
+  "optionsSetupLoadingText": {
+    "message": "Setup Loading"
+  },
+  "optionsSetupLoadingTitle": {
+    "message": "Setup Loading"
+  },
+  "optionsSourceLanguage": {
+    "message": "元言語"
+  },
+  "optionsSourceLanguageHelp": {
+    "message": "Source Language"
+  },
+  "optionsStepApiKey": {
+    "message": "API Key を入力"
+  },
+  "optionsStepProvider": {
+    "message": "サービスを選択"
+  },
+  "optionsStepTestApi": {
+    "message": "API をテスト"
+  },
+  "optionsSubtitle": {
+    "message": "Bilingual webpage translation settings. Changes are saved automatically."
+  },
+  "optionsTargetLanguage": {
+    "message": "目標言語"
+  },
+  "optionsTargetLanguageHelp": {
+    "message": "Target Language"
+  },
+  "optionsTestApi": {
+    "message": "API をテスト"
+  },
+  "optionsTesting": {
+    "message": "Testing..."
+  },
+  "optionsTitle": {
+    "message": "DualRead AI 設定"
+  },
+  "optionsTranslationPrompt": {
+    "message": "Translation prompt"
+  },
+  "optionsTranslationScope": {
+    "message": "Translation scope"
+  },
+  "optionsViewportOnly": {
+    "message": "Viewport Only"
+  },
+  "optionsViewportOnlyHelp": {
+    "message": "Viewport Only"
+  },
+  "popupActionHintInitial": {
+    "message": "Click Start translation. Translations will appear below the original text."
+  },
+  "popupActive": {
+    "message": "Enabled."
+  },
+  "popupActiveHint": {
+    "message": "Active Hint"
+  },
+  "popupActiveWithCount": {
+    "message": "Enabled. Found $1 candidate text blocks."
+  },
+  "popupApiPending": {
+    "message": "API not configured"
+  },
+  "popupAutoDisabledStatus": {
+    "message": "Auto Disabled Status"
+  },
+  "popupAutoEnabledUnsupportedStatus": {
+    "message": "Auto Enabled Unsupported Status"
+  },
+  "popupAutoStartFailed": {
+    "message": "Auto Start Failed"
+  },
+  "popupAutoTranslateLabel": {
+    "message": "Auto translate foreign pages"
+  },
+  "popupAutoUnconfiguredHint": {
+    "message": "Auto Unconfigured Hint"
+  },
+  "popupAutoUnconfiguredStatus": {
+    "message": "Auto Unconfigured Status"
+  },
+  "popupBadgeIdle": {
+    "message": "待機中"
+  },
+  "popupBadgeSkipped": {
+    "message": "スキップ"
+  },
+  "popupBadgeTranslating": {
+    "message": "翻訳中"
+  },
+  "popupBadgeUnavailable": {
+    "message": "利用不可"
+  },
+  "popupBadgeUnconfigured": {
+    "message": "未設定"
+  },
+  "popupClearTranslations": {
+    "message": "訳文を削除"
+  },
+  "popupClearing": {
+    "message": "Clearing"
+  },
+  "popupClearingShort": {
+    "message": "Clearing Short"
+  },
+  "popupConfigLoading": {
+    "message": "Loading settings..."
+  },
+  "popupConfigNoticeText": {
+    "message": "Please enter an API Key and model first."
+  },
+  "popupConfigNoticeTitle": {
+    "message": "Not ready"
+  },
+  "popupConfirmClearTranslations": {
+    "message": "Confirm Clear Translations"
+  },
+  "popupDisablingAuto": {
+    "message": "Disabling Auto"
+  },
+  "popupDisplayModeBilingualStatus": {
+    "message": "Display Mode Bilingual Status"
+  },
+  "popupDisplayModeSavedButNotApplied": {
+    "message": "Display Mode Saved But Not Applied"
+  },
+  "popupDisplayModeSavedForNormalPages": {
+    "message": "Display Mode Saved For Normal Pages"
+  },
+  "popupDisplayModeTranslationFirstStatus": {
+    "message": "Display Mode Translation First Status"
+  },
+  "popupEnablingAuto": {
+    "message": "Enabling Auto"
+  },
+  "popupGoSettings": {
+    "message": "Settings"
+  },
+  "popupHideTranslations": {
+    "message": "訳文を隠す"
+  },
+  "popupHiding": {
+    "message": "Hiding"
+  },
+  "popupHidingTranslations": {
+    "message": "Hiding Translations"
+  },
+  "popupIdleHint": {
+    "message": "Idle Hint"
+  },
+  "popupIdleStatus": {
+    "message": "Idle Status"
+  },
+  "popupLanguage": {
+    "message": "Language"
+  },
+  "popupOpenSettings": {
+    "message": "設定を開く"
+  },
+  "popupScanning": {
+    "message": "Scanning"
+  },
+  "popupScope": {
+    "message": "Scope"
+  },
+  "popupShowTranslations": {
+    "message": "訳文を表示"
+  },
+  "popupShowing": {
+    "message": "Showing"
+  },
+  "popupShowingTranslations": {
+    "message": "Showing Translations"
+  },
+  "popupSkippedTargetLanguageHint": {
+    "message": "Skipped Target Language Hint"
+  },
+  "popupSkippedTargetLanguageStatus": {
+    "message": "Skipped Target Language Status"
+  },
+  "popupStartTranslation": {
+    "message": "翻訳開始"
+  },
+  "popupStarting": {
+    "message": "Starting"
+  },
+  "popupStatusActionFailed": {
+    "message": "Status Action Failed"
+  },
+  "popupStatusClearFailed": {
+    "message": "Status Clear Failed"
+  },
+  "popupStatusLoading": {
+    "message": "Reading current page status..."
+  },
+  "popupStatusNoTab": {
+    "message": "Status No Tab"
+  },
+  "popupStatusProcessing": {
+    "message": "Status Processing"
+  },
+  "popupStatusScanFailed": {
+    "message": "Status Scan Failed"
+  },
+  "popupStatusScanningArea": {
+    "message": "Status Scanning Area"
+  },
+  "popupStatusVisibilityFailed": {
+    "message": "Status Visibility Failed"
+  },
+  "popupStopTranslation": {
+    "message": "翻訳停止"
+  },
+  "popupStopping": {
+    "message": "Stopping"
+  },
+  "popupSummaryAria": {
+    "message": "Current translation settings"
+  },
+  "popupSwitchingDisplayMode": {
+    "message": "Switching Display Mode"
+  },
+  "popupTranslateCurrentScreen": {
+    "message": "現在の画面だけ翻訳"
+  },
+  "popupUnconfiguredHint": {
+    "message": "Unconfigured Hint"
+  },
+  "popupUnconfiguredStatus": {
+    "message": "Unconfigured Status"
+  },
+  "popupUnsupportedConfiguredHint": {
+    "message": "Unsupported Configured Hint"
+  },
+  "popupUnsupportedHint": {
+    "message": "Unsupported Hint"
+  },
+  "popupUnsupportedPageStatus": {
+    "message": "Unsupported Page Status"
+  },
+  "popupUnsupportedUnconfiguredHint": {
+    "message": "Unsupported Unconfigured Hint"
+  },
+  "presetAutoToZhCn": {
+    "message": "preset Auto To Zh Cn"
+  },
+  "presetEnToZhCn": {
+    "message": "preset En To Zh Cn"
+  },
+  "presetEnToZhTw": {
+    "message": "preset En To Zh Tw"
+  },
+  "presetZhToEn": {
+    "message": "preset Zh To En"
+  },
+  "providerCustom": {
+    "message": "カスタム"
+  },
+  "providerHintCustom": {
+    "message": "provider Hint Custom"
+  },
+  "providerHintDashscope": {
+    "message": "provider Hint Dashscope"
+  },
+  "providerHintDeepseek": {
+    "message": "provider Hint Deepseek"
+  },
+  "providerHintLocal": {
+    "message": "provider Hint Local"
+  },
+  "providerHintOpenai": {
+    "message": "provider Hint Openai"
+  },
+  "providerHintOpenaiShort": {
+    "message": "provider Hint Openai Short"
+  },
+  "providerLocal": {
+    "message": "ローカル互換サービス"
+  },
+  "providerLocalShort": {
+    "message": "ローカルサービス"
+  },
+  "saveStateMaintenance": {
+    "message": "Maintenance"
+  },
+  "saveStateSaveFailed": {
+    "message": "Save Failed"
+  },
+  "saveStateSaved": {
+    "message": "Saved"
+  },
+  "saveStateSaving": {
+    "message": "Saving"
+  },
+  "saveStateTestFailed": {
+    "message": "Test Failed"
+  },
+  "saveStateTesting": {
+    "message": "Testing"
+  },
+  "scopeCurrentViewport": {
+    "message": "現在の画面付近"
+  },
+  "scopeWholePageBudget": {
+    "message": "ページ予算内"
+  },
+  "selectionCardAria": {
+    "message": "Card"
+  },
+  "selectionCardTitle": {
+    "message": "選択テキスト翻訳"
+  },
+  "selectionCloseAria": {
+    "message": "Close"
+  },
+  "selectionCopied": {
+    "message": "Copied"
+  },
+  "selectionCopiedStatus": {
+    "message": "Copied Status"
+  },
+  "selectionCopyFailed": {
+    "message": "Copy Failed"
+  },
+  "selectionCopyFailedStatus": {
+    "message": "Copy Failed Status"
+  },
+  "selectionCopyTranslation": {
+    "message": "訳文をコピー"
+  },
+  "selectionErrorLabel": {
+    "message": "エラー"
+  },
+  "selectionErrorText": {
+    "message": "Error"
+  },
+  "selectionNoCopyText": {
+    "message": "No Copy"
+  },
+  "selectionNoticeLabel": {
+    "message": "通知"
+  },
+  "selectionSourceLabel": {
+    "message": "原文"
+  },
+  "selectionTranslationLabel": {
+    "message": "訳文"
+  },
+  "setupErrorText": {
+    "message": "Error"
+  },
+  "setupErrorTitle": {
+    "message": "Error"
+  },
+  "setupMissingText": {
+    "message": "Missing"
+  },
+  "setupMissingTitle": {
+    "message": "Missing"
+  },
+  "setupReadyText": {
+    "message": "Ready"
+  },
+  "setupReadyTitle": {
+    "message": "Ready"
+  },
+  "setupSuccessText": {
+    "message": "Success"
+  },
+  "setupSuccessTitle": {
+    "message": "Success"
+  },
+  "setupTestingText": {
+    "message": "Testing"
+  },
+  "setupTestingTitle": {
+    "message": "Testing"
+  },
+  "show": {
+    "message": "表示"
+  },
+  "showApiKey": {
+    "message": "API Key を表示"
+  },
+  "statAria": {
+    "message": "statAria"
+  },
+  "statCache": {
+    "message": "キャッシュ"
+  },
+  "statCacheTitle": {
+    "message": "Cache"
+  },
+  "statFailed": {
+    "message": "失敗"
+  },
+  "statFailedTitle": {
+    "message": "Failed"
+  },
+  "statRequests": {
+    "message": "リクエスト"
+  },
+  "statRequestsTitle": {
+    "message": "Requests"
+  },
+  "statSkipped": {
+    "message": "スキップ"
+  },
+  "statSkippedTitle": {
+    "message": "Skipped"
+  },
+  "statTranslated": {
+    "message": "訳文"
+  },
+  "statTranslatedTitle": {
+    "message": "Translated"
+  },
+  "statusDisabled": {
+    "message": "オフ"
+  },
+  "statusEnabled": {
+    "message": "オン"
+  },
+  "summaryWithDot": {
+    "message": "summary With Dot"
+  },
+  "testButtonMissingTitle": {
+    "message": "test Button Missing"
+  },
+  "thinkingHintDashscope": {
+    "message": "thinking Hint Dashscope"
+  },
+  "thinkingHintDisabled": {
+    "message": "thinking Hint Disabled"
+  },
+  "thinkingHintNone": {
+    "message": "thinking Hint None"
+  },
+  "thinkingHintSelfHosted": {
+    "message": "thinking Hint Self Hosted"
+  },
+  "tooltipAutoTranslate": {
+    "message": "Auto Translate"
+  },
+  "tooltipAutoTranslateGlobalOnly": {
+    "message": "Auto Translate Global Only"
+  },
+  "tooltipClearTranslations": {
+    "message": "Clear Translations"
+  },
+  "tooltipCurrentPageUnavailable": {
+    "message": "Current Page Unavailable"
+  },
+  "tooltipHideTranslations": {
+    "message": "Hide Translations"
+  },
+  "tooltipNeedConfig": {
+    "message": "Need Config"
+  },
+  "tooltipNoTranslations": {
+    "message": "No Translations"
+  },
+  "tooltipScanCurrentScreen": {
+    "message": "Scan Current Screen"
+  },
+  "tooltipShowTranslations": {
+    "message": "Show Translations"
+  },
+  "tooltipStartTranslation": {
+    "message": "Start Translation"
+  },
+  "tooltipStopTranslation": {
+    "message": "Stop Translation"
+  },
+  "tooltipUnsupportedPage": {
+    "message": "Unsupported Page"
+  }
+}

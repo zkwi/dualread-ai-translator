@@ -1,5 +1,6 @@
 importScripts("shared.js");
 
+const { i18n: t } = LLMTranslatorShared;
 const DEFAULT_SETTINGS = LLMTranslatorShared.DEFAULT_SETTINGS;
 const LEGACY_DEFAULT_API_TIMEOUT_MS = LLMTranslatorShared.LEGACY_DEFAULT_API_TIMEOUT_MS;
 const THINKING_CONTROL = {
@@ -106,6 +107,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then(sendResponse)
       .catch((error) => sendResponse({ ok: false, error: error.message, active: false, stats: getEmptyStats() }));
     return true;
+  }
+
+  if (request.action === "mark_tab_active") {
+    const tabId = sender?.tab?.id;
+    if (typeof tabId === "number") {
+      activeTabs.set(tabId, request.active !== false);
+    }
+    sendResponse({ ok: true, active: typeof tabId === "number" ? !!activeTabs.get(tabId) : false });
+    return false;
   }
 
   if (request.action === "translate_batch") {
@@ -232,12 +242,12 @@ async function setupContextMenus() {
   await chrome.contextMenus.removeAll();
   chrome.contextMenus.create({
     id: CONTEXT_MENU_TRANSLATE_PAGE,
-    title: "翻译当前页面",
+    title: t("contextTranslatePage", [], "翻译当前页面"),
     contexts: ["page"]
   });
   chrome.contextMenus.create({
     id: CONTEXT_MENU_TRANSLATE_SELECTION,
-    title: "翻译选中文本",
+    title: t("contextTranslateSelection", [], "翻译选中文本"),
     contexts: ["selection"]
   });
 }
@@ -246,9 +256,9 @@ async function handleContextMenuClick(info, tab) {
   if (info.menuItemId === CONTEXT_MENU_TRANSLATE_PAGE) {
     const response = await startTranslation(tab);
     if (!response.ok) {
-      await showPageNotice(tab, response.error || "翻译启动失败。", true);
+      await showPageNotice(tab, response.error || t("errorTranslationStartFailed", [], "翻译启动失败。"), true);
     } else if (response.content?.message === "already active") {
-      await showPageNotice(tab, "翻译已开启。可滚动页面或点击插件里的“只翻译当前屏”。");
+      await showPageNotice(tab, t("noticeTranslationAlreadyActive", [], "翻译已开启。可滚动页面或点击插件里的“只翻译当前屏”。"));
     }
     return;
   }
@@ -302,7 +312,7 @@ function renderPageNotice(text, isError) {
 
 async function toggleTranslation(tab) {
   if (!isInjectableTab(tab)) {
-    return { ok: false, error: "当前页面不支持注入脚本，请换一个普通网页测试。" };
+    return { ok: false, error: t("errorUnsupportedTabTest", [], "当前页面不支持注入脚本，请换一个普通网页测试。") };
   }
 
   const isActive = !!activeTabs.get(tab.id);
@@ -323,7 +333,7 @@ async function toggleTranslation(tab) {
 
 async function startTranslation(tab, options = {}) {
   if (!isInjectableTab(tab)) {
-    return { ok: false, error: "当前页面不支持注入脚本。" };
+    return { ok: false, error: t("errorUnsupportedTab", [], "当前页面不支持注入脚本。") };
   }
 
   if (!options.auto) {
@@ -404,7 +414,7 @@ async function autoTranslateActiveTabs() {
 
 async function translateSelection(tab, selectionText) {
   if (!isInjectableTab(tab)) {
-    return { ok: false, error: "当前页面不支持注入脚本。" };
+    return { ok: false, error: t("errorUnsupportedTab", [], "当前页面不支持注入脚本。") };
   }
 
   await ensureContentScript(tab.id);
@@ -424,14 +434,14 @@ async function translateSelection(tab, selectionText) {
   const costSettings = LLMTranslatorShared.normalizeCostSettings(settings);
   const originalText = normalizeSelectionText(selectionText).slice(0, costSettings.maxTextLength);
   if (!originalText) {
-    return { ok: false, error: "没有可翻译的选中文本。" };
+    return { ok: false, error: t("errorNoSelectionText", [], "没有可翻译的选中文本。") };
   }
 
   if (LLMTranslatorShared.isLikelyTargetLanguageText(originalText, settings.targetLanguage)) {
     await chrome.tabs.sendMessage(tab.id, {
       action: "show_selection_translation",
       originalText,
-      notice: "选中文本已是目标语言，无需翻译。"
+      notice: t("noticeSelectionAlreadyTarget", [], "选中文本已是目标语言，无需翻译。")
     });
     return { ok: true, skipped: true, reason: "target-language" };
   }
@@ -462,7 +472,7 @@ function normalizeSelectionText(text) {
 
 async function clearTranslation(tab) {
   if (!isInjectableTab(tab)) {
-    return { ok: false, error: "当前页面不支持注入脚本。" };
+    return { ok: false, error: t("errorUnsupportedTab", [], "当前页面不支持注入脚本。") };
   }
 
   await ensureContentScript(tab.id);
@@ -474,7 +484,7 @@ async function clearTranslation(tab) {
 
 async function scanCurrentArea(tab) {
   if (!isInjectableTab(tab)) {
-    return { ok: false, error: "当前页面不支持注入脚本。" };
+    return { ok: false, error: t("errorUnsupportedTab", [], "当前页面不支持注入脚本。") };
   }
 
   const configured = await ensureTranslationConfigured(tab);
@@ -492,7 +502,7 @@ async function scanCurrentArea(tab) {
 
 async function setTranslationVisibility(tab, visible) {
   if (!isInjectableTab(tab)) {
-    return { ok: false, error: "当前页面不支持注入脚本。" };
+    return { ok: false, error: t("errorUnsupportedTab", [], "当前页面不支持注入脚本。") };
   }
 
   await ensureContentScript(tab.id);
@@ -506,7 +516,7 @@ async function setTranslationVisibility(tab, visible) {
 
 async function setDisplayMode(tab, displayMode) {
   if (!isInjectableTab(tab)) {
-    return { ok: false, error: "当前页面不支持注入脚本。" };
+    return { ok: false, error: t("errorUnsupportedTab", [], "当前页面不支持注入脚本。") };
   }
 
   await ensureContentScript(tab.id);
@@ -525,6 +535,7 @@ async function getPageStats(tab) {
 
   try {
     const response = await chrome.tabs.sendMessage(tab.id, { action: "get_page_stats" });
+    activeTabs.set(tab.id, !!response?.active);
     return {
       ok: true,
       active: !!response?.active,
@@ -550,7 +561,7 @@ async function translateBatch(items) {
   if (!segmentPlan.segments.length) {
     return {
       ok: true,
-      results: items.map((item) => ({ id: item.id, error: "没有获取到译文。" })),
+      results: items.map((item) => ({ id: item.id, error: t("errorNoTranslationResult", [], "没有获取到译文。") })),
       meta: { cacheHits: 0, requested: 0 }
     };
   }
@@ -650,7 +661,7 @@ function composeParentTranslation(parent, segmentResults) {
     if (!result || result.error || !result.text) {
       return {
         id: parent.id,
-        error: result?.error || "模型未返回该段落的译文。"
+        error: result?.error || t("errorMissingParagraphTranslation", [], "模型未返回该段落的译文。")
       };
     }
 
@@ -686,7 +697,7 @@ async function testApi(settings) {
 
   const result = results[0];
   if (!result || result.error) {
-    throw new Error(result?.error || "测试请求没有返回译文。");
+    throw new Error(result?.error || t("errorTestNoTranslation", [], "测试请求没有返回译文。"));
   }
 
   return { ok: true, text: result.text };
@@ -694,11 +705,11 @@ async function testApi(settings) {
 
 function validateSettings(settings) {
   if (!settings.apiKey) {
-    throw new Error("当前扩展没有读取到 API Key。请打开设置页确认已保存；如果已经填过，可能是加载了另一个扩展实例。");
+    throw new Error(t("errorApiKeyMissing", [], "当前扩展没有读取到 API Key。请打开设置页确认已保存；如果已经填过，可能是加载了另一个扩展实例。"));
   }
 
   if (!settings.model) {
-    throw new Error("请先在选项页填写模型名称。");
+    throw new Error(t("errorModelMissing", [], "请先在选项页填写模型名称。"));
   }
 }
 
@@ -814,13 +825,13 @@ async function requestTranslations(settings, items) {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`API 请求失败：${response.status} ${errorText.slice(0, 240)}`);
+    throw new Error(t("errorApiRequestFailed", [String(response.status), errorText.slice(0, 240)], `API 请求失败：${response.status} ${errorText.slice(0, 240)}`));
   }
 
   const data = await response.json();
   const content = data?.choices?.[0]?.message?.content;
   if (!content) {
-    throw new Error("API 返回中没有 choices[0].message.content。");
+    throw new Error(t("errorApiMissingContent", [], "API 返回中没有 choices[0].message.content。"));
   }
 
   const parsed = parseTranslationJson(content);
@@ -915,7 +926,7 @@ async function fetchWithOneRetry(url, options, settings) {
     }
   }
 
-  throw lastError || new Error("API 请求失败。");
+  throw lastError || new Error(t("errorApiRequestGeneric", [], "API 请求失败。"));
 }
 
 async function fetchWithTimeout(url, options, timeoutMs) {
@@ -926,7 +937,8 @@ async function fetchWithTimeout(url, options, timeoutMs) {
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
     if (error?.name === "AbortError") {
-      const timeoutError = new Error(`API 请求超时（${Math.round(timeoutMs / 1000)} 秒）。`);
+      const seconds = String(Math.round(timeoutMs / 1000));
+      const timeoutError = new Error(t("errorApiTimeout", [seconds], `API 请求超时（${seconds} 秒）。`));
       timeoutError.name = "TimeoutError";
       throw timeoutError;
     }
@@ -973,21 +985,21 @@ function parseTranslationJson(content) {
     if (start >= 0 && end > start) {
       return JSON.parse(cleaned.slice(start, end + 1));
     }
-    throw new Error(`无法解析模型返回的 JSON：${error.message}`);
+    throw new Error(t("errorParseJson", [error.message], `无法解析模型返回的 JSON：${error.message}`));
   }
 }
 
 function normalizeResults(parsed, originalItems) {
   const array = Array.isArray(parsed) ? parsed : parsed.results;
   if (!Array.isArray(array)) {
-    throw new Error("模型返回不是 JSON 数组。");
+    throw new Error(t("errorModelReturnedNonArray", [], "模型返回不是 JSON 数组。"));
   }
 
   const byId = new Map(array.map((item) => [String(item.id), item]));
   return originalItems.map((item) => {
     const translated = byId.get(String(item.id));
     if (!translated?.text) {
-      return { id: item.id, error: "模型未返回该段落的译文。" };
+      return { id: item.id, error: t("errorMissingParagraphTranslation", [], "模型未返回该段落的译文。") };
     }
     return { id: item.id, text: String(translated.text).trim() };
   });

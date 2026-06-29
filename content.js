@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.4";
+  const CONTENT_SCRIPT_VERSION = "0.4.5";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -16,6 +16,7 @@
     }
   }
 
+  const { i18n: t } = LLMTranslatorShared;
   const state = {
     active: false,
     version: CONTENT_SCRIPT_VERSION,
@@ -33,6 +34,7 @@
     pendingScanRoots: new Set(),
     viewportScanTimer: null,
     lastMouseY: null,
+    lastViewportSnapshot: null,
     handleScrollOrResize: null,
     handleMouseMove: null,
     budget: createEmptyBudget(),
@@ -199,6 +201,9 @@
       const settings = await chrome.runtime.sendMessage({ action: "get_settings" });
       setAutoStartStatus("starting", { hasApiKey, hasModel });
       const response = await startTranslation({ auto: true, settings });
+      if (!response?.skipped) {
+        await markBackgroundTabActive(true);
+      }
       setAutoStartStatus(response?.skipped ? `skipped:${response.reason || "unknown"}` : "started", {
         hasApiKey,
         hasModel
@@ -217,6 +222,14 @@
 
     document.documentElement.setAttribute("data-llm-translator-version", CONTENT_SCRIPT_VERSION);
     document.documentElement.setAttribute("data-llm-translator-auto", reason);
+  }
+
+  async function markBackgroundTabActive(active) {
+    try {
+      await chrome.runtime.sendMessage({ action: "mark_tab_active", active });
+    } catch (error) {
+      // 后台状态只是缓存，通知失败时页面内状态仍然可用。
+    }
   }
 
   function stopTranslation() {
@@ -240,6 +253,7 @@
     state.queue = [];
     state.queuedIds.clear();
     state.pendingScanRoots.clear();
+    state.lastViewportSnapshot = null;
     stopViewportTracking();
   }
 
@@ -327,7 +341,7 @@
 
     const notice = document.createElement("div");
     notice.id = "llm-bilingual-reload-notice";
-    notice.textContent = "翻译插件已更新，请刷新页面后继续使用。";
+    notice.textContent = t("contentReloadRequired", [], "翻译插件已更新，请刷新页面后继续使用。");
     notice.style.cssText = [
       "position:fixed",
       "top:16px",
@@ -598,6 +612,81 @@
     return Math.max(0, rect.top - window.innerHeight);
   }
 
+  function prepareViewportScan() {
+    const nextSnapshot = getViewportSnapshot();
+    const previousSnapshot = state.lastViewportSnapshot;
+    state.lastViewportSnapshot = nextSnapshot;
+
+    if (!previousSnapshot || !isDifferentViewport(previousSnapshot, nextSnapshot)) {
+      return false;
+    }
+
+    cancelPendingViewportWork();
+    return true;
+  }
+
+  function getViewportSnapshot() {
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 800;
+    const scrollTop = window.scrollY
+      || document.documentElement.scrollTop
+      || document.body?.scrollTop
+      || 0;
+
+    return {
+      top: scrollTop,
+      bottom: scrollTop + viewportHeight,
+      height: viewportHeight
+    };
+  }
+
+  function isDifferentViewport(previous, next) {
+    const overlap = Math.min(previous.bottom, next.bottom) - Math.max(previous.top, next.top);
+    return overlap <= 0;
+  }
+
+  function cancelPendingViewportWork() {
+    // 用户已经进入完全不同的阅读区域时，让旧批次失效，优先服务当前视口。
+    state.runId += 1;
+    clearTimeout(state.flushTimer);
+    state.flushRunId = null;
+    state.queue.forEach((element) => resetPendingElement(element, { releaseBudget: true }));
+    state.queue = [];
+    state.queuedIds.clear();
+    state.pendingScanRoots.clear();
+
+    if (state.observer) {
+      state.observer.disconnect();
+      state.observer = null;
+    }
+
+    document
+      .querySelectorAll('[data-llm-translator-status="queued"], [data-llm-translator-status="loading"]')
+      .forEach(resetPendingElement);
+  }
+
+  function resetPendingElement(element, options = {}) {
+    const status = element.dataset.llmTranslatorStatus;
+    if (status !== "queued" && status !== "loading") return;
+
+    if (options.releaseBudget) {
+      releaseReservedBudget(element);
+    }
+
+    const placement = element.dataset.llmTranslatorPlacement
+      || LLMTranslatorShared.getTranslationPlacement(element.tagName);
+    const node = findExistingTranslationNode(element, placement);
+    if (node) node.remove();
+
+    delete element.dataset.llmTranslatorStatus;
+    delete element.dataset.llmTranslatorPlacement;
+  }
+
+  function releaseReservedBudget(element) {
+    const textLength = normalizeText(getCleanText(element)).length;
+    state.budget.requests = Math.max(0, state.budget.requests - 1);
+    state.budget.chars = Math.max(0, state.budget.chars - textLength);
+  }
+
   function observeElements(elements) {
     if (!state.observer) {
       state.observer = new IntersectionObserver((entries) => {
@@ -633,9 +722,13 @@
   }
 
   function scanViewport(root = document) {
+    const superseded = prepareViewportScan();
     const elements = collectCandidateElements(root);
     state.stats.scanned += elements.length;
     processCandidateElements(elements);
+    if (superseded && state.queue.length > 0) {
+      flushQueue();
+    }
     return elements;
   }
 
@@ -852,7 +945,7 @@
       for (const element of elements) {
         const result = byId.get(element.dataset.llmTranslatorId);
         if (!result || result.error) {
-          setError(element, result?.error || response?.error || "翻译失败。");
+          setError(element, result?.error || response?.error || t("errorTranslationFailed", [], "翻译失败。"));
         } else {
           setTranslation(element, result.text);
         }
@@ -1021,6 +1114,7 @@
     }
     element.dataset.llmTranslatorPlacement = placement;
     node.dir = "auto";
+    node.dataset.llmTranslatorLocalTheme = detectElementTheme(element);
     return node;
   }
 
@@ -1036,7 +1130,7 @@
   function setLoading(element) {
     const node = ensureTranslationNode(element);
     node.className = "llm-bilingual-translation is-loading";
-    node.textContent = "翻译中...";
+    node.textContent = t("contentLoading", [], "翻译中...");
     clearRetryInteraction(node);
     setElementStatus(element, "loading");
   }
@@ -1052,7 +1146,7 @@
   function setError(element, message) {
     const node = ensureTranslationNode(element);
     node.className = "llm-bilingual-translation is-error";
-    node.textContent = `翻译失败：${message}（点击重试）`;
+    node.textContent = t("contentErrorRetry", [message], `翻译失败：${message}（点击重试）`);
     node.onclick = () => retryElement(element);
     node.onkeydown = (event) => {
       if (event.key === "Enter") {
@@ -1094,8 +1188,8 @@
   async function retryElement(element) {
     if (!state.active) {
       const node = ensureTranslationNode(element);
-      node.textContent = "页面翻译已停止，请重新点击插件的开始翻译。";
-      node.onclick = null;
+      node.textContent = t("contentStoppedRetryUnavailable", [], "页面翻译已停止，请重新点击插件的开始翻译。");
+      clearRetryInteraction(node);
       return;
     }
 
@@ -1133,6 +1227,15 @@
         --llm-translator-error-text: #fca5a5;
         --llm-translator-error-bg: rgba(248, 113, 113, 0.16);
       }
+      .llm-bilingual-translation[data-llm-translator-local-theme="dark"] {
+        --llm-translator-text: #f8fafc;
+        --llm-translator-bg: rgba(96, 165, 250, 0.18);
+        --llm-translator-border: #60a5fa;
+        --llm-translator-loading-text: #cbd5e1;
+        --llm-translator-loading-bg: rgba(148, 163, 184, 0.2);
+        --llm-translator-error-text: #fca5a5;
+        --llm-translator-error-bg: rgba(248, 113, 113, 0.18);
+      }
       .llm-bilingual-translation {
         box-sizing: border-box !important;
         margin: 6px 0 12px 0 !important;
@@ -1151,6 +1254,7 @@
       :root[data-llm-translator-visibility="hidden"] .llm-bilingual-translation {
         display: none !important;
       }
+      /* inside/list placement shares the original container, so dimming it would also dim the translation. */
       :root[data-llm-translator-mode="translation-first"] [data-llm-translator-status="done"][data-llm-translator-placement="after"] {
         opacity: 0.52 !important;
         transition: opacity 160ms ease !important;
@@ -1160,6 +1264,9 @@
         background: rgba(37, 99, 235, 0.12) !important;
       }
       :root[data-llm-translator-theme="dark"][data-llm-translator-mode="translation-first"] .llm-bilingual-translation.is-done {
+        background: rgba(96, 165, 250, 0.22) !important;
+      }
+      :root[data-llm-translator-mode="translation-first"] .llm-bilingual-translation[data-llm-translator-local-theme="dark"].is-done {
         background: rgba(96, 165, 250, 0.22) !important;
       }
       .llm-bilingual-translation.is-loading {
@@ -1239,6 +1346,19 @@
         font: inherit !important;
         cursor: pointer !important;
       }
+      .llm-bilingual-selection-card button:disabled {
+        cursor: not-allowed !important;
+        opacity: 0.5 !important;
+      }
+      .llm-bilingual-selection-card__label {
+        margin: 0 0 4px 0 !important;
+        color: #475569 !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+      }
+      :root[data-llm-translator-theme="dark"] .llm-bilingual-selection-card__label {
+        color: #cbd5e1 !important;
+      }
       .llm-bilingual-selection-card__source {
         margin: 0 0 8px 0 !important;
         padding-bottom: 8px !important;
@@ -1255,6 +1375,15 @@
       }
       .llm-bilingual-selection-card.is-error .llm-bilingual-selection-card__result {
         color: var(--llm-translator-error-text) !important;
+      }
+      .llm-bilingual-selection-card__status {
+        min-height: 18px !important;
+        margin: 8px 0 0 0 !important;
+        color: #2563eb !important;
+        font-size: 12px !important;
+      }
+      :root[data-llm-translator-theme="dark"] .llm-bilingual-selection-card__status {
+        color: #93c5fd !important;
       }
       .llm-bilingual-page-notice {
         position: fixed !important;
@@ -1297,7 +1426,7 @@
     const notice = document.createElement("div");
     notice.className = `llm-bilingual-page-notice${request.isError ? " is-error" : ""}`;
     notice.setAttribute("role", "status");
-    notice.textContent = request.text || "翻译操作没有返回结果。";
+    notice.textContent = request.text || t("contentNoOperationResult", [], "翻译操作没有返回结果。");
     document.documentElement.appendChild(notice);
 
     setTimeout(() => {
@@ -1314,13 +1443,13 @@
     const card = document.createElement("section");
     card.className = `llm-bilingual-selection-card${request.error ? " is-error" : ""}`;
     card.setAttribute("role", "dialog");
-    card.setAttribute("aria-label", "选中文本翻译");
+    card.setAttribute("aria-label", t("selectionCardAria", [], "选中文本翻译"));
 
     const header = document.createElement("div");
     header.className = "llm-bilingual-selection-card__header";
 
     const title = document.createElement("span");
-    title.textContent = "选中文本翻译";
+    title.textContent = t("selectionCardTitle", [], "选中文本翻译");
 
     const actions = document.createElement("div");
     actions.className = "llm-bilingual-selection-card__actions";
@@ -1328,29 +1457,47 @@
     const copyButton = document.createElement("button");
     copyButton.type = "button";
     copyButton.dataset.action = "copy";
-    copyButton.textContent = "复制";
+    copyButton.textContent = t("selectionCopyTranslation", [], "复制译文");
+    copyButton.title = request.translatedText ? t("selectionCopyTranslation", [], "复制译文") : t("selectionNoCopyText", [], "没有可复制的译文");
+    copyButton.disabled = !request.translatedText || !!request.error;
+    copyButton.setAttribute("aria-label", copyButton.title);
     copyButton.addEventListener("click", () => copySelectionTranslation(card, request.translatedText || ""));
 
     const closeButton = document.createElement("button");
     closeButton.type = "button";
     closeButton.dataset.action = "close";
-    closeButton.textContent = "关闭";
+    closeButton.textContent = t("close", [], "关闭");
+    closeButton.title = t("close", [], "关闭");
+    closeButton.setAttribute("aria-label", t("selectionCloseAria", [], "关闭选中文本翻译"));
     closeButton.addEventListener("click", () => closeSelectionCard(card));
 
     actions.append(copyButton, closeButton);
     header.append(title, actions);
 
+    const sourceLabel = document.createElement("div");
+    sourceLabel.className = "llm-bilingual-selection-card__label";
+    sourceLabel.textContent = t("selectionSourceLabel", [], "原文");
+
     const source = document.createElement("p");
     source.className = "llm-bilingual-selection-card__source";
     source.textContent = request.originalText || "";
 
+    const resultLabel = document.createElement("div");
+    resultLabel.className = "llm-bilingual-selection-card__label";
+    resultLabel.textContent = request.error ? t("selectionErrorLabel", [], "错误") : (request.notice ? t("selectionNoticeLabel", [], "提示") : t("selectionTranslationLabel", [], "译文"));
+
     const result = document.createElement("p");
     result.className = "llm-bilingual-selection-card__result";
     result.textContent = request.error
-      ? `翻译失败：${request.error}`
-      : (request.notice || request.translatedText || "没有获取到译文。");
+      ? t("selectionErrorText", [request.error], `翻译失败：${request.error}`)
+      : (request.notice || request.translatedText || t("errorNoTranslationResult", [], "没有获取到译文。"));
 
-    card.append(header, source, result);
+    const status = document.createElement("p");
+    status.className = "llm-bilingual-selection-card__status";
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
+
+    card.append(header, sourceLabel, source, resultLabel, result, status);
     document.documentElement.appendChild(card);
     positionSelectionCard(card);
     installSelectionCardDismissHandlers(card);
@@ -1415,10 +1562,10 @@
       left = viewportWidth - width - margin;
     }
 
-    card.style.left = `${Math.max(margin, Math.round(left))}px`;
-    card.style.top = `${Math.max(margin, Math.round(top))}px`;
-    card.style.right = "auto";
-    card.style.bottom = "auto";
+    card.style.setProperty("left", `${Math.max(margin, Math.round(left))}px`, "important");
+    card.style.setProperty("top", `${Math.max(margin, Math.round(top))}px`, "important");
+    card.style.setProperty("right", "auto", "important");
+    card.style.setProperty("bottom", "auto", "important");
   }
 
   function getSelectionRect() {
@@ -1435,19 +1582,23 @@
 
   async function copySelectionTranslation(card, text) {
     if (!text) return;
+    const status = card.querySelector(".llm-bilingual-selection-card__status");
 
     try {
       await navigator.clipboard?.writeText(text);
       const copyButton = card.querySelector("[data-action='copy']");
       if (copyButton) {
-        copyButton.textContent = "已复制";
+        copyButton.textContent = t("selectionCopied", [], "已复制");
+        if (status) status.textContent = t("selectionCopiedStatus", [], "译文已复制到剪贴板。");
         setTimeout(() => {
-          if (copyButton.isConnected) copyButton.textContent = "复制";
+          if (copyButton.isConnected) copyButton.textContent = t("selectionCopyTranslation", [], "复制译文");
+          if (status?.isConnected) status.textContent = "";
         }, 1200);
       }
     } catch (error) {
       const copyButton = card.querySelector("[data-action='copy']");
-      if (copyButton) copyButton.textContent = "复制失败";
+      if (copyButton) copyButton.textContent = t("selectionCopyFailed", [], "复制失败");
+      if (status) status.textContent = t("selectionCopyFailedStatus", [], "复制失败，请手动选择译文复制。");
     }
   }
 
@@ -1473,19 +1624,26 @@
   }
 
   function shouldSkipAutoTranslation(settings) {
+    const segments = collectVisibleTextSegments();
     const pageInfo = {
       htmlLang: document.documentElement.lang || "",
-      text: collectVisibleTextSample()
+      text: normalizeText(segments.join(" ")),
+      segments
     };
 
     return LLMTranslatorShared.isLikelyTargetLanguagePage(pageInfo, settings?.targetLanguage);
   }
 
   function collectVisibleTextSample(maxLength = 4000) {
+    return normalizeText(collectVisibleTextSegments(64, maxLength).join(" ")).slice(0, maxLength);
+  }
+
+  function collectVisibleTextSegments(maxSegments = 48, maxTotalLength = 6000) {
     const root = document.body || document.documentElement;
-    if (!root) return "";
+    if (!root) return [];
 
     const parts = [];
+    let totalLength = 0;
     const walker = document.createTreeWalker(
       root,
       NodeFilter.SHOW_TEXT,
@@ -1497,18 +1655,22 @@
           if (!isElementVisible(node.parentElement)) return NodeFilter.FILTER_REJECT;
 
           const text = normalizeText(node.textContent);
-          return text.length >= 8 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+          return text.length >= 8 && !LLMTranslatorShared.shouldSkipTextByContent(text)
+            ? NodeFilter.FILTER_ACCEPT
+            : NodeFilter.FILTER_REJECT;
         }
       }
     );
 
     let node = walker.nextNode();
-    while (node && parts.join(" ").length < maxLength) {
-      parts.push(normalizeText(node.textContent));
+    while (node && parts.length < maxSegments && totalLength < maxTotalLength) {
+      const text = normalizeText(node.textContent);
+      parts.push(text);
+      totalLength += text.length;
       node = walker.nextNode();
     }
 
-    return normalizeText(parts.join(" ")).slice(0, maxLength);
+    return parts;
   }
 
   function applyTranslationTheme() {
@@ -1521,8 +1683,21 @@
       return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
     }
 
-    const luminance = 0.2126 * background.r + 0.7152 * background.g + 0.0722 * background.b;
-    return luminance < 128 ? "dark" : "light";
+    return getRgbLuminance(background) < 128 ? "dark" : "light";
+  }
+
+  function detectElementTheme(element) {
+    const background = getEffectiveBackgroundColor(element);
+    if (background) {
+      return getRgbLuminance(background) < 128 ? "dark" : "light";
+    }
+
+    const textColor = parseCssRgbColor(window.getComputedStyle(element).color);
+    if (textColor && getRgbLuminance(textColor) > 180) {
+      return "dark";
+    }
+
+    return document.documentElement.dataset.llmTranslatorTheme || detectPageTheme();
   }
 
   function getEffectiveBackgroundColor(element) {
@@ -1533,6 +1708,10 @@
       current = current.parentElement;
     }
     return null;
+  }
+
+  function getRgbLuminance(color) {
+    return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
   }
 
   function parseCssRgbColor(value) {

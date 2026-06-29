@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.4.5
+
+- Fixed auto-started translations not syncing active tab state back to the background worker, which caused the first Stop action to be treated as Start.
+- Synced popup page-stat reads back into the background active-tab cache as an extra safety net.
+- Made provider preset changes reflect whether thinking-mode suppression is actually used by that provider.
+- Cleaned up retry interaction attributes when retry is unavailable after translation has stopped.
+- Improved popup guidance for unconfigured users: start/current-screen/auto-translate controls are disabled until API Key and model are present.
+- Added an options-page setup status panel that shows missing connection fields, prompts API testing, and confirms when the test succeeds.
+- Made the options-page action bar sticky and promoted Test API as the primary action, while making manual save secondary.
+- Moved Clear Cache and Reset Defaults out of the sticky action bar into the advanced maintenance section to reduce accidental destructive clicks.
+- Let users press Enter in API address, API Key, or model fields to run Test API once the connection config is complete.
+- Added confirmation before clearing current-page translations from the popup, and added stat tooltips for clearer metric meanings.
+- Improved the selected-text translation card with explicit original/translation labels, clearer Copy Translation action, disabled copy when no translation exists, and copy status feedback.
+- Added visible keyboard focus styles for popup and options buttons, switches, summaries, and checkbox controls.
+- Added selected states to common language preset buttons so users can see which source/target pair is active.
+- Popup now explains unsupported pages such as Chrome settings/extension pages, disables page-only actions there, and still lets global auto-translate/display preferences be saved for normal webpages.
+- Options quick-start status now shows API test failures inline and clears the failure once connection fields are edited.
+- Options quick-start status now shows an in-progress state while API testing is waiting for a response.
+- Options save-state badge now distinguishes API test failures from actual save failures.
+- Test API button now changes to "测试中..." while the request is pending and restores when finished.
+- Popup auto-translate status now shows the configured provider and model so users can confirm the active connection at a glance.
+- Popup disabled Hide/Clear translation actions now explain when the current page has no translations yet.
+- Prompt reset now uses a clearer label and asks for confirmation before replacing a custom prompt.
+- Options language section now shows the current translation direction and warns when source and target languages are the same.
+- Options language direction now uses localized language names for easier scanning.
+- Popup primary action buttons now show pending text while translation requests are in progress.
+- Full settings reset now uses clearer wording to distinguish it from prompt-only reset.
+- Popup action buttons now include explanatory titles for what each enabled action does.
+- API Key reveal button now exposes its pressed state and clear show/hide titles for accessibility.
+- Far scrolling to a completely different viewport now cancels stale pending translation UI and ignores old batch responses, so the new reading area is translated first.
+- Translation blocks now detect local dark sections on otherwise light pages, keeping text readable on mixed-background sites like CNN.
+- Auto translation now skips pages whose visible content is already dominated by the target language, even when a few source-language snippets are present.
+- Added Chrome extension localization for Simplified Chinese, Traditional Chinese, English, and Japanese across manifest, popup, options, context menus, and in-page prompts.
+- Made the default README English and kept a Simplified Chinese README for local users.
+- Simplified README content, clarified privacy boundaries, and added a public-release audit script for keys, local paths, private files, and unsafe artifacts.
+- Bumped the content script version so already-injected older scripts can clearly request a page refresh.
+
 ## 0.4.4
 
 - Added limited parallel translation batches to improve response speed.

@@ -416,12 +416,91 @@
     const target = normalizeTargetLanguageKind(targetLanguage);
     if (!target) return false;
 
+    const segments = normalizePageLanguageSegments(pageInfo?.segments);
+    if (segments.length > 0) {
+      const segmentDecision = isTargetLanguageDominantPageSegments(segments, targetLanguage);
+      if (segmentDecision !== null) return segmentDecision;
+    }
+
     const text = String(pageInfo?.text || "").trim();
     if (text) {
       return isLikelyTargetLanguageText(text, targetLanguage);
     }
 
     return false;
+  }
+
+  function normalizePageLanguageSegments(segments) {
+    if (!Array.isArray(segments)) return [];
+
+    return segments
+      .map((segment) => String(segment || "").replace(/\s+/g, " ").trim())
+      .filter((segment) => segment.length >= 8 && !shouldSkipTextByContent(segment))
+      .slice(0, 48);
+  }
+
+  function isTargetLanguageDominantPageSegments(segments, targetLanguage) {
+    const target = normalizeTargetLanguageKind(targetLanguage);
+    const minTargetUnits = target === "en" ? 80 : 40;
+    const minTargetRatio = target === "en" ? 0.55 : 0.3;
+    let targetSegments = 0;
+    let otherSegments = 0;
+    let targetUnits = 0;
+    let otherUnits = 0;
+
+    for (const segment of segments) {
+      const counts = getScriptCounts(segment);
+      const targetCount = getTargetScriptCount(counts, target);
+      const otherCount = getOtherScriptCount(counts, target);
+      const minSegmentUnits = target === "en" ? 20 : 4;
+
+      if (targetCount < minSegmentUnits && otherCount < minSegmentUnits) continue;
+
+      targetUnits += targetCount;
+      otherUnits += otherCount;
+
+      if (isDominantScript(targetCount, otherCount, minSegmentUnits, target === "en" ? 0.65 : 0.35)) {
+        targetSegments += 1;
+      } else if (otherCount > targetCount && otherCount >= minSegmentUnits) {
+        otherSegments += 1;
+      }
+    }
+
+    const meaningfulSegments = targetSegments + otherSegments;
+    if (meaningfulSegments === 0) return null;
+
+    const segmentRatio = targetSegments / meaningfulSegments;
+    const unitRatio = targetUnits / Math.max(1, targetUnits + otherUnits);
+
+    return targetSegments >= 2
+      && targetUnits >= minTargetUnits
+      && segmentRatio >= 0.6
+      && unitRatio >= minTargetRatio;
+  }
+
+  function getScriptCounts(text) {
+    return {
+      han: countMatches(text, /[\u3400-\u9fff\uf900-\ufaff]/g),
+      kana: countMatches(text, /[\u3040-\u30ff]/g),
+      hangul: countMatches(text, /[\uac00-\ud7af]/g),
+      latin: countMatches(text, /[A-Za-z]/g)
+    };
+  }
+
+  function getTargetScriptCount(counts, target) {
+    if (target === "zh") return counts.han;
+    if (target === "ja") return counts.kana + counts.han;
+    if (target === "ko") return counts.hangul;
+    if (target === "en") return counts.latin;
+    return 0;
+  }
+
+  function getOtherScriptCount(counts, target) {
+    if (target === "zh") return counts.latin + counts.kana + counts.hangul;
+    if (target === "ja") return counts.latin + counts.hangul;
+    if (target === "ko") return counts.latin + counts.han + counts.kana;
+    if (target === "en") return counts.han + counts.kana + counts.hangul;
+    return 0;
   }
 
   function normalizeTargetLanguageKind(language) {
@@ -476,6 +555,47 @@
     return `${CACHE_PREFIX}${simpleHash(payload)}`;
   }
 
+  function i18n(messageName, substitutions = [], fallback = "") {
+    const values = Array.isArray(substitutions) ? substitutions : [substitutions];
+    try {
+      const message = root.chrome?.i18n?.getMessage?.(messageName, values);
+      if (message) return message;
+    } catch (error) {
+      // 测试环境没有 chrome.i18n 时使用调用方提供的中文兜底。
+    }
+
+    return fallback || messageName;
+  }
+
+  function applyI18n(targetRoot = root.document) {
+    const doc = targetRoot?.nodeType === 9 ? targetRoot : targetRoot?.ownerDocument;
+    if (!targetRoot || !doc) return;
+
+    const htmlLang = i18n("htmlLang", [], "");
+    if (htmlLang && doc.documentElement) {
+      doc.documentElement.lang = htmlLang;
+    }
+
+    const textNodes = targetRoot.querySelectorAll?.("[data-i18n]") || [];
+    textNodes.forEach((node) => {
+      node.textContent = i18n(node.dataset.i18n, [], node.textContent);
+    });
+
+    const attrMap = [
+      ["data-i18n-title", "title"],
+      ["data-i18n-placeholder", "placeholder"],
+      ["data-i18n-aria-label", "aria-label"]
+    ];
+
+    for (const [dataAttr, attr] of attrMap) {
+      const nodes = targetRoot.querySelectorAll?.(`[${dataAttr}]`) || [];
+      nodes.forEach((node) => {
+        const key = node.getAttribute(dataAttr);
+        node.setAttribute(attr, i18n(key, [], node.getAttribute(attr) || ""));
+      });
+    }
+  }
+
   function simpleHash(text) {
     let hash = 2166136261;
     for (let i = 0; i < text.length; i += 1) {
@@ -504,6 +624,8 @@
     getViewportMaxElementsPerScan,
     normalizeCostSettings,
     normalizeCacheSettings,
+    i18n,
+    applyI18n,
     getBlockedContainerSelector,
     getStrictBlockedContainerSelector,
     getSoftBlockedContainerSelector,

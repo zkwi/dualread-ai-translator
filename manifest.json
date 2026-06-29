@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "DualRead AI Translator",
-  "short_name": "DualRead AI",
-  "version": "0.4.4",
-  "description": "AI bilingual webpage translation with original text preserved and translations shown nearby.",
+  "name": "__MSG_extensionName__",
+  "short_name": "__MSG_extensionShortName__",
+  "version": "0.4.5",
+  "default_locale": "zh_CN",
+  "description": "__MSG_extensionDescription__",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -43,7 +44,7 @@
       "128": "icons/icon128.png"
     },
     "default_popup": "popup.html",
-    "default_title": "DualRead AI"
+    "default_title": "__MSG_extensionShortName__"
   },
   "options_page": "options.html",
   "commands": {
@@ -52,7 +53,7 @@
         "default": "Alt+T",
         "mac": "Alt+T"
       },
-      "description": "Toggle bilingual translation on the current page"
+      "description": "__MSG_commandToggleTranslation__"
     }
   }
 }

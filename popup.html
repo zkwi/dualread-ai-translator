@@ -12,56 +12,57 @@
       <img src="icons/icon48.png" alt="" width="34" height="34">
       <div>
         <h1>DualRead AI</h1>
-        <p id="status" aria-live="polite">读取当前页面状态...</p>
+        <p id="status" aria-live="polite" data-i18n="popupStatusLoading">读取当前页面状态...</p>
       </div>
-      <span id="stateBadge" class="badge">待机</span>
+      <span id="stateBadge" class="badge" data-i18n="popupBadgeIdle">待机</span>
     </header>
 
     <section id="configNotice" class="config-notice" hidden>
       <span>
-        <strong>还不能翻译</strong>
-        <small>请先填写 API Key 和模型。</small>
+        <strong data-i18n="popupConfigNoticeTitle">还不能翻译</strong>
+        <small data-i18n="popupConfigNoticeText">请先填写 API Key 和模型。</small>
       </span>
-      <button id="quickOptions" type="button">去设置</button>
+      <button id="quickOptions" type="button" data-i18n="popupGoSettings">去设置</button>
     </section>
 
-    <section class="summary-panel" aria-label="当前翻译配置">
+    <section class="summary-panel" aria-label="当前翻译配置" data-i18n-aria-label="popupSummaryAria">
       <div>
-        <span>语言</span>
-        <strong id="languageSummary">英语 -> 简体中文</strong>
+        <span data-i18n="popupLanguage">语言</span>
+        <strong id="languageSummary" data-i18n="languageDirectionDefault">英语 -> 简体中文</strong>
       </div>
       <div>
-        <span>范围</span>
-        <strong id="scopeSummary">当前屏附近</strong>
+        <span data-i18n="popupScope">范围</span>
+        <strong id="scopeSummary" data-i18n="scopeCurrentViewport">当前屏附近</strong>
       </div>
     </section>
 
     <label class="switch-row">
       <span>
-        <strong>打开外文网页时自动翻译</strong>
-        <small id="configStatus">读取配置...</small>
+        <strong data-i18n="popupAutoTranslateLabel">打开外文网页时自动翻译</strong>
+        <small id="configStatus" data-i18n="popupConfigLoading">读取配置...</small>
       </span>
       <input id="autoTranslateToggle" type="checkbox">
     </label>
-    <section class="mode-panel" aria-label="展示方式">
-      <span>展示方式</span>
-      <div class="segmented-control" role="group" aria-label="展示方式">
-        <button type="button" data-display-mode="bilingual">对照</button>
-        <button type="button" data-display-mode="translation-first">译文优先</button>
+    <section class="mode-panel" aria-label="展示方式" data-i18n-aria-label="displayModeLabel">
+      <span data-i18n="displayModeLabel">展示方式</span>
+      <div class="segmented-control" role="group" aria-label="展示方式" data-i18n-aria-label="displayModeLabel">
+        <button type="button" data-display-mode="bilingual" data-i18n="displayModeBilingualShort">对照</button>
+        <button type="button" data-display-mode="translation-first" data-i18n="displayModeTranslationFirstShort">译文优先</button>
       </div>
     </section>
     <div id="stats" class="stats" aria-live="polite"></div>
-    <p id="actionHint" class="action-hint">点击开始翻译，译文会显示在原文下方。</p>
+    <p id="actionHint" class="action-hint" data-i18n="popupActionHintInitial">点击开始翻译，译文会显示在原文下方。</p>
     <div class="button-row">
-      <button id="toggle">开始翻译</button>
-      <button id="scan" class="secondary">只翻译当前屏</button>
+      <button id="toggle" data-i18n="popupStartTranslation">开始翻译</button>
+      <button id="scan" class="secondary" data-i18n="popupTranslateCurrentScreen">只翻译当前屏</button>
     </div>
     <div class="button-row">
-      <button id="visibility" class="secondary">隐藏译文</button>
-      <button id="clear" class="danger">清除译文</button>
+      <button id="visibility" class="secondary" data-i18n="popupHideTranslations">隐藏译文</button>
+      <button id="clear" class="danger" data-i18n="popupClearTranslations">清除译文</button>
     </div>
-    <button id="options" class="link">打开设置</button>
+    <button id="options" class="link" data-i18n="popupOpenSettings">打开设置</button>
   </main>
+  <script src="shared.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

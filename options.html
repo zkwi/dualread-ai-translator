@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DualRead AI 设置</title>
+  <title data-i18n="optionsTitle">DualRead AI 设置</title>
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
@@ -12,43 +12,48 @@
       <img src="icons/icon48.png" alt="" width="44" height="44">
       <div>
         <h1>DualRead AI</h1>
-        <p>网页对照翻译设置。修改后会自动保存。</p>
+        <p data-i18n="optionsSubtitle">网页对照翻译设置。修改后会自动保存。</p>
       </div>
-      <span id="saveState" class="save-state">自动保存</span>
+      <span id="saveState" class="save-state" data-i18n="optionsAutoSave">自动保存</span>
     </header>
 
     <section class="section setup-section">
       <div class="section-head">
         <div>
-          <h2>快速开始</h2>
-          <p>多数情况下只需要完成这三步。</p>
+          <h2 data-i18n="optionsQuickStart">快速开始</h2>
+          <p data-i18n="optionsQuickStartDesc">多数情况下只需要完成这三步。</p>
         </div>
         <span>API</span>
       </div>
 
       <ol class="setup-steps">
-        <li>选择服务商</li>
-        <li>填写 API Key</li>
-        <li>点击测试 API</li>
+        <li data-i18n="optionsStepProvider">选择服务商</li>
+        <li data-i18n="optionsStepApiKey">填写 API Key</li>
+        <li data-i18n="optionsStepTestApi">点击测试 API</li>
       </ol>
+
+      <div id="setupStatus" class="setup-status is-incomplete" role="status" aria-live="polite">
+        <strong data-i18n="optionsSetupLoadingTitle">正在读取配置</strong>
+        <span data-i18n="optionsSetupLoadingText">设置会自动保存。</span>
+      </div>
 
       <div class="grid">
         <label>
-          服务商
+          <span data-i18n="optionsProvider">服务商</span>
           <select id="provider">
             <option value="openai">OpenAI</option>
             <option value="deepseek">DeepSeek</option>
             <option value="dashscope">DashScope / Qwen</option>
-            <option value="local">本地兼容服务</option>
-            <option value="custom">自定义</option>
+            <option value="local" data-i18n="providerLocal">本地兼容服务</option>
+            <option value="custom" data-i18n="providerCustom">自定义</option>
           </select>
-          <small id="providerHint" class="field-help">使用 OpenAI 官方 Chat Completions 接口。</small>
+          <small id="providerHint" class="field-help" data-i18n="providerHintOpenaiShort">使用 OpenAI 官方 Chat Completions 接口。</small>
         </label>
 
         <label>
-          模型名称
+          <span data-i18n="optionsModelName">模型名称</span>
           <input id="model" placeholder="gpt-4o-mini">
-          <small class="field-help">选择服务商后会自动填入推荐模型，也可以手动修改。</small>
+          <small class="field-help" data-i18n="optionsModelHelp">选择服务商后会自动填入推荐模型，也可以手动修改。</small>
         </label>
       </div>
 
@@ -56,32 +61,32 @@
         API Key
         <span class="secret-row">
           <input id="apiKey" type="password" placeholder="sk-...">
-          <button id="toggleApiKey" type="button" class="inline-button">显示</button>
+          <button id="toggleApiKey" type="button" class="inline-button" aria-pressed="false" title="显示 API Key" data-i18n="show" data-i18n-title="showApiKey">显示</button>
         </span>
-        <small class="field-help">只保存在本机 Chrome 扩展存储中，不会上传到本项目服务器。</small>
+        <small class="field-help" data-i18n="optionsApiKeyHelp">只保存在本机 Chrome 扩展存储中，不会上传到本项目服务器。</small>
       </label>
 
       <div class="connection-settings" aria-labelledby="connectionSettingsTitle">
-        <h3 id="connectionSettingsTitle">高级连接设置</h3>
+        <h3 id="connectionSettingsTitle" data-i18n="optionsAdvancedConnection">高级连接设置</h3>
 
         <label>
-          Chat Completions API 地址
+          <span data-i18n="optionsApiUrl">Chat Completions API 地址</span>
           <input id="apiUrl" placeholder="https://api.openai.com/v1/chat/completions">
-          <small class="field-help">兼容 OpenAI 格式的代理或本地服务也可以填写这里。</small>
+          <small class="field-help" data-i18n="optionsApiUrlHelp">兼容 OpenAI 格式的代理或本地服务也可以填写这里。</small>
         </label>
 
         <div class="grid">
           <label>
-            API 最长等待时间（秒）
+            <span data-i18n="optionsApiTimeout">API 最长等待时间（秒）</span>
             <input id="apiTimeoutMs" type="number" min="1" max="300" step="1">
-            <small class="field-help">网络慢或模型响应慢时可以调大，默认 120 秒。</small>
+            <small class="field-help" data-i18n="optionsApiTimeoutHelp">网络慢或模型响应慢时可以调大，默认 120 秒。</small>
           </label>
 
           <label class="checkbox compact-checkbox">
             <input id="disableThinking" type="checkbox">
             <span>
-              自动关闭可控思考模式
-              <small id="thinkingHint">当前服务商不会添加额外思考参数。</small>
+              <span data-i18n="optionsDisableThinking">自动关闭可控思考模式</span>
+              <small id="thinkingHint" data-i18n="thinkingHintNone">当前服务商不会添加额外思考参数。</small>
             </span>
           </label>
         </div>
@@ -91,58 +96,60 @@
     <section class="section">
       <div class="section-head">
         <div>
-          <h2>语言</h2>
-          <p>默认英译中；如果页面已是目标语言，会自动跳过。</p>
+          <h2 data-i18n="optionsLanguage">语言</h2>
+          <p data-i18n="optionsLanguageDesc">默认英译中；如果页面已是目标语言，会自动跳过。</p>
         </div>
         <span>Language</span>
       </div>
 
-      <div class="preset-row" aria-label="常用语言组合">
-        <button type="button" data-language-preset data-source="English" data-target="简体中文">英 -> 简中</button>
-        <button type="button" data-language-preset data-source="English" data-target="繁體中文">英 -> 繁中</button>
-        <button type="button" data-language-preset data-source="Auto detect" data-target="简体中文">自动 -> 简中</button>
-        <button type="button" data-language-preset data-source="简体中文" data-target="English">中 -> 英</button>
+      <div class="preset-row" aria-label="常用语言组合" data-i18n-aria-label="optionsLanguagePresetsAria">
+        <button type="button" data-language-preset data-source="English" data-target="简体中文" data-i18n="presetEnToZhCn">英 -> 简中</button>
+        <button type="button" data-language-preset data-source="English" data-target="繁體中文" data-i18n="presetEnToZhTw">英 -> 繁中</button>
+        <button type="button" data-language-preset data-source="Auto detect" data-target="简体中文" data-i18n="presetAutoToZhCn">自动 -> 简中</button>
+        <button type="button" data-language-preset data-source="简体中文" data-target="English" data-i18n="presetZhToEn">中 -> 英</button>
       </div>
 
       <div class="grid">
         <label>
-          源语言
+          <span data-i18n="optionsSourceLanguage">源语言</span>
           <select id="sourceLanguage">
-            <option value="English">英语</option>
-            <option value="Auto detect">自动检测</option>
-            <option value="简体中文">简体中文</option>
-            <option value="繁體中文">繁體中文</option>
-            <option value="Japanese">日语</option>
-            <option value="Korean">韩语</option>
-            <option value="Spanish">西班牙语</option>
-            <option value="French">法语</option>
-            <option value="German">德语</option>
+            <option value="English" data-i18n="langEnglish">英语</option>
+            <option value="Auto detect" data-i18n="langAutoDetect">自动检测</option>
+            <option value="简体中文" data-i18n="langSimplifiedChinese">简体中文</option>
+            <option value="繁體中文" data-i18n="langTraditionalChinese">繁體中文</option>
+            <option value="Japanese" data-i18n="langJapanese">日语</option>
+            <option value="Korean" data-i18n="langKorean">韩语</option>
+            <option value="Spanish" data-i18n="langSpanish">西班牙语</option>
+            <option value="French" data-i18n="langFrench">法语</option>
+            <option value="German" data-i18n="langGerman">德语</option>
           </select>
-          <small class="field-help">不确定页面语言时，选择“自动检测”。</small>
+          <small class="field-help" data-i18n="optionsSourceLanguageHelp">不确定页面语言时，选择“自动检测”。</small>
         </label>
 
         <label>
-          目标语言
+          <span data-i18n="optionsTargetLanguage">目标语言</span>
           <select id="targetLanguage">
-            <option value="简体中文">简体中文</option>
-            <option value="繁體中文">繁體中文</option>
-            <option value="English">英语</option>
-            <option value="Japanese">日语</option>
-            <option value="Korean">韩语</option>
-            <option value="Spanish">西班牙语</option>
-            <option value="French">法语</option>
-            <option value="German">德语</option>
+            <option value="简体中文" data-i18n="langSimplifiedChinese">简体中文</option>
+            <option value="繁體中文" data-i18n="langTraditionalChinese">繁體中文</option>
+            <option value="English" data-i18n="langEnglish">英语</option>
+            <option value="Japanese" data-i18n="langJapanese">日语</option>
+            <option value="Korean" data-i18n="langKorean">韩语</option>
+            <option value="Spanish" data-i18n="langSpanish">西班牙语</option>
+            <option value="French" data-i18n="langFrench">法语</option>
+            <option value="German" data-i18n="langGerman">德语</option>
           </select>
-          <small class="field-help">翻译结果会显示在原文下方。</small>
+          <small class="field-help" data-i18n="optionsTargetLanguageHelp">翻译结果会显示在原文下方。</small>
         </label>
       </div>
+
+      <p id="languageStatus" class="hint-box" data-i18n="optionsLanguageStatusInitial">当前方向：英语 -> 简体中文。</p>
     </section>
 
     <section class="section">
       <div class="section-head">
         <div>
-          <h2>使用体验</h2>
-          <p>偏向少打扰、低成本的默认行为。</p>
+          <h2 data-i18n="optionsReadingExperience">使用体验</h2>
+          <p data-i18n="optionsReadingExperienceDesc">偏向少打扰、低成本的默认行为。</p>
         </div>
         <span>Reading</span>
       </div>
@@ -150,47 +157,47 @@
       <label class="checkbox choice">
         <input id="autoTranslate" type="checkbox">
         <span>
-          访问外文网页时自动开始翻译
-          <small>会先检查页面语言，目标语言页面不会重复翻译。</small>
+          <span data-i18n="optionsAutoTranslateLabel">访问外文网页时自动开始翻译</span>
+          <small data-i18n="optionsAutoTranslateHelp">会先检查页面语言，目标语言页面不会重复翻译。</small>
         </span>
       </label>
 
       <label>
-        展示方式
+        <span data-i18n="displayModeLabel">展示方式</span>
         <select id="displayMode">
-          <option value="bilingual">对照：原文下方显示译文</option>
-          <option value="translation-first">译文优先：原文降低透明度</option>
+          <option value="bilingual" data-i18n="displayModeBilingual">对照：原文下方显示译文</option>
+          <option value="translation-first" data-i18n="displayModeTranslationFirst">译文优先：原文降低透明度</option>
         </select>
-        <small class="field-help">译文优先不会隐藏原文，只会弱化已翻译的原文块，避免破坏网页布局。</small>
+        <small class="field-help" data-i18n="displayModeHelp">译文优先不会隐藏原文，只会弱化已翻译的原文块，避免破坏网页布局。</small>
       </label>
     </section>
 
     <section class="section">
       <div class="section-head">
         <div>
-          <h2>成本控制</h2>
-          <p>默认只处理当前可视区域附近内容，减少 token 消耗。</p>
+          <h2 data-i18n="optionsCostControl">成本控制</h2>
+          <p data-i18n="optionsCostControlDesc">默认只处理当前可视区域附近内容，减少 token 消耗。</p>
         </div>
         <span>Token</span>
       </div>
 
       <label>
-        翻译范围
+        <span data-i18n="optionsTranslationScope">翻译范围</span>
         <select id="costProfile">
-          <option value="economy">省 Token：只翻译更少内容</option>
-          <option value="balanced">平衡：推荐日常使用</option>
-          <option value="eager">积极：多预取一些正文</option>
-          <option value="custom">自定义参数</option>
+          <option value="economy" data-i18n="costProfileEconomy">省 Token：只翻译更少内容</option>
+          <option value="balanced" data-i18n="costProfileBalanced">平衡：推荐日常使用</option>
+          <option value="eager" data-i18n="costProfileEager">积极：多预取一些正文</option>
+          <option value="custom" data-i18n="costProfileCustom">自定义参数</option>
         </select>
       </label>
 
-      <p id="costProfileHint" class="hint-box">平衡模式适合日常阅读：控制请求数量，同时会预取当前屏附近的正文。</p>
+      <p id="costProfileHint" class="hint-box" data-i18n="costHintBalanced">平衡模式适合日常阅读：控制请求数量，同时会预取当前屏附近的正文。</p>
 
       <label class="checkbox choice">
         <input id="viewportOnly" type="checkbox">
         <span>
-          仅翻译当前可视区域附近
-          <small>推荐开启。关闭后仍会受每页请求预算限制。</small>
+          <span data-i18n="optionsViewportOnly">仅翻译当前可视区域附近</span>
+          <small data-i18n="optionsViewportOnlyHelp">推荐开启。关闭后仍会受每页请求预算限制。</small>
         </span>
       </label>
     </section>
@@ -198,96 +205,99 @@
     <details id="advancedSettings" class="section advanced-section">
       <summary>
         <span>
-          <strong>高级设置</strong>
-          <small>提示词、批量、并发、缓存和细粒度成本参数</small>
+          <strong data-i18n="optionsAdvancedSettings">高级设置</strong>
+          <small data-i18n="optionsAdvancedSettingsDesc">提示词、批量、并发、缓存和细粒度成本参数</small>
         </span>
       </summary>
 
       <div class="section-head compact">
-        <h2>提示词</h2>
-        <button id="resetPrompt" type="button" class="inline-button">恢复默认</button>
+        <h2 data-i18n="optionsPrompt">提示词</h2>
+        <button id="resetPrompt" type="button" class="inline-button" data-i18n="optionsResetPrompt">恢复默认提示词</button>
       </div>
 
       <label>
-        翻译提示词
+        <span data-i18n="optionsTranslationPrompt">翻译提示词</span>
         <textarea id="translationPrompt" rows="8" spellcheck="false"></textarea>
       </label>
 
       <p class="help">
-        支持 {{sourceLanguage}} 和 {{targetLanguage}} 占位符。请求时会自动追加待翻译文本的 JSON 数组。
+        <span data-i18n="optionsPromptHelp">支持 {{sourceLanguage}} 和 {{targetLanguage}} 占位符。请求时会自动追加待翻译文本的 JSON 数组。</span>
       </p>
 
       <div class="grid">
         <label>
-          每批段落数
+          <span data-i18n="optionsBatchSize">每批段落数</span>
           <input id="batchSize" type="number" min="1" max="20" step="1">
         </label>
 
         <label>
-          每批最大字符数
+          <span data-i18n="optionsMaxCharsPerBatch">每批最大字符数</span>
           <input id="maxCharsPerBatch" type="number" min="500" max="20000" step="500">
         </label>
       </div>
 
       <div class="grid">
         <label>
-          并发请求批次数
+          <span data-i18n="optionsMaxConcurrentBatches">并发请求批次数</span>
           <input id="maxConcurrentBatches" type="number" min="1" max="3" step="1">
-          <small class="field-help">建议 2；网络和 API 稳定时可设为 3。</small>
+          <small class="field-help" data-i18n="optionsMaxConcurrentHelp">建议 2；网络和 API 稳定时可设为 3。</small>
         </label>
       </div>
 
       <div class="grid">
         <label>
-          每轮最多段落数
+          <span data-i18n="optionsMaxElementsPerScan">每轮最多段落数</span>
           <input id="maxElementsPerScan" type="number" min="1" max="60" step="1">
         </label>
 
         <label>
-          单段最大字符数
+          <span data-i18n="optionsMaxTextLength">单段最大字符数</span>
           <input id="maxTextLength" type="number" min="200" max="4000" step="100">
         </label>
       </div>
 
       <div class="grid">
         <label>
-          本页最多请求段落数
+          <span data-i18n="optionsMaxRequestsPerPage">本页最多请求段落数</span>
           <input id="maxRequestsPerPage" type="number" min="1" max="300" step="1">
         </label>
 
         <label>
-          本页最多请求字符数
+          <span data-i18n="optionsMaxCharsPerPage">本页最多请求字符数</span>
           <input id="maxCharsPerPage" type="number" min="1000" max="200000" step="1000">
         </label>
       </div>
 
       <div class="section-head compact">
-        <h2>缓存与维护</h2>
+        <h2 data-i18n="optionsCacheMaintenance">缓存与维护</h2>
         <span>Storage</span>
       </div>
 
       <div class="grid">
         <label>
-          缓存保留天数
+          <span data-i18n="optionsCacheTtlDays">缓存保留天数</span>
           <input id="cacheTtlDays" type="number" min="1" max="365" step="1">
         </label>
 
         <label>
-          最多缓存条数
+          <span data-i18n="optionsMaxCacheEntries">最多缓存条数</span>
           <input id="maxCacheEntries" type="number" min="100" max="10000" step="100">
         </label>
       </div>
 
-      <p class="privacy-note">API Key 保存在本机扩展存储中；网页文本只会发送到你配置的接口。</p>
+      <div class="maintenance-actions" aria-label="维护操作" data-i18n-aria-label="optionsMaintenanceActions">
+        <button id="clearCache" type="button" class="secondary danger" data-i18n="optionsClearCache">清空缓存</button>
+        <button id="reset" type="button" class="secondary danger" data-i18n="optionsResetAll">恢复全部默认设置</button>
+      </div>
+
+      <p class="privacy-note" data-i18n="optionsPrivacyNote">API Key 保存在本机扩展存储中；网页文本只会发送到你配置的接口。</p>
     </details>
 
     <div class="actions">
-      <p id="message" role="status" aria-live="polite">设置会自动保存。</p>
+      <p id="message" role="status" aria-live="polite" data-i18n="optionsAutoSaveMessage">设置会自动保存。</p>
       <div>
-        <button id="save">立即保存</button>
-        <button id="test" type="button">测试 API</button>
-        <button id="clearCache" type="button" class="secondary danger">清空缓存</button>
-        <button id="reset" type="button" class="secondary danger">恢复默认</button>
+        <button id="save" class="secondary" data-i18n="optionsSaveNow">立即保存</button>
+        <button id="test" type="button" data-i18n="optionsTestApi">测试 API</button>
       </div>
     </div>
   </main>

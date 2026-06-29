@@ -26,16 +26,19 @@ async function main() {
     await testSkipsTargetLanguageText(browser);
     await testTranslationUiResetsBidiStyles(browser);
     await testDarkThemeReadable(browser);
+    await testLocalDarkSectionReadableOnLightPage(browser);
     await testTranslationFirstModeDimsOriginalText(browser);
     await testPageBudgetLimitsRequests(browser);
     await testRetrySuccessDoesNotDoubleCountStats(browser);
     await testTranslationBatchesUseLimitedConcurrency(browser);
+    await testFarViewportCancelsStalePendingTranslations(browser);
     await testAutoTranslationStartsEnglishContentWithTargetLocale(browser);
     await testDisabledAutoTranslationDoesNotWakeBackgroundForSettings(browser);
     await testVisibleElementsDoNotWaitForIntersectionObserver(browser);
     await testDeclarativeAutoTranslationStartsOnLoad(browser);
     await testAutoTranslationWaitsForDynamicEnglishContentWithTargetLocale(browser);
     await testAutoTranslationSkipsTargetLanguagePage(browser);
+    await testAutoTranslationSkipsTargetLanguageDominantPage(browser);
     await testCanHideAndShowTranslations(browser);
     await testShowsSelectionTranslationCard(browser);
     await testShowsPageNotice(browser);
@@ -157,7 +160,7 @@ async function testContentScriptReinjectsWhenVersionChanges(browser) {
   await page.evaluate(contentSource);
 
   assert.strictEqual(await page.evaluate(() => window.__listenerCount()), 1);
-  assert.strictEqual(await page.evaluate(() => document.documentElement.dataset.llmTranslatorVersion), "0.4.4");
+  assert.strictEqual(await page.evaluate(() => document.documentElement.dataset.llmTranslatorVersion), "0.4.5");
 
   const result = await runTranslation(page);
   assert.strictEqual(result.requestCount, 1);
@@ -370,6 +373,43 @@ async function testTranslationBatchesUseLimitedConcurrency(browser) {
   await page.close();
 }
 
+async function testFarViewportCancelsStalePendingTranslations(browser) {
+  const page = await createHarnessPage(browser, {
+    batchSize: 1,
+    maxConcurrentBatches: 1,
+    translateDelayMs: 1200,
+    html: `
+      <main>
+        <p id="top-story">First viewport paragraph is slow to translate and should be abandoned after a far scroll.</p>
+        <div style="height:2600px"></div>
+        <p id="bottom-story">Second viewport paragraph should be translated after the user scrolls to the new reading area.</p>
+      </main>
+    `
+  });
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForFunction(() => window.__mockItems.length === 1);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForFunction(() => window.__mockItems.length >= 2);
+  await page.waitForFunction(() => document.querySelector("#bottom-story + .llm-bilingual-translation.is-done"));
+  await page.waitForTimeout(200);
+
+  const result = await page.evaluate(() => ({
+    requests: window.__mockItems,
+    topDone: !!document.querySelector("#top-story + .llm-bilingual-translation.is-done"),
+    topLoading: !!document.querySelector("#top-story + .llm-bilingual-translation.is-loading"),
+    bottomDone: !!document.querySelector("#bottom-story + .llm-bilingual-translation.is-done")
+  }));
+
+  assert.match(result.requests[0], /First viewport paragraph/);
+  assert.match(result.requests[1], /Second viewport paragraph/);
+  assert.strictEqual(result.topDone, false, "Stale first-viewport response should not be applied after a far scroll.");
+  assert.strictEqual(result.topLoading, false, "Old first-viewport loading block should be removed after a far scroll.");
+  assert.strictEqual(result.bottomDone, true, "The new viewport should translate without waiting for the old request.");
+
+  await page.close();
+}
+
 async function testRetrySuccessDoesNotDoubleCountStats(browser) {
   const page = await createHarnessPage(browser, {
     failFirstTranslate: true,
@@ -526,6 +566,37 @@ async function testDarkThemeReadable(browser) {
   await page.close();
 }
 
+async function testLocalDarkSectionReadableOnLightPage(browser) {
+  const page = await createHarnessPage(browser, {
+    bodyStyle: "background:#fff;color:#111;font:24px Arial;padding:40px",
+    html: `
+      <main>
+        <section style="background:#080808;color:#fff;padding:24px">
+          <p>CNN streaming cards often sit inside a dark section on an otherwise light home page.</p>
+        </section>
+      </main>
+    `
+  });
+
+  await runTranslation(page);
+
+  const style = await page.evaluate(() => {
+    const node = document.querySelector(".llm-bilingual-translation.is-done");
+    const computed = getComputedStyle(node);
+    return {
+      pageTheme: document.documentElement.dataset.llmTranslatorTheme,
+      localTheme: node.dataset.llmTranslatorLocalTheme,
+      color: computed.color
+    };
+  });
+
+  assert.strictEqual(style.pageTheme, "light");
+  assert.strictEqual(style.localTheme, "dark");
+  assert.strictEqual(style.color, "rgb(248, 250, 252)");
+
+  await page.close();
+}
+
 async function testTranslationFirstModeDimsOriginalText(browser) {
   const page = await createHarnessPage(browser, {
     displayMode: "translation-first",
@@ -585,6 +656,33 @@ async function testAutoTranslationSkipsTargetLanguagePage(browser) {
       <main>
         <p>这是一段已经是中文的页面正文，不应该触发自动翻译。</p>
         <p>这段内容也主要是中文，只包含 OpenAI 这样的英文名称。</p>
+      </main>
+    `
+  });
+
+  const response = await page.evaluate(() => window.__sendContentMessage({ action: "start_translation", auto: true }));
+  await page.waitForTimeout(600);
+  const stats = await page.evaluate(() => window.__sendContentMessage({ action: "get_page_stats" }));
+
+  assert.strictEqual(response.skipped, true);
+  assert.strictEqual(stats.active, false);
+  assert.strictEqual(await page.evaluate(() => window.__mockItems.length), 0);
+
+  await page.close();
+}
+
+async function testAutoTranslationSkipsTargetLanguageDominantPage(browser) {
+  const page = await createHarnessPage(browser, {
+    htmlLang: "zh-CN",
+    targetLanguage: "简体中文",
+    html: `
+      <main>
+        <article>
+          <p>这是一段中文页面正文，介绍产品功能和使用方式，用户已经可以直接阅读。</p>
+          <p>第二段继续说明当前页面的主要内容，整体语言仍然是中文。</p>
+          <p>第三段补充更多中文说明，只有少量外文引用不应该触发整页自动翻译。</p>
+          <p>A short English quote appears here for context and should not start page translation by itself.</p>
+        </article>
       </main>
     `
   });
@@ -671,18 +769,39 @@ async function testShowsSelectionTranslationCard(browser) {
   assert.strictEqual(response.ok, true);
   await page.waitForSelector(".llm-bilingual-selection-card");
   const cardText = await page.locator(".llm-bilingual-selection-card").innerText();
+  assert.ok(cardText.includes("原文"));
+  assert.ok(cardText.includes("译文"));
   assert.ok(cardText.includes("This page contains text."));
   assert.ok(cardText.includes("这个页面包含文本。"));
+  assert.strictEqual(await page.locator(".llm-bilingual-selection-card [data-action='copy']").textContent(), "复制译文");
+  assert.strictEqual(await page.locator(".llm-bilingual-selection-card [data-action='close']").getAttribute("aria-label"), "关闭选中文本翻译");
   const cardPosition = await page.locator(".llm-bilingual-selection-card").evaluate((node) => ({
     left: node.style.left,
     top: node.style.top,
     right: node.style.right,
-    bottom: node.style.bottom
+    bottom: node.style.bottom,
+    height: node.getBoundingClientRect().height
   }));
   assert.match(cardPosition.left, /px$/);
   assert.match(cardPosition.top, /px$/);
   assert.strictEqual(cardPosition.right, "auto");
   assert.strictEqual(cardPosition.bottom, "auto");
+  assert.ok(cardPosition.height < 260, `selection card should fit content, got ${cardPosition.height}px`);
+
+  await page.evaluate(() => {
+    window.__copiedSelectionText = "";
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        async writeText(text) {
+          window.__copiedSelectionText = text;
+        }
+      }
+    });
+  });
+  await page.click(".llm-bilingual-selection-card [data-action='copy']");
+  await page.waitForFunction(() => window.__copiedSelectionText === "这个页面包含文本。");
+  await page.waitForFunction(() => document.querySelector(".llm-bilingual-selection-card__status")?.textContent.includes("已复制"));
 
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.querySelectorAll(".llm-bilingual-selection-card").length === 0);
@@ -706,6 +825,17 @@ async function testShowsSelectionTranslationCard(browser) {
   await page.waitForSelector(".llm-bilingual-selection-card");
   await page.click(".llm-bilingual-selection-card [data-action='close']");
   assert.strictEqual(await page.locator(".llm-bilingual-selection-card").count(), 0);
+
+  await page.evaluate(() => window.__sendContentMessage({
+    action: "show_selection_translation",
+    originalText: "这段文字已经是中文。",
+    notice: "选中文本已是目标语言，无需翻译。"
+  }));
+  await page.waitForSelector(".llm-bilingual-selection-card");
+  assert.strictEqual(await page.locator(".llm-bilingual-selection-card [data-action='copy']").isDisabled(), true);
+  const noticeCardText = await page.locator(".llm-bilingual-selection-card").innerText();
+  assert.ok(noticeCardText.includes("提示"));
+  assert.ok(noticeCardText.includes("无需翻译"));
 
   await page.close();
 }

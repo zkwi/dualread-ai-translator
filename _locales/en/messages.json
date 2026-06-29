@@ -1,0 +1,863 @@
+{
+  "close": {
+    "message": "Close"
+  },
+  "commandToggleTranslation": {
+    "message": "Toggle bilingual translation on the current page"
+  },
+  "confirmClearCache": {
+    "message": "confirm Clear Cache"
+  },
+  "confirmResetAll": {
+    "message": "confirm Reset All"
+  },
+  "confirmResetPrompt": {
+    "message": "confirm Reset Prompt"
+  },
+  "contentErrorRetry": {
+    "message": "Translation failed: $1 (click to retry)"
+  },
+  "contentLoading": {
+    "message": "Translating..."
+  },
+  "contentNoOperationResult": {
+    "message": "No Operation Result"
+  },
+  "contentReloadRequired": {
+    "message": "Reload Required"
+  },
+  "contentStoppedRetryUnavailable": {
+    "message": "Stopped Retry Unavailable"
+  },
+  "contextTranslatePage": {
+    "message": "Translate this page"
+  },
+  "contextTranslateSelection": {
+    "message": "Translate selected text"
+  },
+  "costHintBalanced": {
+    "message": "cost Hint Balanced"
+  },
+  "costHintCustom": {
+    "message": "cost Hint Custom"
+  },
+  "costHintEager": {
+    "message": "cost Hint Eager"
+  },
+  "costHintEconomy": {
+    "message": "cost Hint Economy"
+  },
+  "costProfileBalanced": {
+    "message": "Balanced: recommended for daily use"
+  },
+  "costProfileCustom": {
+    "message": "Custom parameters"
+  },
+  "costProfileEager": {
+    "message": "Eager: prefetch more article text"
+  },
+  "costProfileEconomy": {
+    "message": "Save tokens: translate less content"
+  },
+  "displayModeBilingual": {
+    "message": "Bilingual: show translation below original"
+  },
+  "displayModeBilingualShort": {
+    "message": "Bilingual"
+  },
+  "displayModeHelp": {
+    "message": "display Mode"
+  },
+  "displayModeLabel": {
+    "message": "Display mode"
+  },
+  "displayModeTranslationFirst": {
+    "message": "Translation first: dim original text"
+  },
+  "displayModeTranslationFirstShort": {
+    "message": "Translation first"
+  },
+  "errorApiKeyMissing": {
+    "message": "API Key Missing"
+  },
+  "errorApiMissingContent": {
+    "message": "API Missing Content"
+  },
+  "errorApiRequestFailed": {
+    "message": "API Request Failed"
+  },
+  "errorApiRequestGeneric": {
+    "message": "API Request Generic"
+  },
+  "errorApiTimeout": {
+    "message": "API Timeout"
+  },
+  "errorMissingParagraphTranslation": {
+    "message": "Missing Paragraph Translation"
+  },
+  "errorModelMissing": {
+    "message": "Model Missing"
+  },
+  "errorModelReturnedNonArray": {
+    "message": "Model Returned Non Array"
+  },
+  "errorNoSelectionText": {
+    "message": "No Selection"
+  },
+  "errorNoTranslationResult": {
+    "message": "No Translation Result"
+  },
+  "errorParseJson": {
+    "message": "Parse Json"
+  },
+  "errorTestNoTranslation": {
+    "message": "Test No Translation"
+  },
+  "errorTranslationFailed": {
+    "message": "Translation Failed"
+  },
+  "errorTranslationStartFailed": {
+    "message": "Translation Start Failed"
+  },
+  "errorUnsupportedTab": {
+    "message": "Unsupported Tab"
+  },
+  "errorUnsupportedTabTest": {
+    "message": "Unsupported Tab Test"
+  },
+  "extensionDescription": {
+    "message": "AI bilingual webpage translation with original text preserved and translations shown nearby."
+  },
+  "extensionName": {
+    "message": "extension Name"
+  },
+  "extensionShortName": {
+    "message": "extension Short Name"
+  },
+  "fieldApiUrl": {
+    "message": "field API URL"
+  },
+  "fieldModelName": {
+    "message": "field Model Name"
+  },
+  "fieldRequiredConfig": {
+    "message": "field Required Config"
+  },
+  "hide": {
+    "message": "Hide"
+  },
+  "hideApiKey": {
+    "message": "Hide API Key"
+  },
+  "htmlLang": {
+    "message": "en"
+  },
+  "langAutoDetect": {
+    "message": "Auto detect"
+  },
+  "langEnglish": {
+    "message": "English"
+  },
+  "langFrench": {
+    "message": "French"
+  },
+  "langGerman": {
+    "message": "German"
+  },
+  "langJapanese": {
+    "message": "Japanese"
+  },
+  "langKorean": {
+    "message": "Korean"
+  },
+  "langSimplifiedChinese": {
+    "message": "Simplified Chinese"
+  },
+  "langSpanish": {
+    "message": "Spanish"
+  },
+  "langTraditionalChinese": {
+    "message": "Traditional Chinese"
+  },
+  "languageDirection": {
+    "message": "$1 -> $2"
+  },
+  "languageDirectionDefault": {
+    "message": "English -> Simplified Chinese"
+  },
+  "languageStatusDirection": {
+    "message": "language Status Direction"
+  },
+  "languageStatusSame": {
+    "message": "language Status Same"
+  },
+  "listSeparator": {
+    "message": ", "
+  },
+  "messageApiTestFailed": {
+    "message": "API Test Failed"
+  },
+  "messageApiTestSuccess": {
+    "message": "API Test Success"
+  },
+  "messageApiUrlModelRequired": {
+    "message": "API URL Model Required"
+  },
+  "messageAutoSaveFailed": {
+    "message": "Auto Save Failed"
+  },
+  "messageAutoSaveMissing": {
+    "message": "Auto Save Missing"
+  },
+  "messageAutoSaved": {
+    "message": "Auto Saved"
+  },
+  "messageAutoSaving": {
+    "message": "Auto Saving"
+  },
+  "messageClearCacheDone": {
+    "message": "Clear Cache Done"
+  },
+  "messageClearCacheFailed": {
+    "message": "Clear Cache Failed"
+  },
+  "messageCompleteConnectionFirst": {
+    "message": "Complete Connection First"
+  },
+  "messagePromptAlreadyDefault": {
+    "message": "Prompt Already Default"
+  },
+  "messagePromptResetSaving": {
+    "message": "Prompt Reset Saving"
+  },
+  "messageResetAllDone": {
+    "message": "Reset All Done"
+  },
+  "messageSettingsSaved": {
+    "message": "Settings Saved"
+  },
+  "messageTestingApi": {
+    "message": "Testing API"
+  },
+  "noticeSelectionAlreadyTarget": {
+    "message": "Selection Already Target"
+  },
+  "noticeTranslationAlreadyActive": {
+    "message": "Translation Already Active"
+  },
+  "optionsAdvancedConnection": {
+    "message": "Advanced connection settings"
+  },
+  "optionsAdvancedSettings": {
+    "message": "Advanced settings"
+  },
+  "optionsAdvancedSettingsDesc": {
+    "message": "Advanced Settings"
+  },
+  "optionsApiKeyHelp": {
+    "message": "API Key"
+  },
+  "optionsApiTimeout": {
+    "message": "API maximum wait time (seconds)"
+  },
+  "optionsApiTimeoutHelp": {
+    "message": "API Timeout"
+  },
+  "optionsApiUrl": {
+    "message": "Chat Completions API URL"
+  },
+  "optionsApiUrlHelp": {
+    "message": "API URL"
+  },
+  "optionsAutoSave": {
+    "message": "Auto save"
+  },
+  "optionsAutoSaveMessage": {
+    "message": "Auto Save Message"
+  },
+  "optionsAutoTranslateHelp": {
+    "message": "Auto Translate"
+  },
+  "optionsAutoTranslateLabel": {
+    "message": "Auto start translation on foreign-language pages"
+  },
+  "optionsBatchSize": {
+    "message": "Paragraphs per batch"
+  },
+  "optionsCacheMaintenance": {
+    "message": "Cache and maintenance"
+  },
+  "optionsCacheTtlDays": {
+    "message": "Cache retention days"
+  },
+  "optionsClearCache": {
+    "message": "Clear cache"
+  },
+  "optionsCostControl": {
+    "message": "Cost control"
+  },
+  "optionsCostControlDesc": {
+    "message": "Cost Control"
+  },
+  "optionsDisableThinking": {
+    "message": "Automatically disable controllable thinking mode"
+  },
+  "optionsLanguage": {
+    "message": "Language"
+  },
+  "optionsLanguageDesc": {
+    "message": "Language"
+  },
+  "optionsLanguagePresetsAria": {
+    "message": "Language Presets"
+  },
+  "optionsLanguageStatusInitial": {
+    "message": "Language Status"
+  },
+  "optionsMaintenanceActions": {
+    "message": "Maintenance Actions"
+  },
+  "optionsMaxCacheEntries": {
+    "message": "Max cache entries"
+  },
+  "optionsMaxCharsPerBatch": {
+    "message": "Max characters per batch"
+  },
+  "optionsMaxCharsPerPage": {
+    "message": "Max requested characters per page"
+  },
+  "optionsMaxConcurrentBatches": {
+    "message": "Concurrent request batches"
+  },
+  "optionsMaxConcurrentHelp": {
+    "message": "Max Concurrent"
+  },
+  "optionsMaxElementsPerScan": {
+    "message": "Max paragraphs per scan"
+  },
+  "optionsMaxRequestsPerPage": {
+    "message": "Max requested paragraphs per page"
+  },
+  "optionsMaxTextLength": {
+    "message": "Max characters per block"
+  },
+  "optionsModelHelp": {
+    "message": "Model"
+  },
+  "optionsModelName": {
+    "message": "Model name"
+  },
+  "optionsPrivacyNote": {
+    "message": "Privacy Note"
+  },
+  "optionsPrompt": {
+    "message": "Prompt"
+  },
+  "optionsPromptHelp": {
+    "message": "Prompt"
+  },
+  "optionsProvider": {
+    "message": "Provider"
+  },
+  "optionsQuickStart": {
+    "message": "Quick start"
+  },
+  "optionsQuickStartDesc": {
+    "message": "Quick Start"
+  },
+  "optionsReadingExperience": {
+    "message": "Reading experience"
+  },
+  "optionsReadingExperienceDesc": {
+    "message": "Reading Experience"
+  },
+  "optionsResetAll": {
+    "message": "Restore all defaults"
+  },
+  "optionsResetPrompt": {
+    "message": "Restore default prompt"
+  },
+  "optionsSaveNow": {
+    "message": "Save now"
+  },
+  "optionsSetupLoadingText": {
+    "message": "Setup Loading"
+  },
+  "optionsSetupLoadingTitle": {
+    "message": "Setup Loading"
+  },
+  "optionsSourceLanguage": {
+    "message": "Source language"
+  },
+  "optionsSourceLanguageHelp": {
+    "message": "Source Language"
+  },
+  "optionsStepApiKey": {
+    "message": "Enter API Key"
+  },
+  "optionsStepProvider": {
+    "message": "Choose provider"
+  },
+  "optionsStepTestApi": {
+    "message": "Test API"
+  },
+  "optionsSubtitle": {
+    "message": "Bilingual webpage translation settings. Changes are saved automatically."
+  },
+  "optionsTargetLanguage": {
+    "message": "Target language"
+  },
+  "optionsTargetLanguageHelp": {
+    "message": "Target Language"
+  },
+  "optionsTestApi": {
+    "message": "Test API"
+  },
+  "optionsTesting": {
+    "message": "Testing..."
+  },
+  "optionsTitle": {
+    "message": "DualRead AI Settings"
+  },
+  "optionsTranslationPrompt": {
+    "message": "Translation prompt"
+  },
+  "optionsTranslationScope": {
+    "message": "Translation scope"
+  },
+  "optionsViewportOnly": {
+    "message": "Viewport Only"
+  },
+  "optionsViewportOnlyHelp": {
+    "message": "Viewport Only"
+  },
+  "popupActionHintInitial": {
+    "message": "Click Start translation. Translations will appear below the original text."
+  },
+  "popupActive": {
+    "message": "Enabled."
+  },
+  "popupActiveHint": {
+    "message": "Active Hint"
+  },
+  "popupActiveWithCount": {
+    "message": "Enabled. Found $1 candidate text blocks."
+  },
+  "popupApiPending": {
+    "message": "API not configured"
+  },
+  "popupAutoDisabledStatus": {
+    "message": "Auto Disabled Status"
+  },
+  "popupAutoEnabledUnsupportedStatus": {
+    "message": "Auto Enabled Unsupported Status"
+  },
+  "popupAutoStartFailed": {
+    "message": "Auto Start Failed"
+  },
+  "popupAutoTranslateLabel": {
+    "message": "Auto translate foreign pages"
+  },
+  "popupAutoUnconfiguredHint": {
+    "message": "Auto Unconfigured Hint"
+  },
+  "popupAutoUnconfiguredStatus": {
+    "message": "Auto Unconfigured Status"
+  },
+  "popupBadgeIdle": {
+    "message": "Idle"
+  },
+  "popupBadgeSkipped": {
+    "message": "Skipped"
+  },
+  "popupBadgeTranslating": {
+    "message": "Translating"
+  },
+  "popupBadgeUnavailable": {
+    "message": "Unavailable"
+  },
+  "popupBadgeUnconfigured": {
+    "message": "Not configured"
+  },
+  "popupClearTranslations": {
+    "message": "Clear translations"
+  },
+  "popupClearing": {
+    "message": "Clearing"
+  },
+  "popupClearingShort": {
+    "message": "Clearing Short"
+  },
+  "popupConfigLoading": {
+    "message": "Loading settings..."
+  },
+  "popupConfigNoticeText": {
+    "message": "Please enter an API Key and model first."
+  },
+  "popupConfigNoticeTitle": {
+    "message": "Not ready"
+  },
+  "popupConfirmClearTranslations": {
+    "message": "Confirm Clear Translations"
+  },
+  "popupDisablingAuto": {
+    "message": "Disabling Auto"
+  },
+  "popupDisplayModeBilingualStatus": {
+    "message": "Display Mode Bilingual Status"
+  },
+  "popupDisplayModeSavedButNotApplied": {
+    "message": "Display Mode Saved But Not Applied"
+  },
+  "popupDisplayModeSavedForNormalPages": {
+    "message": "Display Mode Saved For Normal Pages"
+  },
+  "popupDisplayModeTranslationFirstStatus": {
+    "message": "Display Mode Translation First Status"
+  },
+  "popupEnablingAuto": {
+    "message": "Enabling Auto"
+  },
+  "popupGoSettings": {
+    "message": "Settings"
+  },
+  "popupHideTranslations": {
+    "message": "Hide translations"
+  },
+  "popupHiding": {
+    "message": "Hiding"
+  },
+  "popupHidingTranslations": {
+    "message": "Hiding Translations"
+  },
+  "popupIdleHint": {
+    "message": "Idle Hint"
+  },
+  "popupIdleStatus": {
+    "message": "Idle Status"
+  },
+  "popupLanguage": {
+    "message": "Language"
+  },
+  "popupOpenSettings": {
+    "message": "Open settings"
+  },
+  "popupScanning": {
+    "message": "Scanning"
+  },
+  "popupScope": {
+    "message": "Scope"
+  },
+  "popupShowTranslations": {
+    "message": "Show translations"
+  },
+  "popupShowing": {
+    "message": "Showing"
+  },
+  "popupShowingTranslations": {
+    "message": "Showing Translations"
+  },
+  "popupSkippedTargetLanguageHint": {
+    "message": "Skipped Target Language Hint"
+  },
+  "popupSkippedTargetLanguageStatus": {
+    "message": "Skipped Target Language Status"
+  },
+  "popupStartTranslation": {
+    "message": "Start translation"
+  },
+  "popupStarting": {
+    "message": "Starting"
+  },
+  "popupStatusActionFailed": {
+    "message": "Status Action Failed"
+  },
+  "popupStatusClearFailed": {
+    "message": "Status Clear Failed"
+  },
+  "popupStatusLoading": {
+    "message": "Reading current page status..."
+  },
+  "popupStatusNoTab": {
+    "message": "Status No Tab"
+  },
+  "popupStatusProcessing": {
+    "message": "Status Processing"
+  },
+  "popupStatusScanFailed": {
+    "message": "Status Scan Failed"
+  },
+  "popupStatusScanningArea": {
+    "message": "Status Scanning Area"
+  },
+  "popupStatusVisibilityFailed": {
+    "message": "Status Visibility Failed"
+  },
+  "popupStopTranslation": {
+    "message": "Stop translation"
+  },
+  "popupStopping": {
+    "message": "Stopping"
+  },
+  "popupSummaryAria": {
+    "message": "Current translation settings"
+  },
+  "popupSwitchingDisplayMode": {
+    "message": "Switching Display Mode"
+  },
+  "popupTranslateCurrentScreen": {
+    "message": "Translate current screen"
+  },
+  "popupUnconfiguredHint": {
+    "message": "Unconfigured Hint"
+  },
+  "popupUnconfiguredStatus": {
+    "message": "Unconfigured Status"
+  },
+  "popupUnsupportedConfiguredHint": {
+    "message": "Unsupported Configured Hint"
+  },
+  "popupUnsupportedHint": {
+    "message": "Unsupported Hint"
+  },
+  "popupUnsupportedPageStatus": {
+    "message": "Unsupported Page Status"
+  },
+  "popupUnsupportedUnconfiguredHint": {
+    "message": "Unsupported Unconfigured Hint"
+  },
+  "presetAutoToZhCn": {
+    "message": "preset Auto To Zh Cn"
+  },
+  "presetEnToZhCn": {
+    "message": "preset En To Zh Cn"
+  },
+  "presetEnToZhTw": {
+    "message": "preset En To Zh Tw"
+  },
+  "presetZhToEn": {
+    "message": "preset Zh To En"
+  },
+  "providerCustom": {
+    "message": "Custom"
+  },
+  "providerHintCustom": {
+    "message": "provider Hint Custom"
+  },
+  "providerHintDashscope": {
+    "message": "provider Hint Dashscope"
+  },
+  "providerHintDeepseek": {
+    "message": "provider Hint Deepseek"
+  },
+  "providerHintLocal": {
+    "message": "provider Hint Local"
+  },
+  "providerHintOpenai": {
+    "message": "provider Hint Openai"
+  },
+  "providerHintOpenaiShort": {
+    "message": "provider Hint Openai Short"
+  },
+  "providerLocal": {
+    "message": "Local compatible service"
+  },
+  "providerLocalShort": {
+    "message": "Local service"
+  },
+  "saveStateMaintenance": {
+    "message": "Maintenance"
+  },
+  "saveStateSaveFailed": {
+    "message": "Save Failed"
+  },
+  "saveStateSaved": {
+    "message": "Saved"
+  },
+  "saveStateSaving": {
+    "message": "Saving"
+  },
+  "saveStateTestFailed": {
+    "message": "Test Failed"
+  },
+  "saveStateTesting": {
+    "message": "Testing"
+  },
+  "scopeCurrentViewport": {
+    "message": "Current screen area"
+  },
+  "scopeWholePageBudget": {
+    "message": "Within page budget"
+  },
+  "selectionCardAria": {
+    "message": "Card"
+  },
+  "selectionCardTitle": {
+    "message": "Selected text translation"
+  },
+  "selectionCloseAria": {
+    "message": "Close"
+  },
+  "selectionCopied": {
+    "message": "Copied"
+  },
+  "selectionCopiedStatus": {
+    "message": "Copied Status"
+  },
+  "selectionCopyFailed": {
+    "message": "Copy Failed"
+  },
+  "selectionCopyFailedStatus": {
+    "message": "Copy Failed Status"
+  },
+  "selectionCopyTranslation": {
+    "message": "Copy translation"
+  },
+  "selectionErrorLabel": {
+    "message": "Error"
+  },
+  "selectionErrorText": {
+    "message": "Error"
+  },
+  "selectionNoCopyText": {
+    "message": "No Copy"
+  },
+  "selectionNoticeLabel": {
+    "message": "Notice"
+  },
+  "selectionSourceLabel": {
+    "message": "Original"
+  },
+  "selectionTranslationLabel": {
+    "message": "Translation"
+  },
+  "setupErrorText": {
+    "message": "Error"
+  },
+  "setupErrorTitle": {
+    "message": "Error"
+  },
+  "setupMissingText": {
+    "message": "Missing"
+  },
+  "setupMissingTitle": {
+    "message": "Missing"
+  },
+  "setupReadyText": {
+    "message": "Ready"
+  },
+  "setupReadyTitle": {
+    "message": "Ready"
+  },
+  "setupSuccessText": {
+    "message": "Success"
+  },
+  "setupSuccessTitle": {
+    "message": "Success"
+  },
+  "setupTestingText": {
+    "message": "Testing"
+  },
+  "setupTestingTitle": {
+    "message": "Testing"
+  },
+  "show": {
+    "message": "Show"
+  },
+  "showApiKey": {
+    "message": "Show API Key"
+  },
+  "statAria": {
+    "message": "statAria"
+  },
+  "statCache": {
+    "message": "Cache"
+  },
+  "statCacheTitle": {
+    "message": "Cache"
+  },
+  "statFailed": {
+    "message": "Failed"
+  },
+  "statFailedTitle": {
+    "message": "Failed"
+  },
+  "statRequests": {
+    "message": "Requests"
+  },
+  "statRequestsTitle": {
+    "message": "Requests"
+  },
+  "statSkipped": {
+    "message": "Skipped"
+  },
+  "statSkippedTitle": {
+    "message": "Skipped"
+  },
+  "statTranslated": {
+    "message": "Translated"
+  },
+  "statTranslatedTitle": {
+    "message": "Translated"
+  },
+  "statusDisabled": {
+    "message": "Off"
+  },
+  "statusEnabled": {
+    "message": "On"
+  },
+  "summaryWithDot": {
+    "message": "summary With Dot"
+  },
+  "testButtonMissingTitle": {
+    "message": "test Button Missing"
+  },
+  "thinkingHintDashscope": {
+    "message": "thinking Hint Dashscope"
+  },
+  "thinkingHintDisabled": {
+    "message": "thinking Hint Disabled"
+  },
+  "thinkingHintNone": {
+    "message": "thinking Hint None"
+  },
+  "thinkingHintSelfHosted": {
+    "message": "thinking Hint Self Hosted"
+  },
+  "tooltipAutoTranslate": {
+    "message": "Auto Translate"
+  },
+  "tooltipAutoTranslateGlobalOnly": {
+    "message": "Auto Translate Global Only"
+  },
+  "tooltipClearTranslations": {
+    "message": "Clear Translations"
+  },
+  "tooltipCurrentPageUnavailable": {
+    "message": "Current Page Unavailable"
+  },
+  "tooltipHideTranslations": {
+    "message": "Hide Translations"
+  },
+  "tooltipNeedConfig": {
+    "message": "Need Config"
+  },
+  "tooltipNoTranslations": {
+    "message": "No Translations"
+  },
+  "tooltipScanCurrentScreen": {
+    "message": "Scan Current Screen"
+  },
+  "tooltipShowTranslations": {
+    "message": "Show Translations"
+  },
+  "tooltipStartTranslation": {
+    "message": "Start Translation"
+  },
+  "tooltipStopTranslation": {
+    "message": "Stop Translation"
+  },
+  "tooltipUnsupportedPage": {
+    "message": "Unsupported Page"
+  }
+}

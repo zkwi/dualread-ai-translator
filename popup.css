@@ -164,6 +164,10 @@ p {
   accent-color: #2563eb;
 }
 
+.switch-row.is-disabled {
+  opacity: 0.62;
+}
+
 .mode-panel {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -270,6 +274,12 @@ button {
 
 button:hover:not(:disabled) {
   filter: brightness(0.96);
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 2px;
 }
 
 button:disabled {

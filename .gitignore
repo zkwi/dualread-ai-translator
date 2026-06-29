@@ -6,6 +6,16 @@ pnpm-debug.log*
 
 .env
 .env.*
+.npmrc
+*.pem
+*.key
+*.p12
+*.pfx
+
+dist/
+release/
+*.zip
+*.crx
 
 test-results/
 playwright-report/

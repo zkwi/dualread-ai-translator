@@ -1,4 +1,6 @@
 const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
 const shared = require("../shared.js");
 
 assert.strictEqual(
@@ -164,6 +166,29 @@ assert.strictEqual(
 assert.strictEqual(
   shared.isLikelyTargetLanguagePage({
     htmlLang: "zh-CN",
+    segments: [
+      "这是一段中文页面正文，介绍产品功能和使用方式，用户已经可以直接阅读。",
+      "第二段继续说明当前页面的主要内容，整体语言仍然是中文。",
+      "第三段补充更多中文说明，只有少量外文引用不应该触发整页自动翻译。",
+      "A short English quote appears here for context."
+    ]
+  }, "简体中文"),
+  true
+);
+assert.strictEqual(
+  shared.isLikelyTargetLanguagePage({
+    htmlLang: "en-US",
+    segments: [
+      "这是一小段中文导航。",
+      "This article is written primarily in English and contains enough detail to be translated for Chinese readers.",
+      "Another English paragraph explains the main story with more context and background."
+    ]
+  }, "简体中文"),
+  false
+);
+assert.strictEqual(
+  shared.isLikelyTargetLanguagePage({
+    htmlLang: "zh-CN",
     text: "Mythos 6 Leaks: Already Exists? A new Mythos model has finished training internally and could launch soon."
   }, "简体中文"),
   false
@@ -242,5 +267,35 @@ assert.strictEqual(cacheKeyA, cacheKeyB);
 assert.notStrictEqual(cacheKeyA, cacheKeyC);
 assert.notStrictEqual(cacheKeyA, cacheKeyD);
 assert.ok(cacheKeyA.startsWith("llm_translator_cache:"));
+
+assertI18nLocaleCoverage();
+
+function assertI18nLocaleCoverage() {
+  const rootDir = path.resolve(__dirname, "..");
+  const sourceFiles = [
+    "manifest.json",
+    "popup.html",
+    "options.html",
+    "popup.js",
+    "options.js",
+    "background.js",
+    "content.js"
+  ];
+  const keys = new Set(["htmlLang"]);
+
+  for (const file of sourceFiles) {
+    const source = fs.readFileSync(path.join(rootDir, file), "utf8");
+    for (const match of source.matchAll(/data-i18n(?:-[\w-]+)?="([^"]+)"/g)) keys.add(match[1]);
+    for (const match of source.matchAll(/\bt\("([^"]+)"/g)) keys.add(match[1]);
+    for (const match of source.matchAll(/__MSG_([A-Za-z0-9_]+)__/g)) keys.add(match[1]);
+  }
+
+  for (const locale of ["zh_CN", "zh_TW", "en", "ja"]) {
+    const messagesPath = path.join(rootDir, "_locales", locale, "messages.json");
+    const messages = JSON.parse(fs.readFileSync(messagesPath, "utf8"));
+    const missing = Array.from(keys).filter((key) => !messages[key]?.message);
+    assert.deepStrictEqual(missing, [], `${locale} is missing i18n messages`);
+  }
+}
 
 console.log("shared helper tests passed");

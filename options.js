@@ -1,6 +1,8 @@
 const DEFAULT_SETTINGS = globalThis.LLMTranslatorShared.DEFAULT_SETTINGS;
 const DEFAULT_TRANSLATION_PROMPT = globalThis.LLMTranslatorShared.DEFAULT_TRANSLATION_PROMPT;
 const LEGACY_DEFAULT_API_TIMEOUT_MS = globalThis.LLMTranslatorShared.LEGACY_DEFAULT_API_TIMEOUT_MS;
+const { i18n: t, applyI18n } = globalThis.LLMTranslatorShared;
+applyI18n(document);
 const AUTO_SAVE_DELAY_MS = 700;
 const MAX_API_TIMEOUT_SECONDS = 300;
 const PROVIDER_PRESETS = {
@@ -38,25 +40,25 @@ const COST_PROFILE_FIELDS = new Set([
 ]);
 
 const PROVIDER_HINTS = {
-  openai: "使用 OpenAI 官方 Chat Completions 接口，不添加非标准思考参数。",
-  deepseek: "使用 DeepSeek 官方 OpenAI-compatible 接口；DeepSeek 推理通常由模型名区分。",
-  dashscope: "使用阿里云 DashScope 兼容模式；可通过 enable_thinking 关闭 Qwen 思考。",
-  local: "适合本机代理、vLLM、SGLang 等兼容服务；Qwen 模型可通过 chat_template_kwargs 关闭思考。",
-  custom: "用于自定义 OpenAI-compatible 服务；会根据 API 地址和模型名判断是否支持关闭思考。"
+  openai: t("providerHintOpenai", [], "使用 OpenAI 官方 Chat Completions 接口，不添加非标准思考参数。"),
+  deepseek: t("providerHintDeepseek", [], "使用 DeepSeek 官方 OpenAI-compatible 接口；DeepSeek 推理通常由模型名区分。"),
+  dashscope: t("providerHintDashscope", [], "使用阿里云 DashScope 兼容模式；可通过 enable_thinking 关闭 Qwen 思考。"),
+  local: t("providerHintLocal", [], "适合本机代理、vLLM、SGLang 等兼容服务；Qwen 模型可通过 chat_template_kwargs 关闭思考。"),
+  custom: t("providerHintCustom", [], "用于自定义 OpenAI-compatible 服务；会根据 API 地址和模型名判断是否支持关闭思考。")
 };
 
 const THINKING_HINTS = {
-  none: "当前服务商不会添加额外思考参数。",
-  dashscope: "开启后请求体会加入 enable_thinking: false。",
-  "self-hosted": "开启后请求体会加入 chat_template_kwargs.enable_thinking = false。",
-  disabled: "已关闭：请求体不会添加思考控制参数。"
+  none: t("thinkingHintNone", [], "当前服务商不会添加额外思考参数。"),
+  dashscope: t("thinkingHintDashscope", [], "开启后请求体会加入 enable_thinking: false。"),
+  "self-hosted": t("thinkingHintSelfHosted", [], "开启后请求体会加入 chat_template_kwargs.enable_thinking = false。"),
+  disabled: t("thinkingHintDisabled", [], "已关闭：请求体不会添加思考控制参数。")
 };
 
 const COST_PROFILE_HINTS = {
-  economy: "省 Token 模式会少量预取，适合长页面、直播页或只想粗略阅读时使用。",
-  balanced: "平衡模式适合日常阅读：控制请求数量，同时会预取当前屏附近的正文。",
-  eager: "积极模式会多预取一些内容，阅读更连贯，但 token 消耗也会更高。",
-  custom: "自定义模式会使用你在高级设置中填写的批量、长度和每页预算。"
+  economy: t("costHintEconomy", [], "省 Token 模式会少量预取，适合长页面、直播页或只想粗略阅读时使用。"),
+  balanced: t("costHintBalanced", [], "平衡模式适合日常阅读：控制请求数量，同时会预取当前屏附近的正文。"),
+  eager: t("costHintEager", [], "积极模式会多预取一些内容，阅读更连贯，但 token 消耗也会更高。"),
+  custom: t("costHintCustom", [], "自定义模式会使用你在高级设置中填写的批量、长度和每页预算。")
 };
 
 const fields = {
@@ -89,6 +91,8 @@ const providerHintEl = document.getElementById("providerHint");
 const costProfileHintEl = document.getElementById("costProfileHint");
 const thinkingHintEl = document.getElementById("thinkingHint");
 const saveStateEl = document.getElementById("saveState");
+const setupStatusEl = document.getElementById("setupStatus");
+const languageStatusEl = document.getElementById("languageStatus");
 const languagePresetButtons = Array.from(document.querySelectorAll("[data-language-preset]"));
 const actionButtons = {
   save: document.getElementById("save"),
@@ -102,35 +106,50 @@ const actionButtons = {
 let autoSaveTimer = null;
 let optionActionRunning = false;
 let hasLoadedSettings = false;
+let apiTestPassed = false;
+let apiTestError = "";
+let apiTestRunning = false;
 
 loadSettings();
 setupAutoSave();
 setupExitSave();
 setupLanguagePresets();
+setupConnectionShortcuts();
 
 actionButtons.save.addEventListener("click", saveSettings);
 actionButtons.test.addEventListener("click", testApi);
 actionButtons.clearCache.addEventListener("click", clearCache);
 actionButtons.reset.addEventListener("click", async () => {
-  if (!confirmDestructiveAction("恢复默认会覆盖当前所有设置，API Key 也会被清空。确定继续吗？")) return;
+  if (!confirmDestructiveAction(t("confirmResetAll", [], "恢复全部默认设置会覆盖当前所有设置，API Key 也会被清空。确定继续吗？"))) return;
 
   clearPendingAutoSave();
   await runOptionAction(async () => {
     await chrome.storage.local.set(DEFAULT_SETTINGS);
     fillForm(DEFAULT_SETTINGS);
-    showMessage("已恢复默认设置。");
+    showMessage(t("messageResetAllDone", [], "已恢复全部默认设置。"));
   });
 });
 actionButtons.resetPrompt.addEventListener("click", () => {
+  if (fields.translationPrompt.value === DEFAULT_SETTINGS.translationPrompt) {
+    showMessage(t("messagePromptAlreadyDefault", [], "提示词已经是默认值。"));
+    return;
+  }
+
+  if (!confirmDestructiveAction(t("confirmResetPrompt", [], "恢复默认提示词会覆盖当前自定义提示词。确定继续吗？"))) return;
+
   fields.translationPrompt.value = DEFAULT_SETTINGS.translationPrompt;
   saveSettingsSoon();
+  showMessage(t("messagePromptResetSaving", [], "已恢复默认提示词，正在自动保存..."), false, "saving");
 });
 actionButtons.toggleApiKey.addEventListener("click", () => {
   const shouldShow = fields.apiKey.type === "password";
   fields.apiKey.type = shouldShow ? "text" : "password";
-  actionButtons.toggleApiKey.textContent = shouldShow ? "隐藏" : "显示";
+  actionButtons.toggleApiKey.textContent = shouldShow ? t("hide", [], "隐藏") : t("show", [], "显示");
+  actionButtons.toggleApiKey.setAttribute("aria-pressed", shouldShow ? "true" : "false");
+  actionButtons.toggleApiKey.title = shouldShow ? t("hideApiKey", [], "隐藏 API Key") : t("showApiKey", [], "显示 API Key");
 });
 fields.provider.addEventListener("change", () => {
+  markApiTestDirty();
   applyProviderPreset(fields.provider.value);
   updateHelperText();
   saveSettingsSoon();
@@ -146,7 +165,21 @@ function setupLanguagePresets() {
     button.addEventListener("click", () => {
       setSelectValue(fields.sourceLanguage, button.dataset.source || DEFAULT_SETTINGS.sourceLanguage);
       setSelectValue(fields.targetLanguage, button.dataset.target || DEFAULT_SETTINGS.targetLanguage);
+      updateLanguagePresetButtons();
+      updateLanguageStatus();
       saveSettingsSoon();
+    });
+  });
+}
+
+function setupConnectionShortcuts() {
+  [fields.apiUrl, fields.apiKey, fields.model].forEach((field) => {
+    field.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.isComposing) return;
+      if (optionActionRunning || getMissingConnectionFields().length > 0) return;
+
+      event.preventDefault();
+      testApi();
     });
   });
 }
@@ -196,7 +229,11 @@ function fillForm(settings) {
   fields.autoTranslate.checked = settings.autoTranslate === true;
   setSelectValue(fields.displayMode, settings.displayMode || DEFAULT_SETTINGS.displayMode);
   fields.viewportOnly.checked = settings.viewportOnly !== false;
+  updateLanguagePresetButtons();
+  updateLanguageStatus();
   updateHelperText();
+  updateSetupStatus();
+  updateActionAvailability();
 }
 
 async function saveSettings() {
@@ -205,12 +242,12 @@ async function saveSettings() {
     const settings = readFormSettings();
 
     if (!settings.apiUrl || !settings.model) {
-      showMessage("API 地址和模型名称不能为空。", true);
+      showMessage(t("messageApiUrlModelRequired", [], "API 地址和模型名称不能为空。"), true);
       return;
     }
 
     await chrome.storage.local.set(settings);
-    showMessage("设置已保存。");
+    showMessage(t("messageSettingsSaved", [], "设置已保存。"));
   });
 }
 
@@ -224,23 +261,46 @@ function setupAutoSave() {
     };
     if (field.type === "checkbox") {
       field.addEventListener("change", () => {
+        if (isConnectionField(name)) markApiTestDirty();
         markCustomCostProfile();
+        if (isLanguageField(name)) updateLanguagePresetButtons();
+        if (isLanguageField(name)) updateLanguageStatus();
         updateHelperText();
+        updateSetupStatus();
+        updateActionAvailability();
         saveSettingsSoon();
       });
     } else {
       field.addEventListener("input", () => {
+        if (isConnectionField(name)) markApiTestDirty();
         markCustomCostProfile();
+        if (isLanguageField(name)) updateLanguagePresetButtons();
+        if (isLanguageField(name)) updateLanguageStatus();
         updateHelperText();
+        updateSetupStatus();
+        updateActionAvailability();
         scheduleAutoSave();
       });
       field.addEventListener("change", () => {
+        if (isConnectionField(name)) markApiTestDirty();
         markCustomCostProfile();
+        if (isLanguageField(name)) updateLanguagePresetButtons();
+        if (isLanguageField(name)) updateLanguageStatus();
         updateHelperText();
+        updateSetupStatus();
+        updateActionAvailability();
         saveSettingsSoon();
       });
     }
   }
+}
+
+function isConnectionField(name) {
+  return name === "apiUrl" || name === "apiKey" || name === "model";
+}
+
+function isLanguageField(name) {
+  return name === "sourceLanguage" || name === "targetLanguage";
 }
 
 function setupExitSave() {
@@ -261,7 +321,7 @@ function saveSettingsSoon() {
 function scheduleAutoSave() {
   if (!hasLoadedSettings) return;
   clearPendingAutoSave();
-  showMessage("正在自动保存...", false, "saving");
+  showMessage(t("messageAutoSaving", [], "正在自动保存..."), false, "saving");
   autoSaveTimer = setTimeout(autoSaveSettings, AUTO_SAVE_DELAY_MS);
 }
 
@@ -275,15 +335,15 @@ async function autoSaveSettings() {
 
   const settings = readFormSettings();
   if (!settings.apiUrl || !settings.model) {
-    showMessage("API 地址和模型名称不能为空，暂未自动保存。", true);
+    showMessage(t("messageAutoSaveMissing", [], "API 地址和模型名称不能为空，暂未自动保存。"), true);
     return;
   }
 
   try {
     await chrome.storage.local.set(settings);
-    showMessage("已自动保存。");
+    showMessage(t("messageAutoSaved", [], "已自动保存。"));
   } catch (error) {
-    showMessage(`自动保存失败：${error.message}`, true);
+    showMessage(t("messageAutoSaveFailed", [error.message], `自动保存失败：${error.message}`), true);
   }
 }
 
@@ -306,42 +366,65 @@ function clearPendingAutoSave() {
 }
 
 async function testApi() {
-  await runOptionAction(async () => {
-    const settings = readFormSettings();
+  const originalText = actionButtons.test.textContent;
+  actionButtons.test.textContent = t("optionsTesting", [], "测试中...");
 
-    if (!settings.apiUrl || !settings.model || !settings.apiKey) {
-      showMessage("请先填写 API 地址、API Key 和模型名称。", true);
-      return;
-    }
+  try {
+    await runOptionAction(async () => {
+      const settings = readFormSettings();
 
-    showMessage("正在测试 API...", false, "testing");
-    await chrome.storage.local.set(settings);
+      if (!settings.apiUrl || !settings.model || !settings.apiKey) {
+        apiTestPassed = false;
+        apiTestError = t("messageCompleteConnectionFirst", [], "请先填写 API 地址、API Key 和模型名称。");
+        apiTestRunning = false;
+        updateSetupStatus();
+        showMessage(t("messageCompleteConnectionFirst", [], "请先填写 API 地址、API Key 和模型名称。"), true, "testing");
+        return;
+      }
 
-    const response = await chrome.runtime.sendMessage({
-      action: "test_api",
-      settings
+      apiTestPassed = false;
+      apiTestError = "";
+      apiTestRunning = true;
+      updateSetupStatus();
+      showMessage(t("messageTestingApi", [], "正在测试 API..."), false, "testing");
+      await chrome.storage.local.set(settings);
+
+      const response = await chrome.runtime.sendMessage({
+        action: "test_api",
+        settings
+      });
+
+      if (!response.ok) {
+        apiTestRunning = false;
+        apiTestPassed = false;
+        apiTestError = response.error || t("messageApiTestFailed", [], "API 测试失败。");
+        updateSetupStatus();
+        showMessage(apiTestError, true, "testing");
+        return;
+      }
+
+      apiTestRunning = false;
+      apiTestPassed = true;
+      apiTestError = "";
+      updateSetupStatus();
+      showMessage(t("messageApiTestSuccess", [response.text || ""], `API 可用，测试译文：${response.text}`));
     });
-
-    if (!response.ok) {
-      showMessage(response.error || "API 测试失败。", true);
-      return;
-    }
-
-    showMessage(`API 可用，测试译文：${response.text}`);
-  });
+  } finally {
+    actionButtons.test.textContent = originalText || t("optionsTestApi", [], "测试 API");
+  }
 }
 
 async function clearCache() {
-  if (!confirmDestructiveAction("确定清空本地翻译缓存吗？已保存的译文缓存会被删除。")) return;
+  if (!confirmDestructiveAction(t("confirmClearCache", [], "确定清空本地翻译缓存吗？已保存的译文缓存会被删除。"))) return;
 
   await runOptionAction(async () => {
     const response = await chrome.runtime.sendMessage({ action: "clear_cache" });
     if (!response.ok) {
-      showMessage(response.error || "清空缓存失败。", true);
+      showMessage(response.error || t("messageClearCacheFailed", [], "清空缓存失败。"), true);
       return;
     }
 
-    showMessage(`已清空 ${response.count} 条缓存。`);
+    showMessage(t("messageClearCacheDone", [String(response.count)], `已清空 ${response.count} 条缓存。`));
   });
 }
 
@@ -381,7 +464,8 @@ function readFormSettings() {
 function showMessage(text, isError = false, state = "") {
   messageEl.textContent = text;
   messageEl.classList.toggle("is-error", isError);
-  updateSaveState(isError ? "保存失败" : getSaveStateText(text, state), isError ? "error" : state);
+  updateSaveState(isError ? getErrorStateText(state) : getSaveStateText(text, state), isError ? "error" : state);
+  updateActionAvailability();
 }
 
 function updateSaveState(text, state = "") {
@@ -394,10 +478,15 @@ function updateSaveState(text, state = "") {
 }
 
 function getSaveStateText(text, state) {
-  if (state === "testing") return "测试中";
-  if (state === "saving" || /正在|稍后/.test(text)) return "保存中";
-  if (/清空/.test(text)) return "维护中";
-  return "已保存";
+  if (state === "testing") return t("saveStateTesting", [], "测试中");
+  if (state === "saving" || /正在|稍后/.test(text)) return t("saveStateSaving", [], "保存中");
+  if (/清空/.test(text)) return t("saveStateMaintenance", [], "维护中");
+  return t("saveStateSaved", [], "已保存");
+}
+
+function getErrorStateText(state) {
+  if (state === "testing") return t("saveStateTestFailed", [], "测试失败");
+  return t("saveStateSaveFailed", [], "保存失败");
 }
 
 function applyProviderPreset(provider) {
@@ -406,7 +495,67 @@ function applyProviderPreset(provider) {
 
   fields.apiUrl.value = preset.apiUrl;
   fields.model.value = preset.model;
-  fields.disableThinking.checked = DEFAULT_SETTINGS.disableThinking || preset.thinkingControl !== "none";
+  fields.disableThinking.checked = preset.thinkingControl !== "none";
+  updateSetupStatus();
+  updateActionAvailability();
+}
+
+function markApiTestDirty() {
+  apiTestRunning = false;
+  apiTestPassed = false;
+  apiTestError = "";
+  updateSetupStatus();
+}
+
+function updateSetupStatus() {
+  if (!setupStatusEl) return;
+
+  const missing = getMissingConnectionFields();
+  setupStatusEl.className = "setup-status";
+
+  if (missing.length > 0) {
+    setupStatusEl.classList.add("is-incomplete");
+    setupStatusEl.querySelector("strong").textContent = t("setupMissingTitle", [joinList(missing)], `还差 ${missing.join("、")}`);
+    setupStatusEl.querySelector("span").textContent = t("setupMissingText", [], "补齐后会自动保存，然后点击“测试 API”。");
+    return;
+  }
+
+  if (apiTestRunning) {
+    setupStatusEl.classList.add("is-testing");
+    setupStatusEl.querySelector("strong").textContent = t("setupTestingTitle", [], "正在测试 API");
+    setupStatusEl.querySelector("span").textContent = t("setupTestingText", [], "正在向当前服务商发送测试请求，请稍候。");
+    return;
+  }
+
+  if (apiTestPassed) {
+    setupStatusEl.classList.add("is-success");
+    setupStatusEl.querySelector("strong").textContent = t("setupSuccessTitle", [], "API 测试通过");
+    setupStatusEl.querySelector("span").textContent = t("setupSuccessText", [], "可以回到网页，点击插件开始翻译。");
+    return;
+  }
+
+  if (apiTestError) {
+    setupStatusEl.classList.add("is-error");
+    setupStatusEl.querySelector("strong").textContent = t("setupErrorTitle", [], "API 测试失败");
+    setupStatusEl.querySelector("span").textContent = t("setupErrorText", [apiTestError], `${apiTestError} 修改连接信息后可重新测试。`);
+    return;
+  }
+
+  setupStatusEl.classList.add("is-ready");
+  setupStatusEl.querySelector("strong").textContent = t("setupReadyTitle", [], "配置看起来完整");
+  setupStatusEl.querySelector("span").textContent = t("setupReadyText", [], "按 Enter 或点击“测试 API”，确认服务可用。");
+}
+
+function getMissingConnectionFields() {
+  const missing = [];
+  if (!String(fields.apiUrl.value || "").trim()) missing.push(t("fieldApiUrl", [], "API 地址"));
+  if (!String(fields.apiKey.value || "").trim()) missing.push("API Key");
+  if (!String(fields.model.value || "").trim()) missing.push(t("fieldModelName", [], "模型名称"));
+  return missing;
+}
+
+function joinList(items) {
+  return items.join(t("listSeparator", [], "、"));
 }
 
 function applyCostProfile(profile) {
@@ -495,6 +644,46 @@ function setSelectValue(select, value) {
   select.value = stringValue;
 }
 
+function updateLanguagePresetButtons() {
+  const source = fields.sourceLanguage.value;
+  const target = fields.targetLanguage.value;
+  languagePresetButtons.forEach((button) => {
+    const selected = button.dataset.source === source && button.dataset.target === target;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", selected ? "true" : "false");
+  });
+}
+
+function updateLanguageStatus() {
+  if (!languageStatusEl) return;
+
+  const source = fields.sourceLanguage.value;
+  const target = fields.targetLanguage.value;
+  const sourceLabel = getLanguageLabel(source);
+  const targetLabel = getLanguageLabel(target);
+  const isSameLanguage = source && target && source === target;
+  languageStatusEl.classList.toggle("is-warning", isSameLanguage);
+  languageStatusEl.textContent = isSameLanguage
+    ? t("languageStatusSame", [targetLabel], `源语言和目标语言都是 ${targetLabel}，通常不会产生有效翻译。`)
+    : t("languageStatusDirection", [sourceLabel, targetLabel], `当前方向：${sourceLabel} -> ${targetLabel}。`);
+}
+
+function getLanguageLabel(language) {
+  const labels = {
+    "Auto detect": t("langAutoDetect", [], "自动检测"),
+    English: t("langEnglish", [], "英语"),
+    "简体中文": t("langSimplifiedChinese", [], "简体中文"),
+    "繁體中文": t("langTraditionalChinese", [], "繁体中文"),
+    Japanese: t("langJapanese", [], "日语"),
+    Korean: t("langKorean", [], "韩语"),
+    Spanish: t("langSpanish", [], "西班牙语"),
+    French: t("langFrench", [], "法语"),
+    German: t("langGerman", [], "德语")
+  };
+
+  return labels[language] || language || t("langAutoDetect", [], "自动检测");
+}
+
 function inferProvider(apiUrl) {
   const value = String(apiUrl || "").toLowerCase();
   if (value.includes("deepseek.com")) return "deepseek";
@@ -510,13 +699,29 @@ async function runOptionAction(action) {
   try {
     await action();
   } finally {
-    setActionButtonsDisabled(false);
     optionActionRunning = false;
+    setActionButtonsDisabled(false);
   }
 }
 
 function setActionButtonsDisabled(disabled) {
+  if (disabled) {
+    Object.values(actionButtons).forEach((button) => {
+      button.disabled = true;
+    });
+    return;
+  }
+
   Object.values(actionButtons).forEach((button) => {
-    button.disabled = disabled;
+    button.disabled = false;
   });
+  updateActionAvailability();
+}
+
+function updateActionAvailability() {
+  if (!actionButtons.test) return;
+  const missing = getMissingConnectionFields();
+  const canTest = missing.length === 0 && !optionActionRunning;
+  actionButtons.test.disabled = !canTest;
+  actionButtons.test.title = canTest ? "" : t("testButtonMissingTitle", [joinList(missing) || t("fieldRequiredConfig", [], "必要配置")], `请先填写 ${missing.join("、") || "必要配置"}。`);
 }
