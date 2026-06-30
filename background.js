@@ -545,9 +545,14 @@ async function clearTranslation(tab) {
   }
 
   await ensureContentScript(tab.id);
+  const wasActive = !!activeTabs.get(tab.id);
+  const response = await chrome.tabs.sendMessage(tab.id, { action: "clear_translation" });
+  if (!response?.ok) {
+    return createFailedContentActionResponse(response, wasActive);
+  }
+
   activeTabs.set(tab.id, false);
   tabNotices.delete(tab.id);
-  const response = await chrome.tabs.sendMessage(tab.id, { action: "clear_translation" });
   return { ok: true, active: false, content: response };
 }
 
@@ -592,6 +597,9 @@ async function setTranslationVisibility(tab, visible) {
     action: "set_translation_visibility",
     visible
   });
+  if (!response?.ok) {
+    return createFailedContentActionResponse(response, !!activeTabs.get(tab.id));
+  }
 
   return { ok: true, active: !!activeTabs.get(tab.id), content: response };
 }
@@ -606,6 +614,9 @@ async function setDisplayMode(tab, displayMode) {
     action: "set_display_mode",
     displayMode
   });
+  if (!response?.ok) {
+    return createFailedContentActionResponse(response, !!activeTabs.get(tab.id));
+  }
 
   return { ok: true, active: !!activeTabs.get(tab.id), content: response };
 }

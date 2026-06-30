@@ -43,6 +43,9 @@ async function main() {
   await testScanCurrentAreaPropagatesContentFailure();
   await testFileUrlIsUnsupportedBeforeInjecting();
   await testSetDisplayModeForwardsToContentScript();
+  await testDisplayModePropagatesContentFailure();
+  await testVisibilityPropagatesContentFailure();
+  await testClearTranslationPropagatesContentFailure();
   await testAutoTranslateSkipsTargetLanguagePage();
   await testAutoTranslateSkipNoticeIsReported();
   await testContextMenusUseConfiguredUiLanguage();
@@ -1006,6 +1009,80 @@ async function testSetDisplayModeForwardsToContentScript() {
   assert.strictEqual(tabMessages[0].tabId, 41);
   assert.strictEqual(tabMessages[0].message.action, "set_display_mode");
   assert.strictEqual(tabMessages[0].message.displayMode, "translation-first");
+}
+
+async function testDisplayModePropagatesContentFailure() {
+  const context = createBackgroundContext({
+    sendMessage: async (tabId, message) => {
+      assert.strictEqual(tabId, 42);
+      if (message.action === "set_display_mode") {
+        return { ok: false, error: "Display mode failed inside content script." };
+      }
+      return { ok: true };
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "set_display_mode",
+    tab: { id: 42, url: "https://example.com/article" },
+    displayMode: "translation-first"
+  });
+
+  assert.strictEqual(response.ok, false);
+  assert.match(response.error, /Display mode failed/);
+}
+
+async function testVisibilityPropagatesContentFailure() {
+  const context = createBackgroundContext({
+    sendMessage: async (tabId, message) => {
+      assert.strictEqual(tabId, 44);
+      if (message.action === "set_translation_visibility") {
+        return { ok: false, error: "Visibility failed inside content script." };
+      }
+      return { ok: true };
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "set_translation_visibility",
+    tab: { id: 44, url: "https://example.com/article" },
+    visible: false
+  });
+
+  assert.strictEqual(response.ok, false);
+  assert.match(response.error, /Visibility failed/);
+}
+
+async function testClearTranslationPropagatesContentFailure() {
+  const context = createBackgroundContext({
+    sendMessage: async (tabId, message) => {
+      assert.strictEqual(tabId, 45);
+      if (message.action === "clear_translation") {
+        return { ok: false, error: "Clear failed inside content script." };
+      }
+      return { ok: true };
+    }
+  });
+
+  loadBackground(context);
+
+  await sendRuntimeMessageFromTab(context, {
+    action: "mark_tab_active",
+    active: true
+  }, { id: 45 });
+
+  const response = await sendRuntimeMessage(context, {
+    action: "clear_translation",
+    tab: { id: 45, url: "https://example.com/article" }
+  });
+
+  assert.strictEqual(response.ok, false);
+  assert.strictEqual(response.active, true);
+  assert.match(response.error, /Clear failed/);
 }
 
 async function testAutoTranslateSkipsTargetLanguagePage() {
