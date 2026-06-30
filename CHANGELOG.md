@@ -6,6 +6,7 @@
 - Added auto thinking-control detection for DeepSeek-like models, DashScope/Qwen, OpenRouter, and local Qwen-compatible services.
 - Added a fallback retry that removes thinking-control parameters when an OpenAI-compatible provider rejects an unsupported field.
 - Added the effective thinking-control strategy to the popup summary so users can confirm speed-related settings without opening the settings page.
+- Fixed the popup speed summary initial state so settings-load failures never expose placeholder text.
 - Bumped the content script version so already-injected 0.4.10 scripts can clearly request a page refresh.
 
 ## 0.4.10

@@ -887,6 +887,9 @@
   "thinkingSummaryDisabled": {
     "message": "思考制御なし"
   },
+  "thinkingSummaryInitial": {
+    "message": "速度設定を読み込み中..."
+  },
   "thinkingSummaryOmit": {
     "message": "パラメータなし"
   },

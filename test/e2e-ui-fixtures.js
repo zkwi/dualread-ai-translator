@@ -312,6 +312,7 @@ async function testPopupInitFailureShowsRecoverableState(browser) {
 
   assert.match(await page.locator("#status").textContent(), /操作失败/);
   assert.match(await page.locator("#actionHint").textContent(), /打开设置/);
+  assert.doesNotMatch(await page.locator("#thinkingSummary").textContent(), /\$1/);
   assert.strictEqual(await page.locator("#toggle").isDisabled(), true);
   assert.strictEqual(await page.locator("#scan").isDisabled(), true);
   assert.strictEqual(await page.locator("#autoTranslateToggle").isDisabled(), true);
@@ -328,6 +329,7 @@ async function testPopupUnknownInitFailureShowsReadableMessage(browser) {
   await page.waitForFunction(() => document.getElementById("status").textContent.includes("未知错误"));
 
   assert.match(await page.locator("#status").textContent(), /操作失败/);
+  assert.doesNotMatch(await page.locator("#thinkingSummary").textContent(), /\$1/);
   assert.strictEqual(await page.locator("#toggle").isDisabled(), true);
   await page.close();
 }

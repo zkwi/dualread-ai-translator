@@ -887,6 +887,9 @@
   "thinkingSummaryDisabled": {
     "message": "不控制思考"
   },
+  "thinkingSummaryInitial": {
+    "message": "讀取加速設定..."
+  },
   "thinkingSummaryOmit": {
     "message": "不發送參數"
   },
