@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.19
+
+- Opened advanced settings by default so prompt, concurrency, cache, and cost controls are easier to discover.
+- Replaced hardcoded Chinese expand/collapse pseudo-text with a language-neutral chevron control.
+- Added UI regression coverage for the default-open advanced settings section and language-neutral summary control.
+- Bumped the content script version so already-injected 0.4.18 scripts can clearly request a page refresh.
+
 ## 0.4.18
 
 - Fixed current-screen translation skipped states so target-language pages stay inactive in the popup and background tab cache.

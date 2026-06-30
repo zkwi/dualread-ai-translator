@@ -777,7 +777,6 @@ async function testOptionsDestructiveActionsRequireConfirm(browser) {
 
   assert.strictEqual(await page.locator(".actions #clearCache").count(), 0);
   assert.strictEqual(await page.locator(".actions #reset").count(), 0);
-  await page.click("#advancedSettings summary");
   assert.strictEqual(await page.locator(".maintenance-actions #clearCache").count(), 1);
   assert.strictEqual(await page.locator(".maintenance-actions #reset").count(), 1);
   assert.strictEqual(await page.locator("#reset").textContent(), "恢复全部默认设置");
@@ -942,7 +941,6 @@ async function testOptionsCostProfileUpdatesAdvancedDefaults(browser) {
   assert.strictEqual(await page.locator("#maxElementsPerScan").inputValue(), "12");
   assert.strictEqual(await page.locator("#maxCharsPerPage").inputValue(), "30000");
   assert.strictEqual(await page.locator("#maxConcurrentBatches").inputValue(), "1");
-  await page.click("#advancedSettings summary");
   await page.fill("#maxConcurrentBatches", "3");
   await page.waitForFunction(() => window.__lastSavedSettings?.costProfile === "custom");
   await page.waitForFunction(() => window.__lastSavedSettings?.maxConcurrentBatches === 3);
@@ -961,6 +959,9 @@ async function testOptionsDisplayModeAutoSaves(browser) {
 async function testOptionsAdvancedSettingsCanExpand(browser) {
   const page = await createOptionsPage(browser);
 
+  assert.strictEqual(await page.locator("#advancedSettings").getAttribute("open"), "");
+  assert.doesNotMatch(await page.locator("#advancedSettings summary").evaluate((node) => window.getComputedStyle(node, "::after").content), /展开|收起/);
+  await page.click("#advancedSettings summary");
   assert.strictEqual(await page.locator("#advancedSettings").getAttribute("open"), null);
   await page.click("#advancedSettings summary");
   assert.strictEqual(await page.locator("#advancedSettings").getAttribute("open"), "");
@@ -1097,7 +1098,6 @@ async function testOptionsAutoSavesChangedSettings(browser) {
 async function testOptionsSavesCustomTranslationPrompt(browser) {
   const page = await createOptionsPage(browser);
 
-  await page.click("#advancedSettings summary");
   await page.waitForSelector("#translationPrompt");
   const defaultPrompt = await page.locator("#translationPrompt").inputValue();
   assert.match(defaultPrompt, /Return ONLY a JSON array/);
@@ -1113,7 +1113,6 @@ async function testOptionsSavesCustomTranslationPrompt(browser) {
 async function testOptionsResetPromptRequiresConfirm(browser) {
   const page = await createOptionsPage(browser);
 
-  await page.click("#advancedSettings summary");
   assert.strictEqual(await page.locator("#resetPrompt").textContent(), "恢复默认提示词");
 
   await page.fill("#translationPrompt", "Custom prompt");

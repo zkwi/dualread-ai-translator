@@ -281,18 +281,18 @@ label {
 }
 
 .advanced-section summary::after {
-  content: "展开";
-  min-width: 46px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: #e6edf6;
-  color: var(--text);
-  font-size: 13px;
-  text-align: center;
+  content: "";
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 160ms ease;
 }
 
 .advanced-section[open] summary::after {
-  content: "收起";
+  transform: rotate(225deg);
 }
 
 .advanced-section summary strong,
