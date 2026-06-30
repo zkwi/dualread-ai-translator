@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.14
+
+- Improved Reddit text-post layout handling by treating `shreddit-post-text-body` as a single readable block.
+- Inserted Reddit body translations into the safe text-body slot instead of inside clamped paragraph/link content.
+- Added a Reddit feed-card regression test so translations do not split original post previews.
+- Bumped the content script version so already-injected 0.4.13 scripts can clearly request a page refresh.
+
 ## 0.4.13
 
 - Improved the settings page layout with a wider form grid, clearer spacing, and aligned connection controls.

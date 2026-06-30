@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.13";
+  const CONTENT_SCRIPT_VERSION = "0.4.14";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -457,6 +457,11 @@
 
       const tagName = current.tagName;
       const text = getCleanText(current);
+      const siteSpecificBlock = findSiteSpecificReadableBlock(current);
+
+      if (siteSpecificBlock) {
+        return siteSpecificBlock;
+      }
 
       if (isSemanticBlockTag(tagName)) {
         if ((tagName === "TD" || tagName === "TH") && inlineFallback) {
@@ -477,6 +482,25 @@
     }
 
     return inlineFallback || genericFallback;
+  }
+
+  function findSiteSpecificReadableBlock(element) {
+    const redditTextBody = findRedditTextBodyElement(element);
+    if (redditTextBody) return redditTextBody;
+
+    return null;
+  }
+
+  function findRedditTextBodyElement(element) {
+    if (!element?.closest) return null;
+    const post = element.closest("shreddit-post");
+    if (!post) return null;
+
+    return element.closest("shreddit-post-text-body")
+      || element.closest([
+        "[property=\"schema:articleBody\"][id$=\"-post-rtjson-content\"]",
+        ".feed-card-text-preview"
+      ].join(","));
   }
 
   function isCandidateElement(element, costSettings = LLMTranslatorShared.normalizeCostSettings(state.settings), knownText = null) {
@@ -634,6 +658,7 @@
     const clean = normalizeText(text);
 
     if (element.closest("[data-testid=\"tweetText\"]")) score += 90;
+    if (isRedditTextBodyElement(element)) score += 85;
     if (element.closest("[data-testid=\"primaryColumn\"]")) score += 70;
     if (element.closest("article,[role=\"article\"]")) score += 60;
     if (element.closest("main,[role=\"main\"]")) score += 25;
@@ -1242,11 +1267,12 @@
           element.appendChild(node);
         }
       } else {
-        element.insertAdjacentElement("afterend", node);
+        (insertionTarget || element).insertAdjacentElement("afterend", node);
       }
     }
     element.dataset.llmTranslatorPlacement = placement;
     node.dir = "auto";
+    syncTranslationSlot(node, insertionTarget);
     node.dataset.llmTranslatorLocalTheme = detectElementTheme(element);
     return node;
   }
@@ -1262,14 +1288,45 @@
       return Array.from(element.children).find((child) => child.classList.contains("llm-bilingual-translation"));
     }
 
-    const next = element.nextElementSibling;
+    const target = insertionTarget || getTranslationInsertionTarget(element, placement);
+    const next = target?.nextElementSibling;
     return next?.classList.contains("llm-bilingual-translation") ? next : null;
   }
 
   function getTranslationInsertionTarget(element, placement) {
+    const redditTarget = findRedditTextBodyInsertionTarget(element);
+    if (redditTarget) return redditTarget;
+
     if (placement !== "inside" || element.tagName !== "LI") return element;
 
     return findPrimaryListItemLink(element) || element;
+  }
+
+  function findRedditTextBodyInsertionTarget(element) {
+    const textBody = isRedditTextBodyElement(element)
+      ? element
+      : findRedditTextBodyElement(element);
+    if (!textBody) return null;
+
+    return textBody.querySelector?.(":scope > a[slot=\"text-body\"]") || textBody;
+  }
+
+  function isRedditTextBodyElement(element) {
+    if (!element?.matches) return false;
+    return !!element.closest("shreddit-post")
+      && element.matches([
+        "shreddit-post-text-body",
+        "[property=\"schema:articleBody\"][id$=\"-post-rtjson-content\"]",
+        ".feed-card-text-preview"
+      ].join(","));
+  }
+
+  function syncTranslationSlot(node, insertionTarget) {
+    if (insertionTarget?.closest?.("shreddit-post-text-body")) {
+      node.setAttribute("slot", "text-body");
+    } else {
+      node.removeAttribute("slot");
+    }
   }
 
   function findPrimaryListItemLink(element) {

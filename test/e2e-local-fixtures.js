@@ -33,6 +33,7 @@ async function main() {
     await testNewsCardSkipsCreditsAndHiddenMetadata(browser);
     await testNewsCardKeepsHeadlineWhenUtilityLabelIsPresent(browser);
     await testCnnHomepageLeadCardSurvivesUtilityFiltering(browser);
+    await testRedditTextBodyUsesSafeTranslationAnchor(browser);
     await testShortUtilityLinkWithPunctuationDoesNotStealBudget(browser);
     await testMediaWikiSidebarDoesNotStealArticleBudget(browser);
     await testSkipsTargetLanguageText(browser);
@@ -367,6 +368,46 @@ async function testCnnHomepageLeadCardSurvivesUtilityFiltering(browser) {
   assert.doesNotMatch(requested, /E\. Jean Carroll/);
   assert.strictEqual(await hasTranslationNear(page, ".lead-card"), true);
   assert.strictEqual(await hasTranslationNear(page, "#cnn-lead-link"), true);
+  await page.close();
+}
+
+async function testRedditTextBodyUsesSafeTranslationAnchor(browser) {
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 1,
+    html: `
+      <style>
+        article, shreddit-post, shreddit-post-text-body { display: block; }
+        .feed-card-text-preview { max-height: 92px; overflow: hidden; }
+      </style>
+      <article data-post-id="t3_redditlayout">
+        <shreddit-post post-type="text" post-title="Praise for Codex goal" post-language="en">
+          <a id="post-title-t3_redditlayout" slot="title" href="/r/codex/comments/example">
+            Praise for Codex /goal: a 17.5-day run and a workflow that changed my work
+          </a>
+          <shreddit-post-text-body slot="text-body" post-id="t3_redditlayout">
+            <a href="/r/codex/comments/example" class="pointer-events-none" slot="text-body">
+              <div data-post-click-location="text-body">
+                <div id="t3_redditlayout-post-rtjson-content" class="md feed-card-text-preview" property="schema:articleBody">
+                  <p>I wanted to share a Codex appreciation post, because this run made me realize how different work has become.</p>
+                  <p>Ten years ago, this project would not just have been hard for me. It basically would not have been realistic.</p>
+                  <p>I had a messy historical workflow that was difficult to keep organized without modern coding agents.</p>
+                </div>
+              </div>
+            </a>
+          </shreddit-post-text-body>
+        </shreddit-post>
+      </article>
+    `
+  });
+
+  const result = await runTranslation(page);
+
+  assert.strictEqual(result.requestCount, 1);
+  assert.match(result.requestedTexts[0], /Codex appreciation post/);
+  assert.strictEqual(await page.locator("#t3_redditlayout-post-rtjson-content .llm-bilingual-translation").count(), 0);
+  assert.strictEqual(await page.locator("a[slot='text-body'] .llm-bilingual-translation").count(), 0);
+  assert.strictEqual(await page.locator("shreddit-post-text-body > .llm-bilingual-translation").count(), 1);
+  assert.strictEqual(await page.locator("shreddit-post-text-body > .llm-bilingual-translation").getAttribute("slot"), "text-body");
   await page.close();
 }
 
