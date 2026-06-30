@@ -162,7 +162,7 @@ async function testPopupShowsThinkingStrategySummary(browser) {
     }
   });
 
-  await disabledPage.waitForFunction(() => document.getElementById("thinkingSummary").textContent.includes("不控制思考"));
+  await disabledPage.waitForFunction(() => document.getElementById("thinkingSummary").textContent.includes("可能变慢"));
   await disabledPage.close();
 }
 
@@ -668,6 +668,8 @@ async function testOptionsProviderThinkingHints(browser) {
   assert.strictEqual(await page.locator("#disableThinking").isChecked(), true);
   assert.strictEqual(await page.locator("#disableThinking").isDisabled(), false);
   assert.strictEqual(await page.locator("#thinkingStrategy").isDisabled(), false);
+  assert.strictEqual(await page.locator(".thinking-settings").evaluate((node) => node.classList.contains("is-recommended")), true);
+  assert.strictEqual(await page.locator(".thinking-settings").evaluate((node) => node.classList.contains("is-warning")), false);
 
   await page.selectOption("#provider", "dashscope");
   await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("enable_thinking"));
@@ -681,8 +683,10 @@ async function testOptionsProviderThinkingHints(browser) {
   assert.strictEqual(await page.locator(".compact-checkbox").evaluate((node) => node.classList.contains("is-disabled")), false);
 
   await page.locator("#disableThinking").uncheck();
-  await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("不会添加思考控制"));
+  await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("可能明显变慢"));
   assert.strictEqual(await page.locator("#thinkingStrategy").isDisabled(), true);
+  assert.strictEqual(await page.locator(".thinking-settings").evaluate((node) => node.classList.contains("is-recommended")), false);
+  assert.strictEqual(await page.locator(".thinking-settings").evaluate((node) => node.classList.contains("is-warning")), true);
   await page.close();
 
   const savedDeepSeekPage = await createOptionsPage(browser, {
@@ -825,6 +829,7 @@ async function testOptionsEnglishMicrocopyIsUserFacing(browser) {
   const visibleText = await page.locator("body").innerText();
   assert.match(visibleText, /Changes are saved automatically/);
   assert.match(visibleText, /Only translate the current screen and nearby content/);
+  assert.match(visibleText, /Strongly recommended/);
   assert.match(visibleText, /Increase this for slow networks/);
   assert.doesNotMatch(visibleText, /Auto Save Message|Ready Ready|Viewport Only/);
   await page.close();

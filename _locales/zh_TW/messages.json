@@ -306,7 +306,7 @@
     "message": "預設只处理目前可視區域附近內容，減少 token 消耗。"
   },
   "optionsDisableThinking": {
-    "message": "自動關閉可控思考模式"
+    "message": "强烈推荐開启：自動關閉可控思考模式"
   },
   "optionsLanguage": {
     "message": "語言"
@@ -834,16 +834,16 @@
     "message": "必要配置"
   },
   "thinkingHintAuto": {
-    "message": "自動根据 API 位址和模型名選擇關閉思考參數。"
+    "message": "强烈建议保持開启；自動根据 API 位址和模型名選擇關閉思考參數。"
   },
   "thinkingHintAutoResolved": {
-    "message": "自動選擇：$1"
+    "message": "推荐保持開启：$1"
   },
   "thinkingHintDashscope": {
     "message": "請求体會加入 enable_thinking: false。"
   },
   "thinkingHintDisabled": {
-    "message": "已關閉：請求体不會添加思考控制參數。"
+    "message": "不推荐：不會添加關閉思考參數，推理模型可能明显变慢。"
   },
   "thinkingHintDisabledObject": {
     "message": "請求体會加入 thinking: { type: \"disabled\" }。"
@@ -885,7 +885,7 @@
     "message": "自動：$1"
   },
   "thinkingSummaryDisabled": {
-    "message": "不控制思考"
+    "message": "未關閉思考，可能变慢"
   },
   "thinkingSummaryInitial": {
     "message": "讀取加速設定..."

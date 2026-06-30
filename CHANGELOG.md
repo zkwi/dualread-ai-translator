@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.16
+
+- Strengthened settings and popup guidance to strongly recommend disabling controllable thinking mode for faster translation.
+- Added recommended/warning styling to the settings page when thinking control is enabled or turned off.
+- Bumped the content script version so already-injected 0.4.15 scripts can clearly request a page refresh.
+
 ## 0.4.15
 
 - Skipped GitHub repository file-list tables and latest-commit metadata so commit/date cells no longer receive block translations.

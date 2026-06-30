@@ -475,6 +475,25 @@ textarea {
   min-width: 0;
 }
 
+.thinking-settings.is-recommended {
+  border-color: rgba(37, 99, 235, 0.32);
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.03)), var(--surface-soft);
+}
+
+.thinking-settings.is-recommended .compact-checkbox span {
+  color: #1d4ed8;
+}
+
+.thinking-settings.is-warning {
+  border-color: #fdba74;
+  background: #fff7ed;
+}
+
+.thinking-settings.is-warning .field-help,
+.thinking-settings.is-warning .compact-checkbox span {
+  color: #9a3412;
+}
+
 .thinking-settings .compact-checkbox {
   min-height: auto;
   margin: 0;
@@ -657,6 +676,25 @@ button.danger:hover:not(:disabled) {
   .thinking-settings,
   .summary-panel div {
     background: var(--surface-soft);
+  }
+
+  .thinking-settings.is-recommended {
+    border-color: rgba(96, 165, 250, 0.45);
+    background: linear-gradient(180deg, rgba(37, 99, 235, 0.24), rgba(37, 99, 235, 0.1)), var(--surface-soft);
+  }
+
+  .thinking-settings.is-recommended .compact-checkbox span {
+    color: #bfdbfe;
+  }
+
+  .thinking-settings.is-warning {
+    border-color: rgba(251, 146, 60, 0.55);
+    background: rgba(154, 52, 18, 0.22);
+  }
+
+  .thinking-settings.is-warning .field-help,
+  .thinking-settings.is-warning .compact-checkbox span {
+    color: #fed7aa;
   }
 
   .setup-status {

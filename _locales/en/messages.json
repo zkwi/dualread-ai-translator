@@ -306,7 +306,7 @@
     "message": "Translate nearby visible content first to reduce token usage."
   },
   "optionsDisableThinking": {
-    "message": "Automatically disable controllable thinking mode"
+    "message": "Strongly recommended: disable controllable thinking"
   },
   "optionsLanguage": {
     "message": "Language"
@@ -834,16 +834,16 @@
     "message": "Required fields are missing."
   },
   "thinkingHintAuto": {
-    "message": "Automatically choose thinking-control parameters from the API URL and model name."
+    "message": "Strongly recommended. Keep this enabled so DualRead can choose thinking-control parameters from the API URL and model name."
   },
   "thinkingHintAutoResolved": {
-    "message": "Auto selected: $1"
+    "message": "Recommended to keep enabled: $1"
   },
   "thinkingHintDashscope": {
     "message": "Adds enable_thinking: false to the request body."
   },
   "thinkingHintDisabled": {
-    "message": "Disabled: requests will not include thinking-control parameters."
+    "message": "Not recommended: no thinking-disable parameter will be sent, and reasoning models may be much slower."
   },
   "thinkingHintDisabledObject": {
     "message": "Adds thinking: { type: \"disabled\" } to the request body."
@@ -885,7 +885,7 @@
     "message": "Auto: $1"
   },
   "thinkingSummaryDisabled": {
-    "message": "No thinking control"
+    "message": "Thinking not disabled; may be slower"
   },
   "thinkingSummaryInitial": {
     "message": "Loading speed settings..."

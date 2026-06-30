@@ -367,7 +367,7 @@ function getConnectionSummary() {
 
 function getThinkingSummary() {
   if (settings?.disableThinking !== true) {
-    return t("thinkingSummaryDisabled", [], "不控制思考");
+    return t("thinkingSummaryDisabled", [], "未关闭思考，可能变慢");
   }
 
   const selected = globalThis.LLMTranslatorShared.normalizeThinkingStrategy(settings?.thinkingStrategy);

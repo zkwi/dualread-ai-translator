@@ -306,7 +306,7 @@
     "message": "表示中の近くの内容を優先して token 使用量を抑えます。"
   },
   "optionsDisableThinking": {
-    "message": "制御可能な思考モードを自動で無効化"
+    "message": "強く推奨：制御可能な思考モードを自動で無効化"
   },
   "optionsLanguage": {
     "message": "言語"
@@ -834,16 +834,16 @@
     "message": "必須項目が未入力です。"
   },
   "thinkingHintAuto": {
-    "message": "API URL とモデル名から思考制御パラメータを自動選択します。"
+    "message": "有効のままにすることを強く推奨します。API URL とモデル名から思考制御パラメータを自動選択します。"
   },
   "thinkingHintAutoResolved": {
-    "message": "自動選択：$1"
+    "message": "有効維持を推奨：$1"
   },
   "thinkingHintDashscope": {
     "message": "リクエスト本文に enable_thinking: false を追加します。"
   },
   "thinkingHintDisabled": {
-    "message": "無効：思考制御パラメータはリクエストに追加されません。"
+    "message": "非推奨：思考無効化パラメータを送信しないため、推論モデルが大幅に遅くなる可能性があります。"
   },
   "thinkingHintDisabledObject": {
     "message": "リクエスト本文に thinking: { type: \"disabled\" } を追加します。"
@@ -885,7 +885,7 @@
     "message": "自動：$1"
   },
   "thinkingSummaryDisabled": {
-    "message": "思考制御なし"
+    "message": "思考未無効化、遅くなる可能性"
   },
   "thinkingSummaryInitial": {
     "message": "速度設定を読み込み中..."

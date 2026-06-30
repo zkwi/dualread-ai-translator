@@ -607,10 +607,16 @@ function updateHelperText() {
 
 function updateThinkingControlAvailability() {
   const label = fields.disableThinking.closest(".checkbox");
+  const panel = fields.disableThinking.closest(".thinking-settings");
   const isActive = fields.disableThinking.checked;
 
   fields.disableThinking.disabled = false;
   fields.thinkingStrategy.disabled = !isActive;
+
+  if (panel) {
+    panel.classList.toggle("is-recommended", isActive);
+    panel.classList.toggle("is-warning", !isActive);
+  }
 
   if (label) {
     label.classList.toggle("is-disabled", false);
@@ -641,14 +647,14 @@ function getCostProfileHint(profile) {
 
 function getThinkingHint() {
   if (!fields.disableThinking.checked) {
-    return t("thinkingHintDisabled", [], "已关闭：请求体不会添加思考控制参数。");
+    return t("thinkingHintDisabled", [], "不推荐：不会添加关闭思考参数，推理模型可能明显变慢。");
   }
 
   const selected = globalThis.LLMTranslatorShared.normalizeThinkingStrategy(fields.thinkingStrategy.value);
   const effective = getEffectiveThinkingStrategyFromForm();
   const hint = getThinkingStrategyHint(effective);
   if (selected === THINKING_STRATEGIES.AUTO) {
-    return t("thinkingHintAutoResolved", [hint], `自动选择：${hint}`);
+    return t("thinkingHintAutoResolved", [hint], `推荐保持开启：${hint}`);
   }
   return hint;
 }
