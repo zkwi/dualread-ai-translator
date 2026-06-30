@@ -133,6 +133,8 @@ assert.strictEqual(shared.shouldSkipTextByContent("Part of a series on"), true);
 assert.strictEqual(shared.shouldSkipTextByContent("show Major goals Artificial general intelligence"), true);
 assert.strictEqual(shared.shouldSkipTextByContent("Don't miss what's happening"), true);
 assert.strictEqual(shared.shouldSkipTextByContent("People on X are the first to know."), true);
+assert.strictEqual(shared.shouldSkipTextByContent("No releases published"), true);
+assert.strictEqual(shared.shouldSkipTextByContent("No packages published"), true);
 assert.strictEqual(shared.shouldSkipTextByContent("Show more"), true);
 assert.strictEqual(shared.shouldSkipTextByContent("2h"), true);
 assert.strictEqual(shared.shouldSkipTextByContent("US and Iran to ‘stand down for now,’ US official says after exchange of fire"), false);

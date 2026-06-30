@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.14";
+  const CONTENT_SCRIPT_VERSION = "0.4.15";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -64,7 +64,12 @@
       ".mw-parser-output .vertical-navbox",
       ".mw-parser-output .metadata",
       ".mw-parser-output .ambox",
-      ".mw-parser-output .side-box"
+      ".mw-parser-output .side-box",
+      // GitHub repository file browsers are dense tables; translating commit/date cells breaks the row layout.
+      "table[aria-labelledby=\"folders-and-files\"]",
+      ".react-directory-row",
+      "[data-testid=\"latest-commit\"]",
+      "[data-testid=\"latest-commit-details\"]"
     ],
     utilityTextPatterns: [
       // X / social chrome

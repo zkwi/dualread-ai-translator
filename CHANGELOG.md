@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.15
+
+- Skipped GitHub repository file-list tables and latest-commit metadata so commit/date cells no longer receive block translations.
+- Skipped low-value repository empty-state text such as "No releases published" and "No packages published".
+- Added a GitHub repository fixture to keep README/About-style content translatable while preserving code-page table layout.
+- Bumped the content script version so already-injected 0.4.14 scripts can clearly request a page refresh.
+
 ## 0.4.14
 
 - Improved Reddit text-post layout handling by treating `shreddit-post-text-body` as a single readable block.

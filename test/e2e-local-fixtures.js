@@ -34,6 +34,7 @@ async function main() {
     await testNewsCardKeepsHeadlineWhenUtilityLabelIsPresent(browser);
     await testCnnHomepageLeadCardSurvivesUtilityFiltering(browser);
     await testRedditTextBodyUsesSafeTranslationAnchor(browser);
+    await testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser);
     await testShortUtilityLinkWithPunctuationDoesNotStealBudget(browser);
     await testMediaWikiSidebarDoesNotStealArticleBudget(browser);
     await testSkipsTargetLanguageText(browser);
@@ -408,6 +409,58 @@ async function testRedditTextBodyUsesSafeTranslationAnchor(browser) {
   assert.strictEqual(await page.locator("a[slot='text-body'] .llm-bilingual-translation").count(), 0);
   assert.strictEqual(await page.locator("shreddit-post-text-body > .llm-bilingual-translation").count(), 1);
   assert.strictEqual(await page.locator("shreddit-post-text-body > .llm-bilingual-translation").getAttribute("slot"), "text-body");
+  await page.close();
+}
+
+async function testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser) {
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 4,
+    html: `
+      <main>
+        <section>
+          <table aria-labelledby="folders-and-files">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Last commit message</th>
+                <th>Last commit date</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-testid="latest-commit">
+                <td>zkwi</td>
+                <td><span data-testid="latest-commit-html">Fix popup thinking summary placeholder</span></td>
+                <td><relative-time datetime="2026-06-30T00:00:00Z">3 minutes ago</relative-time></td>
+              </tr>
+              <tr class="react-directory-row" id="folder-row-0">
+                <td>_locales</td>
+                <td>Fix popup thinking summary placeholder</td>
+                <td>3 minutes ago</td>
+              </tr>
+              <tr class="react-directory-row" id="folder-row-1">
+                <td>docs</td>
+                <td>Improve translation UX and release readiness</td>
+                <td>50 minutes ago</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <article id="readme">
+          <h2>DualRead AI</h2>
+          <p>DualRead AI is an open-source Chrome extension for bilingual webpage translation with viewport-first scanning, right-click translation, and OpenAI-compatible providers.</p>
+        </article>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.match(requested, /open-source Chrome extension/);
+  assert.doesNotMatch(requested, /Fix popup thinking summary placeholder/);
+  assert.doesNotMatch(requested, /Improve translation UX/);
+  assert.strictEqual(await page.locator("table[aria-labelledby='folders-and-files'] .llm-bilingual-translation").count(), 0);
+  assert.strictEqual(await page.locator("#readme .llm-bilingual-translation").count(), 1);
   await page.close();
 }
 

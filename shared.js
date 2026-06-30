@@ -189,7 +189,10 @@
     "people on x are the first to know",
     // News update labels
     "live updates",
-    "latest updates"
+    "latest updates",
+    // Repository metadata / empty states
+    "no releases published",
+    "no packages published"
   ];
   const DYNAMIC_SCAN_DEBOUNCE_MS = 500;
 
