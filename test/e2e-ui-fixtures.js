@@ -17,6 +17,7 @@ async function main() {
     await testPopupDisablesVisibilityWithoutTranslations(browser);
     await testPopupShowsBrandAndConfigNotice(browser);
     await testPopupShowsProviderAndModelSummary(browser);
+    await testPopupShowsThinkingStrategySummary(browser);
     await testPopupActionTitlesExplainEnabledActions(browser);
     await testPopupClearRequiresConfirm(browser);
     await testPopupShowsAutoSkipNotice(browser);
@@ -124,6 +125,44 @@ async function testPopupShowsProviderAndModelSummary(browser) {
   await page.waitForFunction(() => document.getElementById("configStatus").textContent.includes("deepseek-chat"));
   assert.match(await page.locator("#configStatus").getAttribute("title"), /DeepSeek.*deepseek-chat/);
   await page.close();
+}
+
+async function testPopupShowsThinkingStrategySummary(browser) {
+  const page = await createPopupPage(browser, {
+    settings: {
+      provider: "custom",
+      apiKey: "saved-key",
+      apiUrl: "https://opencode.example/v1/chat/completions",
+      model: "deepseek-v4-flash",
+      disableThinking: true,
+      thinkingStrategy: "auto"
+    },
+    pageStats: {
+      ok: true,
+      active: false,
+      stats: { translated: 0, failed: 0, translationVisible: true }
+    }
+  });
+
+  await page.waitForFunction(() => document.getElementById("thinkingSummary").textContent.includes("thinking.type=disabled"));
+  assert.strictEqual(await page.locator(".summary-wide").isVisible(), true);
+  await page.close();
+
+  const disabledPage = await createPopupPage(browser, {
+    settings: {
+      apiKey: "saved-key",
+      model: "test-model",
+      disableThinking: false
+    },
+    pageStats: {
+      ok: true,
+      active: false,
+      stats: { translated: 0, failed: 0, translationVisible: true }
+    }
+  });
+
+  await disabledPage.waitForFunction(() => document.getElementById("thinkingSummary").textContent.includes("不控制思考"));
+  await disabledPage.close();
 }
 
 async function testPopupActionTitlesExplainEnabledActions(browser) {

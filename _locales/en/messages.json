@@ -581,6 +581,9 @@
   "popupSkippedTargetLanguageStatus": {
     "message": "Auto translation skipped: this page is already in the target language."
   },
+  "popupSpeed": {
+    "message": "Speed mode"
+  },
   "popupStartTranslation": {
     "message": "Start translation"
   },
@@ -877,6 +880,15 @@
   },
   "thinkingStrategyQwenTemplate": {
     "message": "Qwen chat_template_kwargs"
+  },
+  "thinkingSummaryAuto": {
+    "message": "Auto: $1"
+  },
+  "thinkingSummaryDisabled": {
+    "message": "No thinking control"
+  },
+  "thinkingSummaryOmit": {
+    "message": "No parameter"
   },
   "tooltipAutoTranslate": {
     "message": "Save as a global switch. Foreign-language webpages will translate automatically."

@@ -581,6 +581,9 @@
   "popupSkippedTargetLanguageStatus": {
     "message": "自动翻译已跳过：当前页面已是目标语言。"
   },
+  "popupSpeed": {
+    "message": "速度"
+  },
   "popupStartTranslation": {
     "message": "开始翻译"
   },
@@ -877,6 +880,15 @@
   },
   "thinkingStrategyQwenTemplate": {
     "message": "Qwen chat_template_kwargs"
+  },
+  "thinkingSummaryAuto": {
+    "message": "自动：$1"
+  },
+  "thinkingSummaryDisabled": {
+    "message": "不控制思考"
+  },
+  "thinkingSummaryOmit": {
+    "message": "不发送参数"
   },
   "tooltipAutoTranslate": {
     "message": "保存为全局开关，打开外文网页时自动开始翻译。"

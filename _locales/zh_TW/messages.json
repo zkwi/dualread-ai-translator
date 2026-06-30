@@ -581,6 +581,9 @@
   "popupSkippedTargetLanguageStatus": {
     "message": "自動翻譯已跳過：目前頁面已是目標語言。"
   },
+  "popupSpeed": {
+    "message": "速度"
+  },
   "popupStartTranslation": {
     "message": "開始翻譯"
   },
@@ -877,6 +880,15 @@
   },
   "thinkingStrategyQwenTemplate": {
     "message": "Qwen chat_template_kwargs"
+  },
+  "thinkingSummaryAuto": {
+    "message": "自動：$1"
+  },
+  "thinkingSummaryDisabled": {
+    "message": "不控制思考"
+  },
+  "thinkingSummaryOmit": {
+    "message": "不發送參數"
   },
   "tooltipAutoTranslate": {
     "message": "儲存為全局開关，打開外文網頁時自動開始翻譯。"

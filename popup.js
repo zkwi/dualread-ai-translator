@@ -16,6 +16,7 @@ const stateBadgeEl = document.getElementById("stateBadge");
 const actionHintEl = document.getElementById("actionHint");
 const languageSummaryEl = document.getElementById("languageSummary");
 const scopeSummaryEl = document.getElementById("scopeSummary");
+const thinkingSummaryEl = document.getElementById("thinkingSummary");
 const displayModeButtons = Array.from(document.querySelectorAll("[data-display-mode]"));
 const autoTranslateRow = autoTranslateToggle.closest(".switch-row");
 
@@ -313,6 +314,7 @@ function renderConfigSummary() {
   const target = normalizeLanguageLabel(settings?.targetLanguage || "简体中文");
   languageSummaryEl.textContent = t("languageDirection", [source, target], `${source} -> ${target}`);
   scopeSummaryEl.textContent = settings?.viewportOnly === false ? t("scopeWholePageBudget", [], "整页预算内") : t("scopeCurrentViewport", [], "当前屏附近");
+  thinkingSummaryEl.textContent = getThinkingSummary();
 }
 
 function getDisplayMode() {
@@ -361,6 +363,33 @@ function getConnectionSummary() {
   const model = String(settings?.model || "").trim();
   if (!model) return provider;
   return `${provider} · ${compactText(model, 28)}`;
+}
+
+function getThinkingSummary() {
+  if (settings?.disableThinking !== true) {
+    return t("thinkingSummaryDisabled", [], "不控制思考");
+  }
+
+  const selected = globalThis.LLMTranslatorShared.normalizeThinkingStrategy(settings?.thinkingStrategy);
+  const effective = globalThis.LLMTranslatorShared.getEffectiveThinkingStrategy(settings || {});
+  const label = getThinkingStrategyShortLabel(effective);
+  if (selected === globalThis.LLMTranslatorShared.THINKING_STRATEGIES.AUTO) {
+    return t("thinkingSummaryAuto", [label], `自动：${label}`);
+  }
+  return label;
+}
+
+function getThinkingStrategyShortLabel(strategy) {
+  const strategies = globalThis.LLMTranslatorShared.THINKING_STRATEGIES;
+  const labels = {
+    [strategies.DASHSCOPE_ENABLE_THINKING]: "enable_thinking=false",
+    [strategies.THINKING_DISABLED]: "thinking.type=disabled",
+    [strategies.OPENROUTER_REASONING_LOW]: "reasoning_effort=low",
+    [strategies.OPENROUTER_REASONING_MINIMAL]: "reasoning=minimal",
+    [strategies.QWEN_CHAT_TEMPLATE_KWARGS]: "Qwen template",
+    [strategies.OMIT]: t("thinkingSummaryOmit", [], "不发送参数")
+  };
+  return labels[strategy] || labels[strategies.OMIT];
 }
 
 function compactText(value, maxLength) {

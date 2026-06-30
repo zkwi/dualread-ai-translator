@@ -581,6 +581,9 @@
   "popupSkippedTargetLanguageStatus": {
     "message": "自動翻訳をスキップしました：このページはすでに目標言語です。"
   },
+  "popupSpeed": {
+    "message": "速度"
+  },
   "popupStartTranslation": {
     "message": "翻訳開始"
   },
@@ -877,6 +880,15 @@
   },
   "thinkingStrategyQwenTemplate": {
     "message": "Qwen chat_template_kwargs"
+  },
+  "thinkingSummaryAuto": {
+    "message": "自動：$1"
+  },
+  "thinkingSummaryDisabled": {
+    "message": "思考制御なし"
+  },
+  "thinkingSummaryOmit": {
+    "message": "パラメータなし"
   },
   "tooltipAutoTranslate": {
     "message": "グローバルスイッチとして保存します。外国語 Web ページを自動翻訳します。"
