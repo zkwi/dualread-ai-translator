@@ -94,9 +94,14 @@ scanBtn.addEventListener("click", async () => {
       return;
     }
 
-    active = true;
+    active = response.active !== false && !response.skipped && !response.content?.skipped;
     translationVisible = true;
-    latestNotice = null;
+    if (response.skipped || response.content?.skipped) {
+      const reason = response.reason || response.content?.reason;
+      latestNotice = reason ? { reason } : latestNotice;
+    } else {
+      latestNotice = null;
+    }
     render(response.content?.count);
     await refreshStats();
   }, {

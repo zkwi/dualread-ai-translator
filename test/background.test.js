@@ -42,6 +42,7 @@ async function main() {
   await testManualTranslationSkipKeepsTabInactive();
   await testScanCurrentAreaReportsMissingApiKeyBeforeInjecting();
   await testScanCurrentAreaPropagatesContentFailure();
+  await testScanCurrentAreaSkipKeepsTabInactive();
   await testFileUrlIsUnsupportedBeforeInjecting();
   await testSetDisplayModeForwardsToContentScript();
   await testDisplayModePropagatesContentFailure();
@@ -997,6 +998,38 @@ async function testScanCurrentAreaPropagatesContentFailure() {
   assert.strictEqual(response.ok, false);
   assert.strictEqual(response.active, false);
   assert.match(response.error, /Scan failed/);
+}
+
+async function testScanCurrentAreaSkipKeepsTabInactive() {
+  const context = createBackgroundContext({
+    sendMessage: async (tabId, message) => {
+      assert.strictEqual(tabId, 45);
+      if (message.action === "scan_current_area") {
+        return { ok: true, skipped: true, reason: "target-language" };
+      }
+      if (message.action === "get_page_stats") {
+        return { ok: true, active: false, stats: { translated: 0, translationVisible: true } };
+      }
+      return { ok: true };
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "scan_current_area",
+    tab: { id: 45, url: "https://example.com/zh" }
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.strictEqual(response.active, false);
+  assert.strictEqual(response.content.skipped, true);
+
+  const stats = await sendRuntimeMessage(context, {
+    action: "get_page_stats",
+    tab: { id: 45, url: "https://example.com/zh" }
+  });
+  assert.strictEqual(stats.notice.reason, "target-language");
 }
 
 async function testFileUrlIsUnsupportedBeforeInjecting() {

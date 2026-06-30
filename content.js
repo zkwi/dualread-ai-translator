@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.17";
+  const CONTENT_SCRIPT_VERSION = "0.4.18";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -532,6 +532,7 @@
 
     const rect = element.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return false;
+    if (isDenseTableOrGridCandidate(element, text, rect)) return false;
 
     return true;
   }
@@ -699,6 +700,22 @@
 
     const mainContent = element.closest(LLMTranslatorShared.getMainContentSelector());
     return !mainContent || !mainContent.contains(softBlocked);
+  }
+
+  function isDenseTableOrGridCandidate(element, text, rect = element.getBoundingClientRect()) {
+    const clean = normalizeText(text);
+    if (!clean || clean.length >= 180) return false;
+
+    const tableCell = element.closest?.("td,th");
+    if (tableCell?.closest("table,[role=\"table\"],[role=\"grid\"]")) {
+      return true;
+    }
+
+    const row = element.closest?.("tr,[role=\"row\"],[class*=\"row\" i]");
+    if (!row) return false;
+
+    const interactiveCells = row.querySelectorAll?.("a[href],button,[role=\"button\"],time,relative-time").length || 0;
+    return interactiveCells >= 1 && rect.width > 0 && rect.width < 360;
   }
 
   function isElementVisible(element) {
@@ -1561,7 +1578,12 @@
         --llm-translator-error-bg: rgba(248, 113, 113, 0.18);
       }
       .llm-bilingual-translation {
+        display: block !important;
         box-sizing: border-box !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        clear: both !important;
         margin: 6px 0 12px 0 !important;
         padding: 8px 10px !important;
         border-left: 3px solid var(--llm-translator-border) !important;
@@ -1570,6 +1592,8 @@
         font-size: 0.95em !important;
         line-height: 1.65 !important;
         white-space: pre-wrap !important;
+        overflow-wrap: anywhere !important;
+        word-break: normal !important;
         direction: ltr !important;
         unicode-bidi: plaintext !important;
         text-align: start !important;

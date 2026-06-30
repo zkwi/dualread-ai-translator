@@ -580,12 +580,18 @@ async function scanCurrentArea(tab) {
     return createFailedContentActionResponse(response, !!activeTabs.get(tab.id));
   }
 
-  if (response?.ok) {
-    activeTabs.set(tab.id, true);
+  const active = !response?.skipped;
+  activeTabs.set(tab.id, active);
+  if (response?.skipped) {
+    tabNotices.set(tab.id, {
+      type: "info",
+      reason: response.reason || "skipped"
+    });
+  } else {
     tabNotices.delete(tab.id);
   }
 
-  return { ok: true, active: true, content: response };
+  return { ok: true, active, content: response };
 }
 
 function createFailedContentActionResponse(response, active = false) {

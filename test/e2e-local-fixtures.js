@@ -35,6 +35,7 @@ async function main() {
     await testCnnHomepageLeadCardSurvivesUtilityFiltering(browser);
     await testRedditTextBodyUsesSafeTranslationAnchor(browser);
     await testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser);
+    await testDenseTableRowsDoNotReceiveBlockTranslations(browser);
     await testShortUtilityLinkWithPunctuationDoesNotStealBudget(browser);
     await testMediaWikiSidebarDoesNotStealArticleBudget(browser);
     await testSkipsTargetLanguagePage(browser);
@@ -410,6 +411,19 @@ async function testRedditTextBodyUsesSafeTranslationAnchor(browser) {
   assert.strictEqual(await page.locator("a[slot='text-body'] .llm-bilingual-translation").count(), 0);
   assert.strictEqual(await page.locator("shreddit-post-text-body > .llm-bilingual-translation").count(), 1);
   assert.strictEqual(await page.locator("shreddit-post-text-body > .llm-bilingual-translation").getAttribute("slot"), "text-body");
+  const layout = await page.locator("shreddit-post-text-body > .llm-bilingual-translation").evaluate((node) => {
+    const style = window.getComputedStyle(node);
+    return {
+      display: style.display,
+      width: node.getBoundingClientRect().width,
+      parentWidth: node.parentElement.getBoundingClientRect().width,
+      scrollWidth: node.scrollWidth,
+      clientWidth: node.clientWidth
+    };
+  });
+  assert.strictEqual(layout.display, "block");
+  assert.ok(layout.width <= layout.parentWidth + 1);
+  assert.ok(layout.scrollWidth <= layout.clientWidth + 1);
   await page.close();
 }
 
@@ -461,6 +475,41 @@ async function testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser
   assert.doesNotMatch(requested, /Fix popup thinking summary placeholder/);
   assert.doesNotMatch(requested, /Improve translation UX/);
   assert.strictEqual(await page.locator("table[aria-labelledby='folders-and-files'] .llm-bilingual-translation").count(), 0);
+  assert.strictEqual(await page.locator("#readme .llm-bilingual-translation").count(), 1);
+  await page.close();
+}
+
+async function testDenseTableRowsDoNotReceiveBlockTranslations(browser) {
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 4,
+    html: `
+      <main>
+        <table id="dense-file-table">
+          <tbody>
+            <tr>
+              <td><a href="/commit/1">Fix popup thinking summary placeholder</a></td>
+              <td><relative-time datetime="2026-06-30T00:00:00Z">3 minutes ago</relative-time></td>
+            </tr>
+            <tr>
+              <td><a href="/commit/2">Improve translation UX and release readiness</a></td>
+              <td><relative-time datetime="2026-06-30T01:00:00Z">50 minutes ago</relative-time></td>
+            </tr>
+          </tbody>
+        </table>
+        <article id="readme">
+          <p>DualRead AI is an open-source Chrome extension for bilingual webpage translation with viewport-first scanning, right-click translation, and OpenAI-compatible providers.</p>
+        </article>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.match(requested, /open-source Chrome extension/);
+  assert.doesNotMatch(requested, /Fix popup thinking summary placeholder/);
+  assert.doesNotMatch(requested, /Improve translation UX/);
+  assert.strictEqual(await page.locator("#dense-file-table .llm-bilingual-translation").count(), 0);
   assert.strictEqual(await page.locator("#readme .llm-bilingual-translation").count(), 1);
   await page.close();
 }

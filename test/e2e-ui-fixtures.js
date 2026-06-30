@@ -30,6 +30,7 @@ async function main() {
     await testPopupLocalizedLayoutsDoNotOverflow(browser);
     await testPopupKeepsStableChromePopupWidth(browser);
     await testPopupPrimaryButtonsShowPendingText(browser);
+    await testPopupScanSkipKeepsIdleState(browser);
     await testPopupDisplayModeToggleSavesAndApplies(browser);
     await testPopupExplainsUnsupportedPages(browser);
     await testOptionsDisablesTestButtonWhilePending(browser);
@@ -496,6 +497,42 @@ async function testPopupPrimaryButtonsShowPendingText(browser) {
 
   await page.evaluate(() => window.__resolvePopupAction({ ok: true, active: true, content: { count: 1 } }));
   await page.waitForFunction(() => document.getElementById("toggle").textContent === "停止翻译");
+  await page.close();
+}
+
+async function testPopupScanSkipKeepsIdleState(browser) {
+  const page = await createPopupPage(browser, {
+    settings: {
+      apiKey: "saved-key",
+      model: "test-model"
+    },
+    deferredAction: "scan_current_area",
+    pageStats: [
+      {
+        ok: true,
+        active: false,
+        stats: { translated: 0, failed: 0, translationVisible: true }
+      },
+      {
+        ok: true,
+        active: false,
+        notice: { type: "info", reason: "target-language" },
+        stats: { translated: 0, failed: 0, translationVisible: true }
+      }
+    ]
+  });
+
+  await page.click("#scan");
+  await page.waitForFunction(() => document.getElementById("scan").textContent === "扫描中...");
+  await page.evaluate(() => window.__resolvePopupAction({
+    ok: true,
+    active: false,
+    content: { ok: true, skipped: true, reason: "target-language" }
+  }));
+
+  await page.waitForFunction(() => document.getElementById("status").textContent.includes("已跳过"));
+  assert.strictEqual(await page.locator("#toggle").textContent(), "开始翻译");
+  assert.strictEqual(await page.locator("#stateBadge").textContent(), "已跳过");
   await page.close();
 }
 

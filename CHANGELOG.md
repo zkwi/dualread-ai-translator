@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.18
+
+- Fixed current-screen translation skipped states so target-language pages stay inactive in the popup and background tab cache.
+- Preserved skipped notices after current-screen translation so users can see why no translation started.
+- Added dense table/grid filtering to avoid inserting block translations into repository file lists, commit rows, and narrow metadata cells.
+- Hardened injected translation block layout with explicit block display, width limits, and safer wrapping for Reddit/GitHub-style narrow containers.
+- Bumped the content script version so already-injected 0.4.17 scripts can clearly request a page refresh.
+
 ## 0.4.17
 
 - Switched page translation to page-language gating so target-language pages are skipped before block-level scanning.
