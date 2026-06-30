@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.13
+
+- Improved the settings page layout with a wider form grid, clearer spacing, and aligned connection controls.
+- Grouped API timeout and thinking-control settings into matching panels so provider speed options are easier to scan.
+- Moved Save/Test API actions into the connection setup area and removed the sticky bottom bar so controls no longer cover form fields.
+- Added settings-page overflow regression coverage for desktop and narrow layouts.
+- Bumped the content script version so already-injected 0.4.12 scripts can clearly request a page refresh.
+
 ## 0.4.12
 
 - Synced package, lockfile, manifest, and content-script versions so user-visible fixes can move forward with clear release numbers.

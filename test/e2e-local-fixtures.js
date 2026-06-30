@@ -6,6 +6,13 @@ const { chromium } = require("playwright");
 const extensionDir = path.resolve(__dirname, "..");
 const sharedSource = fs.readFileSync(path.join(extensionDir, "shared.js"), "utf8");
 const contentSource = fs.readFileSync(path.join(extensionDir, "content.js"), "utf8");
+const currentContentScriptVersion = getContentScriptVersion(contentSource);
+
+function getContentScriptVersion(source) {
+  const match = source.match(/CONTENT_SCRIPT_VERSION\s*=\s*"([^"]+)"/);
+  assert.ok(match, "content script version should be declared");
+  return match[1];
+}
 
 main().catch((error) => {
   console.error(error);
@@ -168,7 +175,7 @@ async function testContentScriptReinjectsWhenVersionChanges(browser) {
   await page.evaluate(contentSource);
 
   assert.strictEqual(await page.evaluate(() => window.__listenerCount()), 1);
-  assert.strictEqual(await page.evaluate(() => document.documentElement.dataset.llmTranslatorVersion), "0.4.11");
+  assert.strictEqual(await page.evaluate(() => document.documentElement.dataset.llmTranslatorVersion), currentContentScriptVersion);
 
   const result = await runTranslation(page);
   assert.strictEqual(result.requestCount, 1);

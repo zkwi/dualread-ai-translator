@@ -55,6 +55,7 @@ async function main() {
     await testOptionsLanguageStatusWarnsOnSameLanguage(browser);
     await testOptionsUiLanguageIsIndependent(browser);
     await testOptionsEnglishMicrocopyIsUserFacing(browser);
+    await testOptionsLayoutDoesNotOverflow(browser);
     await testOptionsCostProfileUpdatesAdvancedDefaults(browser);
     await testOptionsDisplayModeAutoSaves(browser);
     await testOptionsAdvancedSettingsCanExpand(browser);
@@ -829,6 +830,68 @@ async function testOptionsEnglishMicrocopyIsUserFacing(browser) {
   await page.close();
 }
 
+async function testOptionsLayoutDoesNotOverflow(browser) {
+  const cases = [
+    { width: 980, height: 900, uiLanguage: "zh_CN" },
+    { width: 390, height: 900, uiLanguage: "en" }
+  ];
+
+  for (const testCase of cases) {
+    const page = await createOptionsPage(browser, {
+      settings: {
+        uiLanguage: testCase.uiLanguage,
+        provider: "custom",
+        apiUrl: "https://example.com/v1/chat/completions",
+        apiKey: "saved-key",
+        model: "deepseek-v4-flash",
+        disableThinking: true
+      }
+    });
+
+    try {
+      await page.setViewportSize({ width: testCase.width, height: testCase.height });
+      await page.waitForFunction(() => document.getElementById("setupStatus").textContent.trim().length > 0);
+
+      const result = await page.evaluate(() => {
+        const doc = document.documentElement;
+        const selectors = [
+          "main",
+          ".page-header",
+          ".setup-steps",
+          ".setup-status",
+          ".secret-row",
+          ".connection-grid",
+          ".connection-grid > label",
+          ".thinking-settings",
+          ".actions"
+        ];
+        const offenders = selectors
+          .flatMap((selector) => Array.from(document.querySelectorAll(selector)).map((node) => ({ selector, node })))
+          .filter(({ node }) => node.getClientRects().length > 0)
+          .map(({ selector, node }) => {
+            const rect = node.getBoundingClientRect();
+            return { selector, left: rect.left, right: rect.right };
+          })
+          .filter((item) => item.left < -1 || item.right > doc.clientWidth + 1);
+
+        return {
+          clientWidth: doc.clientWidth,
+          scrollWidth: doc.scrollWidth,
+          offenders
+        };
+      });
+
+      assert.ok(
+        result.scrollWidth <= result.clientWidth + 1,
+        `options page has horizontal overflow: ${JSON.stringify(result)}`
+      );
+      assert.deepStrictEqual(result.offenders, []);
+    } finally {
+      await page.close();
+    }
+  }
+}
+
 async function testOptionsCostProfileUpdatesAdvancedDefaults(browser) {
   const page = await createOptionsPage(browser);
 
@@ -892,8 +955,9 @@ async function testOptionsDisablesTestButtonWhilePending(browser) {
 async function testOptionsActionsKeepTestApiPrimary(browser) {
   const page = await createOptionsPage(browser);
 
-  assert.match(readText("options.css"), /\.actions\s*\{[\s\S]*position:\s*sticky/);
   assert.strictEqual(await page.locator(".actions button").count(), 2);
+  assert.strictEqual(await page.locator(".setup-section > .actions").count(), 1);
+  assert.strictEqual(await page.locator(".actions").evaluate((node) => getComputedStyle(node).position), "static");
   assert.ok(await page.locator("#save").evaluate((node) => node.classList.contains("secondary")));
   assert.strictEqual(await page.locator("#test").evaluate((node) => node.classList.contains("secondary")), false);
   await page.close();

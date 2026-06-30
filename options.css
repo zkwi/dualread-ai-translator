@@ -4,6 +4,7 @@
   --muted: #5f6f86;
   --line: #dce4ef;
   --surface: #ffffff;
+  --surface-soft: rgba(255, 255, 255, 0.74);
   --bg: #f7f9fc;
   --blue: #2563eb;
   --teal: #0f9f8f;
@@ -25,9 +26,9 @@ body {
 }
 
 main {
-  max-width: 860px;
+  max-width: 980px;
   margin: 0 auto;
-  padding: 34px 22px 40px;
+  padding: 36px 28px 44px;
 }
 
 .page-header {
@@ -35,7 +36,7 @@ main {
   grid-template-columns: 44px 1fr auto;
   align-items: center;
   gap: 14px;
-  margin-bottom: 28px;
+  margin-bottom: 30px;
 }
 
 .page-header img {
@@ -88,9 +89,10 @@ h2 {
 }
 
 .section {
-  margin-top: 28px;
-  padding-top: 22px;
+  margin-top: 30px;
+  padding-top: 26px;
   border-top: 1px solid var(--line);
+  scroll-margin-top: 20px;
 }
 
 .section-head {
@@ -98,7 +100,7 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .section-head p {
@@ -120,45 +122,52 @@ h2 {
 }
 
 .setup-steps {
+  counter-reset: setup-step;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: 0 0 16px;
+  gap: 12px;
+  margin: 0 0 18px;
   padding: 0;
   list-style: none;
 }
 
 .setup-steps li {
-  min-height: 36px;
-  padding: 9px 10px;
+  counter-increment: setup-step;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 11px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--surface-soft);
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.35;
 }
 
 .setup-steps li::before {
-  content: counter(list-item);
+  content: counter(setup-step);
+  flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
-  margin-right: 6px;
+  width: 22px;
+  height: 22px;
+  margin-right: 9px;
   border-radius: 50%;
   background: var(--blue);
   color: white;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .setup-status {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
   align-items: center;
-  margin: -2px 0 18px;
-  padding: 11px 12px;
+  margin: 0 0 22px;
+  padding: 13px 16px;
   border: 1px solid #fed7aa;
   border-left: 4px solid #f97316;
   border-radius: 8px;
@@ -222,14 +231,19 @@ h2 {
 
 label {
   display: block;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   font-size: 14px;
   font-weight: 650;
 }
 
+.grid > label {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
 .field-help {
   display: block;
-  margin-top: 6px;
+  margin-top: 7px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 450;
@@ -237,15 +251,15 @@ label {
 }
 
 .connection-settings {
-  margin-top: -2px;
-  padding: 12px 0 0;
+  margin-top: 22px;
+  padding: 24px 0 0;
   border-top: 1px dashed var(--line);
 }
 
 .connection-settings h3 {
-  margin: 0 0 14px;
+  margin: 0 0 18px;
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.4;
 }
 
@@ -300,9 +314,9 @@ label {
 input,
 select {
   width: 100%;
-  height: 42px;
-  margin-top: 7px;
-  padding: 0 11px;
+  height: 46px;
+  margin-top: 8px;
+  padding: 0 13px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   background: var(--surface);
@@ -340,18 +354,36 @@ textarea {
 
 .secret-row {
   display: grid;
-  grid-template-columns: 1fr 76px;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 10px;
 }
 
 .secret-row input {
-  margin-top: 7px;
+  margin-top: 8px;
 }
 
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 18px 20px;
+}
+
+.connection-grid {
+  align-items: stretch;
+}
+
+.connection-grid > label,
+.thinking-settings {
+  min-width: 0;
+  min-height: 132px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.connection-grid > label input {
+  background: var(--surface);
 }
 
 .preset-row {
@@ -408,10 +440,10 @@ textarea {
 .choice {
   align-items: flex-start;
   min-height: 50px;
-  padding: 11px 12px;
+  padding: 13px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--surface-soft);
 }
 
 .choice span,
@@ -436,12 +468,18 @@ textarea {
 }
 
 .thinking-settings {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
   min-width: 0;
 }
 
 .thinking-settings .compact-checkbox {
   min-height: auto;
-  margin: 4px 0 8px;
+  margin: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
 }
 
 .thinking-settings label:last-child {
@@ -489,19 +527,14 @@ textarea {
 }
 
 .actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 14px;
   align-items: center;
-  margin: 28px 0 0;
-  padding: 14px 0 10px;
+  margin: 22px 0 0;
+  padding: 16px 0 0;
   border-top: 1px solid var(--line);
-  background:
-    linear-gradient(180deg, rgba(247, 249, 252, 0.88), var(--bg) 36%);
-  backdrop-filter: blur(10px);
+  background: transparent;
 }
 
 .actions div {
@@ -548,14 +581,14 @@ button.danger:hover:not(:disabled) {
 }
 
 .inline-button {
-  height: 34px;
+  height: 36px;
   padding: 0 12px;
   font-size: 13px;
 }
 
 .secret-row .inline-button {
   align-self: end;
-  height: 42px;
+  height: 46px;
 }
 
 #message {
@@ -581,6 +614,7 @@ button.danger:hover:not(:disabled) {
     --muted: #9aa8ba;
     --line: #263247;
     --surface: #111827;
+    --surface-soft: rgba(17, 24, 39, 0.76);
     --bg: #0b1120;
     --blue: #60a5fa;
     --teal: #2dd4bf;
@@ -619,9 +653,10 @@ button.danger:hover:not(:disabled) {
 
   .setup-steps li,
   .choice,
-  .connection-settings,
+  .connection-grid > label,
+  .thinking-settings,
   .summary-panel div {
-    background: rgba(17, 24, 39, 0.76);
+    background: var(--surface-soft);
   }
 
   .setup-status {
@@ -732,20 +767,23 @@ button.danger:hover:not(:disabled) {
   }
 
   .actions {
-    background:
-      linear-gradient(180deg, rgba(11, 17, 32, 0.82), var(--bg) 36%);
+    background: transparent;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   main {
     padding: 24px 16px 32px;
   }
 
-  .grid,
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
   .secret-row {
     grid-template-columns: 1fr;
-    gap: 0;
+    gap: 10px;
   }
 
   .page-header {
@@ -762,8 +800,7 @@ button.danger:hover:not(:disabled) {
   }
 
   .setup-status {
-    grid-template-columns: 1fr;
-    gap: 2px;
+    align-items: flex-start;
   }
 
   .actions {
@@ -784,5 +821,9 @@ button.danger:hover:not(:disabled) {
 
   .compact-checkbox {
     margin-top: 0;
+  }
+
+  .secret-row .inline-button {
+    width: 100%;
   }
 }
