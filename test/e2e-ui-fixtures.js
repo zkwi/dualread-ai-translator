@@ -24,6 +24,7 @@ async function main() {
     await testPopupShowsAutoUnconfiguredNotice(browser);
     await testPopupAutoToggleSavesAndTriggersCurrentTab(browser);
     await testPopupAutoToggleSkipClearsActiveState(browser);
+    await testPopupRerendersAfterStatsRefresh(browser);
     await testPopupActionFailureRestoresStoredState(browser);
     await testPopupInitFailureShowsRecoverableState(browser);
     await testPopupUnknownInitFailureShowsReadableMessage(browser);
@@ -262,11 +263,18 @@ async function testPopupAutoToggleSavesAndTriggersCurrentTab(browser) {
       active: true,
       content: { ok: true, count: 2 }
     },
-    pageStats: {
-      ok: true,
-      active: false,
-      stats: { translated: 0, failed: 0, translationVisible: true }
-    }
+    pageStats: [
+      {
+        ok: true,
+        active: false,
+        stats: { translated: 0, failed: 0, translationVisible: true }
+      },
+      {
+        ok: true,
+        active: true,
+        stats: { translated: 2, failed: 0, translationVisible: true }
+      }
+    ]
   });
 
   await page.waitForFunction(() => document.getElementById("configStatus").textContent.includes("已关闭"));
@@ -313,6 +321,40 @@ async function testPopupAutoToggleSkipClearsActiveState(browser) {
 
   assert.strictEqual(await page.locator("#toggle").textContent(), "开始翻译");
   assert.strictEqual(await page.locator("#stateBadge").textContent(), "已跳过");
+  await page.close();
+}
+
+async function testPopupRerendersAfterStatsRefresh(browser) {
+  const page = await createPopupPage(browser, {
+    settings: {
+      autoTranslate: false,
+      apiKey: "saved-key",
+      model: "test-model"
+    },
+    autoTranslateResponse: {
+      ok: true,
+      active: true,
+      content: { ok: true, count: 2 }
+    },
+    pageStats: [
+      {
+        ok: true,
+        active: false,
+        stats: { translated: 0, failed: 0, translationVisible: true }
+      },
+      {
+        ok: true,
+        active: false,
+        stats: { translated: 0, failed: 0, translationVisible: true }
+      }
+    ]
+  });
+
+  await page.click("#autoTranslateToggle");
+  await page.waitForFunction(() => window.__runtimeMessages?.some((message) => message.action === "auto_translate_tab"));
+  await page.waitForFunction(() => document.getElementById("toggle").textContent === "开始翻译");
+
+  assert.strictEqual(await page.locator("#stateBadge").textContent(), "待机");
   await page.close();
 }
 

@@ -35,6 +35,7 @@ async function main() {
     await testCnnHomepageLeadCardSurvivesUtilityFiltering(browser);
     await testRedditTextBodyUsesSafeTranslationAnchor(browser);
     await testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser);
+    await testGitHubFlexRepositoryRowsDoNotReceiveTranslations(browser);
     await testDenseTableRowsDoNotReceiveBlockTranslations(browser);
     await testShortUtilityLinkWithPunctuationDoesNotStealBudget(browser);
     await testMediaWikiSidebarDoesNotStealArticleBudget(browser);
@@ -476,6 +477,41 @@ async function testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser
   assert.doesNotMatch(requested, /Fix popup thinking summary placeholder/);
   assert.doesNotMatch(requested, /Improve translation UX/);
   assert.strictEqual(await page.locator("table[aria-labelledby='folders-and-files'] .llm-bilingual-translation").count(), 0);
+  assert.strictEqual(await page.locator("#readme .llm-bilingual-translation").count(), 1);
+  await page.close();
+}
+
+async function testGitHubFlexRepositoryRowsDoNotReceiveTranslations(browser) {
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 5,
+    html: `
+      <main>
+        <section aria-label="Repository files">
+          <div class="Box-row d-flex flex-items-center" role="row">
+            <div role="gridcell"><a href="/tree/main/docs">docs</a></div>
+            <div role="gridcell"><a href="/commit/1"><span>Improve translation UX and release readiness</span></a></div>
+            <div role="gridcell"><relative-time datetime="2026-06-30T01:00:00Z">50 minutes ago</relative-time></div>
+          </div>
+          <div class="Box-row d-flex flex-items-center" role="row">
+            <div role="gridcell"><a href="/tree/main/scripts">scripts</a></div>
+            <div role="gridcell"><a href="/commit/2"><span>Fix popup thinking summary placeholder</span></a></div>
+            <div role="gridcell"><relative-time datetime="2026-06-30T01:10:00Z">3 minutes ago</relative-time></div>
+          </div>
+        </section>
+        <article id="readme">
+          <p>DualRead AI is an open-source Chrome extension for bilingual webpage translation with viewport-first scanning, right-click translation, and OpenAI-compatible providers.</p>
+        </article>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.match(requested, /open-source Chrome extension/);
+  assert.doesNotMatch(requested, /Improve translation UX/);
+  assert.doesNotMatch(requested, /Fix popup thinking summary placeholder/);
+  assert.strictEqual(await page.locator("[aria-label='Repository files'] .llm-bilingual-translation").count(), 0);
   assert.strictEqual(await page.locator("#readme .llm-bilingual-translation").count(), 1);
   await page.close();
 }

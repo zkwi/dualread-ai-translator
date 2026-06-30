@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.22
+
+- Re-rendered popup actions after refreshed page stats so buttons, badges, and notices no longer show stale active states.
+- Extended dense row filtering to text-node and inline candidates, reducing broken translation blocks in GitHub-style repository file lists.
+- Added popup and local content regression coverage for refreshed action state and modern flex repository rows.
+- Bumped the content script version so already-injected 0.4.21 scripts can clearly request a page refresh.
+
 ## 0.4.21
 
 - Preserved the target-language skip reason when content-script auto-start reports an inactive tab back to the background cache.

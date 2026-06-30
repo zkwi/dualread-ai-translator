@@ -73,8 +73,8 @@ toggleBtn.addEventListener("click", async () => {
     } else {
       latestNotice = null;
     }
-    render(response.content?.count);
     await refreshStats();
+    render(response.content?.count);
   }, {
     button: toggleBtn,
     pendingText: active ? t("popupStopping", [], "停止中...") : t("popupStarting", [], "启动中..."),
@@ -102,8 +102,8 @@ scanBtn.addEventListener("click", async () => {
     } else {
       latestNotice = null;
     }
-    render(response.content?.count);
     await refreshStats();
+    render(response.content?.count);
   }, {
     button: scanBtn,
     pendingText: t("popupScanning", [], "扫描中..."),
@@ -126,8 +126,8 @@ visibilityBtn.addEventListener("click", async () => {
     }
 
     translationVisible = response.content?.visible !== false;
-    render();
     await refreshStats();
+    render();
   }, {
     button: visibilityBtn,
     pendingText: nextVisible ? t("popupShowing", [], "显示中...") : t("popupHiding", [], "隐藏中..."),
@@ -152,8 +152,8 @@ clearBtn.addEventListener("click", async () => {
     active = false;
     translationVisible = true;
     latestNotice = null;
-    render();
     await refreshStats();
+    render();
   }, {
     button: clearBtn,
     pendingText: t("popupClearingShort", [], "清除中..."),
@@ -200,8 +200,8 @@ autoTranslateToggle.addEventListener("change", async () => {
       latestNotice = null;
     }
 
-    render(response.content?.count);
     await refreshStats();
+    render(response.content?.count);
   });
 });
 

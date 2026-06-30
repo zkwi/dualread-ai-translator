@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.21";
+  const CONTENT_SCRIPT_VERSION = "0.4.22";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -441,6 +441,7 @@
     if (shouldSkipCandidateByLanguage(text)) return false;
     if (!hasCandidateLanguageSignal(text)) return false;
     if (node.parentElement.closest("a[href]") && isShortLowInformationLinkText(text)) return false;
+    if (isDenseTableOrGridCandidate(node.parentElement, text)) return false;
     if (hasBlockedAncestor(node.parentElement)) return false;
     if (!isElementInActiveContentScope(node.parentElement)) return false;
     if (isBlockedInteractiveComposer(node.parentElement)) return false;
@@ -665,6 +666,7 @@
     if (shouldSkipCandidateByContent(text, element)) return false;
     if (shouldSkipShortBrandLabel(text, element)) return false;
     if (shouldSkipCandidateByLanguage(text)) return false;
+    if (isDenseTableOrGridCandidate(element, text)) return false;
 
     const hasSentenceSignal = hasSentenceLikeSignal(text);
     const isLongStandaloneText = text.length >= 80 && hasCandidateLanguageSignal(text);
