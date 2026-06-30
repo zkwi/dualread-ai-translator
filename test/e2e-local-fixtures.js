@@ -37,6 +37,7 @@ async function main() {
     await testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser);
     await testGitHubFlexRepositoryRowsDoNotReceiveTranslations(browser);
     await testDenseTableRowsDoNotReceiveBlockTranslations(browser);
+    await testHackerNewsStoryTitlesReceiveTranslations(browser);
     await testShortUtilityLinkWithPunctuationDoesNotStealBudget(browser);
     await testMediaWikiSidebarDoesNotStealArticleBudget(browser);
     await testSkipsTargetLanguagePage(browser);
@@ -554,6 +555,58 @@ async function testDenseTableRowsDoNotReceiveBlockTranslations(browser) {
   await page.close();
 }
 
+async function testHackerNewsStoryTitlesReceiveTranslations(browser) {
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 4,
+    html: `
+      <center>
+        <table id="hnmain">
+          <tbody>
+            <tr class="athing" id="story-1">
+              <td class="title" align="right"><span class="rank">1.</span></td>
+              <td class="votelinks"></td>
+              <td class="title">
+                <span class="titleline">
+                  <a href="https://example.com/open-source-low-tech">Open Source Low Tech</a>
+                  <span class="sitebit comhead"> (example.com)</span>
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2"></td>
+              <td class="subtext">143 points by grep_it 4 hours ago | hide | 29 comments</td>
+            </tr>
+            <tr class="athing" id="story-2">
+              <td class="title" align="right"><span class="rank">2.</span></td>
+              <td class="votelinks"></td>
+              <td class="title">
+                <span class="titleline">
+                  <a href="https://example.com/qwen">Qwen 3.6 27B is the sweet spot for local development</a>
+                  <span class="sitebit comhead"> (example.com)</span>
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2"></td>
+              <td class="subtext">85 points by localdev 2 hours ago | hide | 14 comments</td>
+            </tr>
+          </tbody>
+        </table>
+      </center>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.match(requested, /Open Source Low Tech/);
+  assert.match(requested, /Qwen 3\.6 27B is the sweet spot/);
+  assert.doesNotMatch(requested, /143 points by/);
+  assert.strictEqual(await page.locator("#hnmain .subtext .llm-bilingual-translation").count(), 0);
+  assert.strictEqual(await page.locator("#hnmain td.title > .titleline + .llm-bilingual-translation").count(), 2);
+  await page.close();
+}
+
 async function testShortUtilityLinkWithPunctuationDoesNotStealBudget(browser) {
   const page = await createHarnessPage(browser, {
     html: `
@@ -585,6 +638,21 @@ async function testMediaWikiSidebarDoesNotStealArticleBudget(browser) {
     maxElementsPerScan: 4,
     html: `
       <main>
+        <nav class="vector-appearance-landmark">
+          <div id="vector-appearance-pinned-container" class="vector-pinned-container">
+            <div id="vector-appearance" class="vector-appearance vector-pinnable-element">
+              <div class="vector-pinnable-header vector-appearance-pinnable-header vector-pinnable-header-pinned">
+                <h2>Appearance</h2>
+              </div>
+              <fieldset>
+                <legend>Text</legend>
+                <label>Small</label>
+                <label>Standard</label>
+                <label>Large</label>
+              </fieldset>
+            </div>
+          </div>
+        </nav>
         <article>
           <div class="mw-parser-output">
             <table class="sidebar sidebar-collapse nomobile nowraplinks hlist">
@@ -619,7 +687,9 @@ async function testMediaWikiSidebarDoesNotStealArticleBudget(browser) {
   assert.match(requested, /High-profile applications of AI/);
   assert.doesNotMatch(requested, /Taylor Swift deepfake/);
   assert.doesNotMatch(requested, /Google Gemini image generation/);
+  assert.doesNotMatch(requested, /Appearance/);
   assert.strictEqual(await page.locator("table.sidebar .llm-bilingual-translation").count(), 0);
+  assert.strictEqual(await page.locator("#vector-appearance .llm-bilingual-translation").count(), 0);
   await page.close();
 }
 

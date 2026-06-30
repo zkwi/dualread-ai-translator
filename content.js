@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.24";
+  const CONTENT_SCRIPT_VERSION = "0.4.25";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -66,6 +66,9 @@
       ".mw-parser-output .metadata",
       ".mw-parser-output .ambox",
       ".mw-parser-output .side-box",
+      "nav.vector-appearance-landmark",
+      "#vector-appearance",
+      "#vector-appearance-pinned-container",
       // GitHub repository file browsers are dense tables; translating commit/date cells breaks the row layout.
       "table[aria-labelledby=\"folders-and-files\"]",
       ".react-directory-row",
@@ -440,7 +443,9 @@
     if (shouldSkipCandidateByContent(text, node.parentElement)) return false;
     if (shouldSkipCandidateByLanguage(text)) return false;
     if (!hasCandidateLanguageSignal(text)) return false;
-    if (node.parentElement.closest("a[href]") && isShortLowInformationLinkText(text)) return false;
+    if (node.parentElement.closest("a[href]")
+      && isShortLowInformationLinkText(text)
+      && !isHackerNewsStoryTitleCandidate(node.parentElement)) return false;
     if (isDenseTableOrGridCandidate(node.parentElement, text)) return false;
     if (hasBlockedAncestor(node.parentElement)) return false;
     if (!isElementInActiveContentScope(node.parentElement)) return false;
@@ -496,6 +501,9 @@
     const redditTextBody = findRedditTextBodyElement(element);
     if (redditTextBody) return redditTextBody;
 
+    const hackerNewsTitleCell = findHackerNewsStoryTitleCell(element);
+    if (hackerNewsTitleCell) return hackerNewsTitleCell;
+
     return null;
   }
 
@@ -509,6 +517,20 @@
         "[property=\"schema:articleBody\"][id$=\"-post-rtjson-content\"]",
         ".feed-card-text-preview"
       ].join(","));
+  }
+
+  function isHackerNewsStoryTitleCandidate(element) {
+    return !!findHackerNewsStoryTitleCell(element);
+  }
+
+  function findHackerNewsStoryTitleCell(element) {
+    if (!element?.closest) return null;
+
+    const row = element.closest("tr.athing");
+    const cell = element.closest("td.title");
+    if (!row || !cell || cell.closest("tr") !== row) return null;
+
+    return cell.querySelector(".titleline a[href]") ? cell : null;
   }
 
   function isCandidateElement(element, costSettings = LLMTranslatorShared.normalizeCostSettings(state.settings), knownText = null) {
@@ -705,6 +727,7 @@
   function isDenseTableOrGridCandidate(element, text, rect = element.getBoundingClientRect()) {
     const clean = normalizeText(text);
     if (!clean || clean.length >= 180) return false;
+    if (isHackerNewsStoryTitleCandidate(element)) return false;
 
     const tableCell = element.closest?.("td,th");
     if (tableCell?.closest("table,[role=\"table\"],[role=\"grid\"]")) {
@@ -1399,9 +1422,17 @@
     const redditTarget = findRedditTextBodyInsertionTarget(element);
     if (redditTarget) return redditTarget;
 
+    const hackerNewsTarget = findHackerNewsTitleInsertionTarget(element);
+    if (hackerNewsTarget) return hackerNewsTarget;
+
     if (placement !== "inside" || element.tagName !== "LI") return element;
 
     return findPrimaryListItemLink(element) || element;
+  }
+
+  function findHackerNewsTitleInsertionTarget(element) {
+    const cell = findHackerNewsStoryTitleCell(element);
+    return cell?.querySelector(":scope > .titleline") || cell?.querySelector(".titleline") || null;
   }
 
   function findRedditTextBodyInsertionTarget(element) {

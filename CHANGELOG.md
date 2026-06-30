@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.25
+
+- Restored Hacker News story title translation without reopening dense table and repository row layout regressions.
+- Blocked MediaWiki Vector appearance controls so Wikipedia side UI no longer receives injected translations.
+- Added local regression coverage for Hacker News title rows and Wikipedia Vector appearance panels.
+- Bumped the content script version so already-injected 0.4.24 scripts can clearly request a page refresh.
+
 ## 0.4.24
 
 - Skipped the low-value X/Twitter page chrome label "Post" so status pages only translate the actual post body.
