@@ -38,7 +38,9 @@ async function main() {
   await testGetPageStatsSyncsActiveTabCache();
   await testAutoTranslateReportsUnconfiguredNotice();
   await testManualTranslationReportsMissingApiKeyBeforeInjecting();
+  await testManualTranslationPropagatesContentStartFailure();
   await testScanCurrentAreaReportsMissingApiKeyBeforeInjecting();
+  await testScanCurrentAreaPropagatesContentFailure();
   await testFileUrlIsUnsupportedBeforeInjecting();
   await testSetDisplayModeForwardsToContentScript();
   await testAutoTranslateSkipsTargetLanguagePage();
@@ -47,6 +49,7 @@ async function main() {
   await testContextMenuSetupSerializesConcurrentLanguageRefreshes();
   await testContextMenuPageTranslationShowsMissingApiKeyNotice();
   await testContextMenuStartsPageTranslation();
+  await testContextMenuShowsNoticeWhenPageTranslationFails();
   await testContextMenuTranslatesSelectedText();
   await testContextMenuSelectionReportsMissingApiKey();
   await testContextMenuSelectionSkipsTargetLanguageText();
@@ -889,6 +892,32 @@ async function testManualTranslationReportsMissingApiKeyBeforeInjecting() {
   assert.strictEqual(tabMessages.length, 0);
 }
 
+async function testManualTranslationPropagatesContentStartFailure() {
+  const context = createBackgroundContext({
+    sendMessage: async (tabId, message) => {
+      assert.strictEqual(tabId, 39);
+      if (message.action === "start_translation") {
+        return { ok: false, error: "Content failed to read settings." };
+      }
+      return { ok: true };
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "toggle_translation",
+    tab: { id: 39, url: "https://www.bbc.com/" }
+  });
+
+  assert.strictEqual(response.ok, false);
+  assert.strictEqual(response.active, false);
+  assert.match(response.error, /Content failed/);
+
+  const state = await sendRuntimeMessage(context, { action: "get_tab_state", tabId: 39 });
+  assert.strictEqual(state.active, false);
+}
+
 async function testScanCurrentAreaReportsMissingApiKeyBeforeInjecting() {
   const tabMessages = [];
   const context = createBackgroundContext({
@@ -909,6 +938,29 @@ async function testScanCurrentAreaReportsMissingApiKeyBeforeInjecting() {
   assert.strictEqual(response.ok, false);
   assert.match(response.error, /API Key/);
   assert.strictEqual(tabMessages.length, 0);
+}
+
+async function testScanCurrentAreaPropagatesContentFailure() {
+  const context = createBackgroundContext({
+    sendMessage: async (tabId, message) => {
+      assert.strictEqual(tabId, 40);
+      if (message.action === "scan_current_area") {
+        return { ok: false, error: "Scan failed inside content script." };
+      }
+      return { ok: true };
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "scan_current_area",
+    tab: { id: 40, url: "https://www.bbc.com/" }
+  });
+
+  assert.strictEqual(response.ok, false);
+  assert.strictEqual(response.active, false);
+  assert.match(response.error, /Scan failed/);
 }
 
 async function testFileUrlIsUnsupportedBeforeInjecting() {
@@ -1092,6 +1144,34 @@ async function testContextMenuStartsPageTranslation() {
   assert.strictEqual(tabMessages[0].tabId, 21);
   assert.strictEqual(tabMessages[0].message.action, "start_translation");
   assert.strictEqual(tabMessages[0].message.auto, undefined);
+}
+
+async function testContextMenuShowsNoticeWhenPageTranslationFails() {
+  const context = createBackgroundContext({
+    sendMessage: async (tabId, message) => {
+      assert.strictEqual(tabId, 25);
+      if (message.action === "start_translation") {
+        return { ok: false, error: "Content start failed." };
+      }
+      return { ok: true };
+    }
+  });
+
+  loadBackground(context);
+  await context.onInstalledListener();
+
+  await context.contextMenuClickListener({ menuItemId: "llm_translate_page" }, {
+    id: 25,
+    url: "https://example.com/article"
+  });
+
+  assert.strictEqual(context.scriptingCalls.length, 2);
+  const noticeCall = context.scriptingCalls[1];
+  assert.strictEqual(noticeCall.args[0], "Content start failed.");
+  assert.strictEqual(noticeCall.args[1], true);
+
+  const state = await sendRuntimeMessage(context, { action: "get_tab_state", tabId: 25 });
+  assert.strictEqual(state.active, false);
 }
 
 async function testContextMenuTranslatesSelectedText() {

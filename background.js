@@ -385,6 +385,10 @@ async function toggleTranslation(tab) {
 
   const nextAction = isActive ? "stop_translation" : "start_translation";
   const response = await chrome.tabs.sendMessage(tab.id, { action: nextAction });
+  if (!response?.ok) {
+    activeTabs.set(tab.id, isActive);
+    return createFailedContentActionResponse(response, isActive);
+  }
 
   activeTabs.set(tab.id, !isActive);
   tabNotices.delete(tab.id);
@@ -404,6 +408,11 @@ async function startTranslation(tab, options = {}) {
   await ensureContentScript(tab.id);
   const message = options.auto ? { action: "start_translation", auto: true } : { action: "start_translation" };
   const response = await chrome.tabs.sendMessage(tab.id, message);
+  if (!response?.ok) {
+    activeTabs.set(tab.id, false);
+    return createFailedContentActionResponse(response, false);
+  }
+
   const active = !!response?.ok && !response.skipped;
   activeTabs.set(tab.id, active);
   if (response?.skipped) {
@@ -552,12 +561,25 @@ async function scanCurrentArea(tab) {
 
   await ensureContentScript(tab.id);
   const response = await chrome.tabs.sendMessage(tab.id, { action: "scan_current_area" });
+  if (!response?.ok) {
+    return createFailedContentActionResponse(response, !!activeTabs.get(tab.id));
+  }
+
   if (response?.ok) {
     activeTabs.set(tab.id, true);
     tabNotices.delete(tab.id);
   }
 
   return { ok: true, active: true, content: response };
+}
+
+function createFailedContentActionResponse(response, active = false) {
+  return {
+    ok: false,
+    active,
+    error: response?.error || t("contentNoOperationResult", [], "翻译操作没有返回结果。"),
+    content: response || null
+  };
 }
 
 async function setTranslationVisibility(tab, visible) {

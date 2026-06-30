@@ -9,6 +9,7 @@
 - Added the effective thinking-control strategy to the popup summary so users can confirm speed-related settings without opening the settings page.
 - Fixed the popup speed summary initial state so settings-load failures never expose placeholder text.
 - Made content-script async message handlers return readable failures instead of leaving popup/background requests waiting when page-side logic throws.
+- Propagated page-side translation failures through popup, current-screen translation, and right-click page translation instead of treating them as successful starts.
 - Added a publication-audit guard that blocks placeholder-based locale messages from being wired directly to static HTML UI.
 - Bumped the content script version so already-injected 0.4.10 scripts can clearly request a page refresh.
 
