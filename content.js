@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.19";
+  const CONTENT_SCRIPT_VERSION = "0.4.20";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -234,9 +234,7 @@
       const settings = await chrome.runtime.sendMessage({ action: "get_settings" });
       setAutoStartStatus("starting", { hasApiKey, hasModel });
       const response = await startTranslation({ auto: true, settings });
-      if (!response?.skipped) {
-        await markBackgroundTabActive(true);
-      }
+      await markBackgroundTabActive(!response?.skipped);
       setAutoStartStatus(response?.skipped ? `skipped:${response.reason || "unknown"}` : "started", {
         hasApiKey,
         hasModel

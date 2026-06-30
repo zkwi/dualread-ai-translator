@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.20
+
+- Fixed auto-translate skipped states in the popup so target-language pages return to an inactive "skipped" state instead of keeping stale active controls.
+- Synced content-script declarative auto-start skips back to the background tab cache, preventing stale active state after target-language auto skips.
+- Added regression coverage for popup auto-toggle skips and content-script auto-start inactive synchronization.
+- Bumped the content script version so already-injected 0.4.19 scripts can clearly request a page refresh.
+
 ## 0.4.19
 
 - Opened advanced settings by default so prompt, concurrency, cache, and cost controls are easier to discover.

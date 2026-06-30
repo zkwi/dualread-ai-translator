@@ -55,6 +55,7 @@ async function main() {
     await testDisabledAutoTranslationDoesNotWakeBackgroundForSettings(browser);
     await testVisibleElementsDoNotWaitForIntersectionObserver(browser);
     await testDeclarativeAutoTranslationStartsOnLoad(browser);
+    await testDeclarativeAutoTranslationSkipMarksBackgroundInactive(browser);
     await testAutoTranslationWaitsForDynamicEnglishContentWithTargetLocale(browser);
     await testAutoTranslationSkipsTargetLanguagePage(browser);
     await testAutoTranslationSkipsTargetLanguageDominantPage(browser);
@@ -905,6 +906,30 @@ async function testDeclarativeAutoTranslationStartsOnLoad(browser) {
   await page.close();
 }
 
+async function testDeclarativeAutoTranslationSkipMarksBackgroundInactive(browser) {
+  const page = await createHarnessPage(browser, {
+    autoTranslate: true,
+    htmlLang: "zh-CN",
+    targetLanguage: "简体中文",
+    html: `
+      <main>
+        <article>
+          <p>这是一段中文页面正文，用户已经可以直接阅读，不需要自动翻译。</p>
+          <p>这里还有一段中文内容，只包含 DualRead AI 这样的英文产品名称。</p>
+        </article>
+      </main>
+    `
+  });
+
+  await page.waitForFunction(() => document.documentElement.dataset.llmTranslatorAuto === "skipped:target-language");
+  const markMessages = await page.evaluate(() => window.__runtimeMessages.filter((message) => message.action === "mark_tab_active"));
+
+  assert.strictEqual(markMessages.length, 1);
+  assert.strictEqual(markMessages[0].active, false);
+  assert.strictEqual(await page.evaluate(() => window.__mockItems.length), 0);
+  await page.close();
+}
+
 async function testSkipsTargetLanguagePage(browser) {
   const page = await createHarnessPage(browser, {
     targetLanguage: "简体中文",
@@ -1377,6 +1402,9 @@ async function createHarnessPage(browser, options = {}) {
         },
         async sendMessage(request) {
           window.__runtimeMessages.push(request);
+          if (request.action === "mark_tab_active") {
+            return { ok: true, active: request.active !== false };
+          }
           if (request.action === "get_settings") {
             if (window.__failGetSettings) throw new Error("Mock settings failure");
             return settings;

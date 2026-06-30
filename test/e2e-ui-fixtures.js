@@ -23,6 +23,7 @@ async function main() {
     await testPopupShowsAutoSkipNotice(browser);
     await testPopupShowsAutoUnconfiguredNotice(browser);
     await testPopupAutoToggleSavesAndTriggersCurrentTab(browser);
+    await testPopupAutoToggleSkipClearsActiveState(browser);
     await testPopupActionFailureRestoresStoredState(browser);
     await testPopupInitFailureShowsRecoverableState(browser);
     await testPopupUnknownInitFailureShowsReadableMessage(browser);
@@ -276,6 +277,42 @@ async function testPopupAutoToggleSavesAndTriggersCurrentTab(browser) {
 
   const status = await page.locator("#status").textContent();
   assert.match(status, /已开启|发现 2 个候选/);
+  await page.close();
+}
+
+async function testPopupAutoToggleSkipClearsActiveState(browser) {
+  const page = await createPopupPage(browser, {
+    settings: {
+      autoTranslate: false,
+      apiKey: "saved-key",
+      model: "test-model"
+    },
+    autoTranslateResponse: {
+      ok: true,
+      active: false,
+      content: { ok: true, skipped: true, reason: "target-language" }
+    },
+    pageStats: [
+      {
+        ok: true,
+        active: true,
+        stats: { translated: 1, failed: 0, translationVisible: true }
+      },
+      {
+        ok: true,
+        active: false,
+        notice: { type: "info", reason: "target-language" },
+        stats: { translated: 1, failed: 0, translationVisible: true }
+      }
+    ]
+  });
+
+  await page.waitForFunction(() => document.getElementById("toggle").textContent === "停止翻译");
+  await page.click("#autoTranslateToggle");
+  await page.waitForFunction(() => document.getElementById("status").textContent.includes("已跳过"));
+
+  assert.strictEqual(await page.locator("#toggle").textContent(), "开始翻译");
+  assert.strictEqual(await page.locator("#stateBadge").textContent(), "已跳过");
   await page.close();
 }
 

@@ -193,6 +193,7 @@ autoTranslateToggle.addEventListener("change", async () => {
 
     if (response.skipped || response.content?.skipped) {
       const reason = response.reason || response.content?.reason;
+      active = false;
       latestNotice = reason ? { reason } : latestNotice;
     } else {
       active = !!response.active;
