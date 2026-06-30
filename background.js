@@ -3,11 +3,7 @@ importScripts("shared.js");
 const { i18n: t } = LLMTranslatorShared;
 const DEFAULT_SETTINGS = LLMTranslatorShared.DEFAULT_SETTINGS;
 const LEGACY_DEFAULT_API_TIMEOUT_MS = LLMTranslatorShared.LEGACY_DEFAULT_API_TIMEOUT_MS;
-const THINKING_CONTROL = {
-  NONE: "none",
-  DASHSCOPE: "dashscope",
-  SELF_HOSTED: "self-hosted"
-};
+const THINKING_STRATEGIES = LLMTranslatorShared.THINKING_STRATEGIES;
 const CONTEXT_MENU_TRANSLATE_PAGE = "llm_translate_page";
 const CONTEXT_MENU_TRANSLATE_SELECTION = "llm_translate_selection";
 const CACHE_PRUNE_INTERVAL_MS = 30000;
@@ -228,6 +224,8 @@ function shouldRecheckAutoTranslate(changes) {
     "provider",
     "apiUrl",
     "model",
+    "disableThinking",
+    "thinkingStrategy",
     "sourceLanguage",
     "targetLanguage",
     "translationPrompt",
@@ -874,8 +872,7 @@ async function requestTranslations(settings, items) {
   const url = LLMTranslatorShared.normalizeChatCompletionsUrl(settings.apiUrl);
   const prompt = buildTranslationPrompt(settings, items);
   const body = buildChatCompletionBody(settings, prompt);
-
-  const response = await fetchWithOneRetry(url, {
+  let response = await fetchWithOneRetry(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -885,7 +882,29 @@ async function requestTranslations(settings, items) {
   }, settings);
 
   if (!response.ok) {
-    const errorText = await response.text();
+    let errorText = await response.text();
+    if (shouldRetryWithoutThinkingControl(settings, body, errorText)) {
+      const fallbackBody = buildChatCompletionBody(settings, prompt, { skipThinkingControl: true });
+      response = await fetchWithOneRetry(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${settings.apiKey}`
+        },
+        body: JSON.stringify(fallbackBody)
+      }, settings);
+      if (response.ok) {
+        const data = await response.json();
+        const content = data?.choices?.[0]?.message?.content;
+        if (!content) {
+          throw new Error(t("errorApiMissingContent", [], "API 返回中没有 choices[0].message.content。"));
+        }
+
+        const parsed = parseTranslationJson(content);
+        return normalizeResults(parsed, items);
+      }
+      errorText = await response.text();
+    }
     throw new Error(t("errorApiRequestFailed", [String(response.status), errorText.slice(0, 240)], `API 请求失败：${response.status} ${errorText.slice(0, 240)}`));
   }
 
@@ -899,7 +918,7 @@ async function requestTranslations(settings, items) {
   return normalizeResults(parsed, items);
 }
 
-function buildChatCompletionBody(settings, prompt) {
+function buildChatCompletionBody(settings, prompt, options = {}) {
   const body = {
     model: settings.model,
     temperature: 0.2,
@@ -915,20 +934,40 @@ function buildChatCompletionBody(settings, prompt) {
     ]
   };
 
-  applyThinkingControl(body, settings);
+  if (!options.skipThinkingControl) {
+    applyThinkingControl(body, settings);
+  }
   return body;
 }
 
 function applyThinkingControl(body, settings) {
   if (settings.disableThinking !== true) return;
 
-  const control = getThinkingControlType(settings);
-  if (control === THINKING_CONTROL.DASHSCOPE) {
+  const strategy = LLMTranslatorShared.getEffectiveThinkingStrategy(settings);
+  if (strategy === THINKING_STRATEGIES.DASHSCOPE_ENABLE_THINKING) {
     body.enable_thinking = false;
     return;
   }
 
-  if (control === THINKING_CONTROL.SELF_HOSTED) {
+  if (strategy === THINKING_STRATEGIES.THINKING_DISABLED) {
+    body.thinking = { type: "disabled" };
+    return;
+  }
+
+  if (strategy === THINKING_STRATEGIES.OPENROUTER_REASONING_LOW) {
+    body.reasoning_effort = "low";
+    return;
+  }
+
+  if (strategy === THINKING_STRATEGIES.OPENROUTER_REASONING_MINIMAL) {
+    body.reasoning = {
+      effort: "minimal",
+      exclude: true
+    };
+    return;
+  }
+
+  if (strategy === THINKING_STRATEGIES.QWEN_CHAT_TEMPLATE_KWARGS) {
     body.chat_template_kwargs = {
       ...(body.chat_template_kwargs || {}),
       enable_thinking: false
@@ -936,33 +975,23 @@ function applyThinkingControl(body, settings) {
   }
 }
 
-function getThinkingControlType(settings) {
-  const provider = String(settings.provider || "").toLowerCase();
-  const apiUrl = String(settings.apiUrl || "").toLowerCase();
-  const model = String(settings.model || "").toLowerCase();
+function shouldRetryWithoutThinkingControl(settings, body, errorText) {
+  if (settings.disableThinking !== true || !hasThinkingControl(body)) return false;
 
-  if (provider === "dashscope" || apiUrl.includes("dashscope") || apiUrl.includes("aliyuncs.com")) {
-    return THINKING_CONTROL.DASHSCOPE;
-  }
-  if (isQwenLikeModel(model) && (provider === "local" || isLocalOrTemplateServer(apiUrl))) {
-    return THINKING_CONTROL.SELF_HOSTED;
-  }
-  if (provider === "openai" || provider === "deepseek") return THINKING_CONTROL.NONE;
-
-  return THINKING_CONTROL.NONE;
+  const text = String(errorText || "").toLowerCase();
+  const mentionsUnsupported = /(unknown|unrecognized|unsupported|unexpected|invalid|extra|additional|not support)/.test(text);
+  const mentionsThinking = /(enable_thinking|thinking|reasoning_effort|reasoning|chat_template_kwargs)/.test(text);
+  const mandatoryThinking = /(must be true|required|mandatory|cannot be disabled|restricted to true)/.test(text);
+  return mentionsUnsupported && mentionsThinking && !mandatoryThinking;
 }
 
-function isQwenLikeModel(model) {
-  return String(model || "").includes("qwen");
-}
-
-function isLocalOrTemplateServer(apiUrl) {
-  const value = String(apiUrl || "");
+function hasThinkingControl(body) {
   return (
-    value.includes("localhost") ||
-    value.includes("127.0.0.1") ||
-    value.includes("vllm") ||
-    value.includes("sglang")
+    Object.prototype.hasOwnProperty.call(body, "enable_thinking") ||
+    Object.prototype.hasOwnProperty.call(body, "thinking") ||
+    Object.prototype.hasOwnProperty.call(body, "reasoning_effort") ||
+    Object.prototype.hasOwnProperty.call(body, "reasoning") ||
+    Object.prototype.hasOwnProperty.call(body, "chat_template_kwargs")
   );
 }
 

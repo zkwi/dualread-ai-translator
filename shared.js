@@ -17,6 +17,16 @@
   const DEFAULT_VIEWPORT_ONLY = true;
   const DEFAULT_UI_LANGUAGE = "auto";
   const SUPPORTED_UI_LANGUAGES = new Set(["auto", "zh_CN", "zh_TW", "en", "ja"]);
+  const THINKING_STRATEGIES = Object.freeze({
+    AUTO: "auto",
+    DASHSCOPE_ENABLE_THINKING: "dashscope_enable_thinking",
+    THINKING_DISABLED: "thinking_disabled",
+    OPENROUTER_REASONING_LOW: "openrouter_reasoning_low",
+    OPENROUTER_REASONING_MINIMAL: "openrouter_reasoning_minimal",
+    QWEN_CHAT_TEMPLATE_KWARGS: "qwen_chat_template_kwargs",
+    OMIT: "omit"
+  });
+  const THINKING_STRATEGY_VALUES = new Set(Object.values(THINKING_STRATEGIES));
   const DEFAULT_TRANSLATION_PROMPT = [
     "Translate the following webpage text from {{sourceLanguage}} to {{targetLanguage}}.",
     "Keep meaning, tone, names, numbers, URLs, and code unchanged.",
@@ -76,6 +86,7 @@
     maxCacheEntries: DEFAULT_MAX_CACHE_ENTRIES,
     apiTimeoutMs: 120000,
     disableThinking: true,
+    thinkingStrategy: THINKING_STRATEGIES.AUTO,
     autoTranslate: false,
     displayMode: "bilingual",
     viewportOnly: COST_PROFILES.balanced.viewportOnly,
@@ -188,6 +199,75 @@
     if (trimmed.endsWith("/chat/completions")) return trimmed;
     if (trimmed.endsWith("/v1")) return `${trimmed}/chat/completions`;
     return `${trimmed}/chat/completions`;
+  }
+
+  function normalizeThinkingStrategy(strategy) {
+    const value = String(strategy || "").trim();
+    return THINKING_STRATEGY_VALUES.has(value) ? value : THINKING_STRATEGIES.AUTO;
+  }
+
+  function getEffectiveThinkingStrategy(settings = {}) {
+    const configured = normalizeThinkingStrategy(settings.thinkingStrategy);
+    if (configured !== THINKING_STRATEGIES.AUTO) return configured;
+    return getPreferredThinkingStrategy(settings);
+  }
+
+  function getPreferredThinkingStrategy(settings = {}) {
+    const provider = String(settings.provider || "").toLowerCase();
+    const apiUrl = String(settings.apiUrl || "").toLowerCase();
+    const model = String(settings.model || "").toLowerCase();
+
+    if (isOpenRouterEndpoint(apiUrl)) {
+      return model.includes("stepfun/")
+        ? THINKING_STRATEGIES.OPENROUTER_REASONING_LOW
+        : THINKING_STRATEGIES.OPENROUTER_REASONING_MINIMAL;
+    }
+
+    if (isQwenLikeModel(model) && (provider === "local" || isLocalOrTemplateServer(apiUrl))) {
+      return THINKING_STRATEGIES.QWEN_CHAT_TEMPLATE_KWARGS;
+    }
+
+    if (provider === "dashscope" || isDashScopeEndpoint(apiUrl)) {
+      return THINKING_STRATEGIES.DASHSCOPE_ENABLE_THINKING;
+    }
+
+    if (provider === "deepseek" || isDeepSeekLikeModel(model)) {
+      return THINKING_STRATEGIES.THINKING_DISABLED;
+    }
+
+    if (provider === "openai" || apiUrl.includes("api.openai.com")) {
+      return THINKING_STRATEGIES.OMIT;
+    }
+
+    return THINKING_STRATEGIES.OMIT;
+  }
+
+  function isDashScopeEndpoint(apiUrl) {
+    const value = String(apiUrl || "").toLowerCase();
+    return value.includes("dashscope") || value.includes("aliyuncs.com");
+  }
+
+  function isOpenRouterEndpoint(apiUrl) {
+    return String(apiUrl || "").toLowerCase().includes("openrouter.ai");
+  }
+
+  function isDeepSeekLikeModel(model) {
+    const value = String(model || "").toLowerCase();
+    return value.includes("deepseek") || value.includes("mimo");
+  }
+
+  function isQwenLikeModel(model) {
+    return String(model || "").toLowerCase().includes("qwen");
+  }
+
+  function isLocalOrTemplateServer(apiUrl) {
+    const value = String(apiUrl || "").toLowerCase();
+    return (
+      value.includes("localhost") ||
+      value.includes("127.0.0.1") ||
+      value.includes("vllm") ||
+      value.includes("sglang")
+    );
   }
 
   function getTranslationPlacement(tagName) {
@@ -656,9 +736,13 @@
     DEFAULT_TRANSLATION_PROMPT,
     DEFAULT_SETTINGS,
     COST_PROFILES,
+    THINKING_STRATEGIES,
     LEGACY_DEFAULT_API_TIMEOUT_MS,
     isLegacyDefaultTranslationPrompt,
     normalizeChatCompletionsUrl,
+    normalizeThinkingStrategy,
+    getEffectiveThinkingStrategy,
+    getPreferredThinkingStrategy,
     getTranslationPlacement,
     getCandidateSelector,
     getDynamicScanObserverOptions,

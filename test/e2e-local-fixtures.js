@@ -167,7 +167,7 @@ async function testContentScriptReinjectsWhenVersionChanges(browser) {
   await page.evaluate(contentSource);
 
   assert.strictEqual(await page.evaluate(() => window.__listenerCount()), 1);
-  assert.strictEqual(await page.evaluate(() => document.documentElement.dataset.llmTranslatorVersion), "0.4.10");
+  assert.strictEqual(await page.evaluate(() => document.documentElement.dataset.llmTranslatorVersion), "0.4.11");
 
   const result = await runTranslation(page);
   assert.strictEqual(result.requestCount, 1);

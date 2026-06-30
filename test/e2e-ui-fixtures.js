@@ -623,8 +623,9 @@ async function testOptionsProviderThinkingHints(browser) {
   const page = await createOptionsPage(browser);
 
   await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("不会添加"));
-  assert.strictEqual(await page.locator("#disableThinking").isChecked(), false);
-  assert.strictEqual(await page.locator("#disableThinking").isDisabled(), true);
+  assert.strictEqual(await page.locator("#disableThinking").isChecked(), true);
+  assert.strictEqual(await page.locator("#disableThinking").isDisabled(), false);
+  assert.strictEqual(await page.locator("#thinkingStrategy").isDisabled(), false);
 
   await page.selectOption("#provider", "dashscope");
   await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("enable_thinking"));
@@ -633,24 +634,28 @@ async function testOptionsProviderThinkingHints(browser) {
 
   await page.selectOption("#provider", "openai");
   await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("不会添加"));
-  assert.strictEqual(await page.locator("#disableThinking").isChecked(), false);
-  assert.strictEqual(await page.locator("#disableThinking").isDisabled(), true);
-  assert.strictEqual(await page.locator(".compact-checkbox").evaluate((node) => node.classList.contains("is-disabled")), true);
+  assert.strictEqual(await page.locator("#disableThinking").isChecked(), true);
+  assert.strictEqual(await page.locator("#disableThinking").isDisabled(), false);
+  assert.strictEqual(await page.locator(".compact-checkbox").evaluate((node) => node.classList.contains("is-disabled")), false);
+
+  await page.locator("#disableThinking").uncheck();
+  await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("不会添加思考控制"));
+  assert.strictEqual(await page.locator("#thinkingStrategy").isDisabled(), true);
   await page.close();
 
   const savedDeepSeekPage = await createOptionsPage(browser, {
     settings: {
-      provider: "deepseek",
-      apiUrl: "https://api.deepseek.com/v1/chat/completions",
-      model: "deepseek-chat",
+      provider: "custom",
+      apiUrl: "https://opencode.example/v1/chat/completions",
+      model: "deepseek-v4-flash",
       disableThinking: true
     }
   });
 
-  await savedDeepSeekPage.waitForFunction(() => document.getElementById("provider").value === "deepseek");
-  await savedDeepSeekPage.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("不会添加"));
-  assert.strictEqual(await savedDeepSeekPage.locator("#disableThinking").isChecked(), false);
-  assert.strictEqual(await savedDeepSeekPage.locator("#disableThinking").isDisabled(), true);
+  await savedDeepSeekPage.waitForFunction(() => document.getElementById("provider").value === "custom");
+  await savedDeepSeekPage.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("thinking"));
+  assert.strictEqual(await savedDeepSeekPage.locator("#disableThinking").isChecked(), true);
+  assert.strictEqual(await savedDeepSeekPage.locator("#disableThinking").isDisabled(), false);
   await savedDeepSeekPage.close();
 }
 

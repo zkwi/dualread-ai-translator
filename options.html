@@ -82,13 +82,26 @@
             <small class="field-help" data-i18n="optionsApiTimeoutHelp">网络慢或模型响应慢时可以调大，默认 120 秒。</small>
           </label>
 
-          <label class="checkbox compact-checkbox">
-            <input id="disableThinking" type="checkbox">
-            <span>
+          <div class="thinking-settings">
+            <label class="checkbox compact-checkbox">
+              <input id="disableThinking" type="checkbox">
               <span data-i18n="optionsDisableThinking">自动关闭可控思考模式</span>
-              <small id="thinkingHint" data-i18n="thinkingHintNone">当前服务商不会添加额外思考参数。</small>
-            </span>
-          </label>
+            </label>
+
+            <label>
+              <span data-i18n="optionsThinkingStrategy">关闭思考方式</span>
+              <select id="thinkingStrategy">
+                <option value="auto" data-i18n="thinkingStrategyAuto">自动选择</option>
+                <option value="dashscope_enable_thinking" data-i18n="thinkingStrategyDashscope">enable_thinking: false</option>
+                <option value="thinking_disabled" data-i18n="thinkingStrategyDisabledObject">thinking.type: disabled</option>
+                <option value="openrouter_reasoning_low" data-i18n="thinkingStrategyOpenRouterLow">OpenRouter reasoning_effort: low</option>
+                <option value="openrouter_reasoning_minimal" data-i18n="thinkingStrategyOpenRouterMinimal">OpenRouter reasoning minimal</option>
+                <option value="qwen_chat_template_kwargs" data-i18n="thinkingStrategyQwenTemplate">Qwen chat_template_kwargs</option>
+                <option value="omit" data-i18n="thinkingStrategyOmit">不发送思考参数</option>
+              </select>
+              <small id="thinkingHint" class="field-help" data-i18n="thinkingHintAuto">自动根据 API 地址和模型名选择关闭思考参数。</small>
+            </label>
+          </div>
         </div>
       </div>
     </section>

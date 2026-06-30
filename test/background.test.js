@@ -18,8 +18,12 @@ async function main() {
   await testTranslateBatchThrottlesCachePruning();
   await testTranslateBatchUsesCustomPrompt();
   await testTranslateBatchDisablesDashScopeThinking();
+  await testTranslateBatchDisablesDeepSeekThinking();
+  await testTranslateBatchDisablesOpenRouterThinking();
   await testTranslateBatchDisablesQwenTemplateThinking();
   await testTranslateBatchSkipsThinkingControlForOpenAI();
+  await testTranslateBatchOmitsThinkingWhenStrategyOmit();
+  await testTranslateBatchRetriesWithoutUnsupportedThinkingParameter();
   await testTranslateBatchTimesOutSlowApi();
   await testGetSettingsUpgradesLegacyDefaultPrompt();
   await testGetSettingsUpgradesLegacyDefaultTimeout();
@@ -398,6 +402,58 @@ async function testTranslateBatchDisablesDashScopeThinking() {
   assert.strictEqual(body.chat_template_kwargs, undefined);
 }
 
+async function testTranslateBatchDisablesDeepSeekThinking() {
+  const fetchCalls = [];
+  const context = createBackgroundContext({
+    storage: {
+      provider: "custom",
+      apiUrl: "https://opencode.example/v1/chat/completions",
+      model: "deepseek-v4-flash",
+      disableThinking: true
+    },
+    fetch: async (url, options) => {
+      fetchCalls.push({ url, options });
+      return createJsonResponse([{ id: "item-1", text: "译文。" }]);
+    }
+  });
+
+  loadBackground(context);
+  await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [{ id: "item-1", text: "Hello." }]
+  });
+
+  const body = JSON.parse(fetchCalls[0].options.body);
+  assert.deepStrictEqual(body.thinking, { type: "disabled" });
+  assert.strictEqual(body.enable_thinking, undefined);
+}
+
+async function testTranslateBatchDisablesOpenRouterThinking() {
+  const fetchCalls = [];
+  const context = createBackgroundContext({
+    storage: {
+      provider: "custom",
+      apiUrl: "https://openrouter.ai/api/v1/chat/completions",
+      model: "anthropic/claude-sonnet-4",
+      disableThinking: true
+    },
+    fetch: async (url, options) => {
+      fetchCalls.push({ url, options });
+      return createJsonResponse([{ id: "item-1", text: "译文。" }]);
+    }
+  });
+
+  loadBackground(context);
+  await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [{ id: "item-1", text: "Hello." }]
+  });
+
+  const body = JSON.parse(fetchCalls[0].options.body);
+  assert.deepStrictEqual(body.reasoning, { effort: "minimal", exclude: true });
+  assert.strictEqual(body.reasoning_effort, undefined);
+}
+
 async function testTranslateBatchDisablesQwenTemplateThinking() {
   const fetchCalls = [];
   const context = createBackgroundContext({
@@ -446,6 +502,73 @@ async function testTranslateBatchSkipsThinkingControlForOpenAI() {
   const body = JSON.parse(fetchCalls[0].options.body);
   assert.strictEqual(body.enable_thinking, undefined);
   assert.strictEqual(body.chat_template_kwargs, undefined);
+  assert.strictEqual(body.thinking, undefined);
+  assert.strictEqual(body.reasoning, undefined);
+}
+
+async function testTranslateBatchOmitsThinkingWhenStrategyOmit() {
+  const fetchCalls = [];
+  const context = createBackgroundContext({
+    storage: {
+      apiUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+      model: "qwen-plus",
+      disableThinking: true,
+      thinkingStrategy: "omit"
+    },
+    fetch: async (url, options) => {
+      fetchCalls.push({ url, options });
+      return createJsonResponse([{ id: "item-1", text: "译文。" }]);
+    }
+  });
+
+  loadBackground(context);
+  await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [{ id: "item-1", text: "Hello." }]
+  });
+
+  const body = JSON.parse(fetchCalls[0].options.body);
+  assert.strictEqual(body.enable_thinking, undefined);
+  assert.strictEqual(body.chat_template_kwargs, undefined);
+  assert.strictEqual(body.thinking, undefined);
+  assert.strictEqual(body.reasoning_effort, undefined);
+  assert.strictEqual(body.reasoning, undefined);
+}
+
+async function testTranslateBatchRetriesWithoutUnsupportedThinkingParameter() {
+  const fetchCalls = [];
+  const context = createBackgroundContext({
+    storage: {
+      provider: "custom",
+      apiUrl: "https://opencode.example/v1/chat/completions",
+      model: "deepseek-v4-flash",
+      disableThinking: true
+    },
+    fetch: async (url, options) => {
+      fetchCalls.push({ url, options });
+      if (fetchCalls.length === 1) {
+        return {
+          ok: false,
+          status: 400,
+          async text() {
+            return "invalid request: unsupported field thinking";
+          }
+        };
+      }
+      return createJsonResponse([{ id: "item-1", text: "译文。" }]);
+    }
+  });
+
+  loadBackground(context);
+  const response = await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [{ id: "item-1", text: "Hello." }]
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.strictEqual(fetchCalls.length, 2);
+  assert.deepStrictEqual(JSON.parse(fetchCalls[0].options.body).thinking, { type: "disabled" });
+  assert.strictEqual(JSON.parse(fetchCalls[1].options.body).thinking, undefined);
 }
 
 async function testTranslateBatchTimesOutSlowApi() {
@@ -1102,6 +1225,7 @@ function createBackgroundContext(options = {}) {
     maxCacheEntries: 2000,
     apiTimeoutMs: 120000,
     disableThinking: true,
+    thinkingStrategy: "auto",
     autoTranslate: false,
     displayMode: "bilingual",
     viewportOnly: true

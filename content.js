@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.10";
+  const CONTENT_SCRIPT_VERSION = "0.4.11";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {

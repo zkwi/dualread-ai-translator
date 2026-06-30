@@ -422,6 +422,9 @@
   "optionsTesting": {
     "message": "测试中..."
   },
+  "optionsThinkingStrategy": {
+    "message": "关闭思考方式"
+  },
   "optionsTitle": {
     "message": "DualRead AI 设置"
   },
@@ -827,17 +830,53 @@
   "testButtonMissingTitle": {
     "message": "必要配置"
   },
+  "thinkingHintAuto": {
+    "message": "自动根据 API 地址和模型名选择关闭思考参数。"
+  },
+  "thinkingHintAutoResolved": {
+    "message": "自动选择：$1"
+  },
   "thinkingHintDashscope": {
-    "message": "开启后请求体会加入 enable_thinking: false。"
+    "message": "请求体会加入 enable_thinking: false。"
   },
   "thinkingHintDisabled": {
     "message": "已关闭：请求体不会添加思考控制参数。"
   },
+  "thinkingHintDisabledObject": {
+    "message": "请求体会加入 thinking: { type: \"disabled\" }。"
+  },
   "thinkingHintNone": {
-    "message": "当前服务商不会添加额外思考参数。"
+    "message": "不会添加额外思考参数。"
+  },
+  "thinkingHintOpenRouterLow": {
+    "message": "请求体会加入 reasoning_effort: \"low\"。"
+  },
+  "thinkingHintOpenRouterMinimal": {
+    "message": "请求体会加入 reasoning: { effort: \"minimal\", exclude: true }。"
   },
   "thinkingHintSelfHosted": {
-    "message": "开启后请求体会加入 chat_template_kwargs.enable_thinking = false。"
+    "message": "请求体会加入 chat_template_kwargs.enable_thinking = false。"
+  },
+  "thinkingStrategyAuto": {
+    "message": "自动选择"
+  },
+  "thinkingStrategyDashscope": {
+    "message": "enable_thinking: false"
+  },
+  "thinkingStrategyDisabledObject": {
+    "message": "thinking.type: disabled"
+  },
+  "thinkingStrategyOmit": {
+    "message": "不发送思考参数"
+  },
+  "thinkingStrategyOpenRouterLow": {
+    "message": "OpenRouter reasoning_effort: low"
+  },
+  "thinkingStrategyOpenRouterMinimal": {
+    "message": "OpenRouter reasoning minimal"
+  },
+  "thinkingStrategyQwenTemplate": {
+    "message": "Qwen chat_template_kwargs"
   },
   "tooltipAutoTranslate": {
     "message": "保存为全局开关，打开外文网页时自动开始翻译。"

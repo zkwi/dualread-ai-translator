@@ -435,6 +435,19 @@ textarea {
   margin-top: 25px;
 }
 
+.thinking-settings {
+  min-width: 0;
+}
+
+.thinking-settings .compact-checkbox {
+  min-height: auto;
+  margin: 4px 0 8px;
+}
+
+.thinking-settings label:last-child {
+  margin-bottom: 0;
+}
+
 .hint-box {
   margin: -4px 0 14px;
   padding: 10px 12px;

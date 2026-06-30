@@ -422,6 +422,9 @@
   "optionsTesting": {
     "message": "Testing..."
   },
+  "optionsThinkingStrategy": {
+    "message": "Thinking control method"
+  },
   "optionsTitle": {
     "message": "DualRead AI Settings"
   },
@@ -827,17 +830,53 @@
   "testButtonMissingTitle": {
     "message": "Required fields are missing."
   },
+  "thinkingHintAuto": {
+    "message": "Automatically choose thinking-control parameters from the API URL and model name."
+  },
+  "thinkingHintAutoResolved": {
+    "message": "Auto selected: $1"
+  },
   "thinkingHintDashscope": {
-    "message": "Adds enable_thinking: false to DashScope requests."
+    "message": "Adds enable_thinking: false to the request body."
   },
   "thinkingHintDisabled": {
     "message": "Disabled: requests will not include thinking-control parameters."
   },
+  "thinkingHintDisabledObject": {
+    "message": "Adds thinking: { type: \"disabled\" } to the request body."
+  },
   "thinkingHintNone": {
-    "message": "This provider does not need extra thinking parameters."
+    "message": "No extra thinking-control parameters will be sent."
+  },
+  "thinkingHintOpenRouterLow": {
+    "message": "Adds reasoning_effort: \"low\" to the request body."
+  },
+  "thinkingHintOpenRouterMinimal": {
+    "message": "Adds reasoning: { effort: \"minimal\", exclude: true } to the request body."
   },
   "thinkingHintSelfHosted": {
-    "message": "Adds chat_template_kwargs.enable_thinking = false for local Qwen-compatible services."
+    "message": "Adds chat_template_kwargs.enable_thinking = false to the request body."
+  },
+  "thinkingStrategyAuto": {
+    "message": "Auto select"
+  },
+  "thinkingStrategyDashscope": {
+    "message": "enable_thinking: false"
+  },
+  "thinkingStrategyDisabledObject": {
+    "message": "thinking.type: disabled"
+  },
+  "thinkingStrategyOmit": {
+    "message": "Do not send thinking parameters"
+  },
+  "thinkingStrategyOpenRouterLow": {
+    "message": "OpenRouter reasoning_effort: low"
+  },
+  "thinkingStrategyOpenRouterMinimal": {
+    "message": "OpenRouter reasoning minimal"
+  },
+  "thinkingStrategyQwenTemplate": {
+    "message": "Qwen chat_template_kwargs"
   },
   "tooltipAutoTranslate": {
     "message": "Save as a global switch. Foreign-language webpages will translate automatically."

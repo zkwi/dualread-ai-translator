@@ -70,6 +70,8 @@ Settings are saved automatically. The project does not include or require any de
 
 UI language is configured separately from translation languages. You can keep the interface in English while translating English to Simplified Chinese, Japanese to Traditional Chinese, or any other provider-supported direction.
 
+Thinking mode can be disabled from **Advanced connection settings**. The default **Auto select** mode chooses common provider parameters from the API URL and model name, including `enable_thinking: false`, `thinking: { type: "disabled" }`, OpenRouter reasoning controls, and local Qwen `chat_template_kwargs`.
+
 ## Usage
 
 - **Start translation**: translate visible and nearby readable content.
@@ -90,6 +92,10 @@ Not by default. DualRead focuses on the current viewport and nearby content to r
 ### Which AI providers are supported?
 
 Any OpenAI-compatible Chat Completions API can work. Built-in presets cover OpenAI, DeepSeek, DashScope/Qwen, local compatible services, and custom endpoints.
+
+### Can DualRead disable model thinking mode?
+
+Yes. Keep **Automatically disable controllable thinking mode** enabled and use **Auto select** unless your provider requires a specific parameter. Auto mode covers DashScope/Qwen, DeepSeek-like models, OpenRouter, and local Qwen-compatible services. If a provider rejects an unsupported thinking parameter, DualRead retries once without that parameter.
 
 ### Where is my API key stored?
 

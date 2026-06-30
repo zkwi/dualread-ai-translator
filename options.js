@@ -1,6 +1,7 @@
 const DEFAULT_SETTINGS = globalThis.LLMTranslatorShared.DEFAULT_SETTINGS;
 const DEFAULT_TRANSLATION_PROMPT = globalThis.LLMTranslatorShared.DEFAULT_TRANSLATION_PROMPT;
 const LEGACY_DEFAULT_API_TIMEOUT_MS = globalThis.LLMTranslatorShared.LEGACY_DEFAULT_API_TIMEOUT_MS;
+const THINKING_STRATEGIES = globalThis.LLMTranslatorShared.THINKING_STRATEGIES;
 const { i18n: t, applyI18n, setUiLanguage } = globalThis.LLMTranslatorShared;
 applyI18n(document);
 const AUTO_SAVE_DELAY_MS = 700;
@@ -8,23 +9,19 @@ const MAX_API_TIMEOUT_SECONDS = 300;
 const PROVIDER_PRESETS = {
   openai: {
     apiUrl: "https://api.openai.com/v1/chat/completions",
-    model: "gpt-4o-mini",
-    thinkingControl: "none"
+    model: "gpt-4o-mini"
   },
   deepseek: {
     apiUrl: "https://api.deepseek.com/v1/chat/completions",
-    model: "deepseek-chat",
-    thinkingControl: "none"
+    model: "deepseek-chat"
   },
   dashscope: {
     apiUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-    model: "qwen-plus",
-    thinkingControl: "dashscope"
+    model: "qwen-plus"
   },
   local: {
     apiUrl: "http://localhost:8000/v1/chat/completions",
-    model: "Qwen/Qwen3-8B",
-    thinkingControl: "self-hosted"
+    model: "Qwen/Qwen3-8B"
   }
 };
 const COST_PROFILES = globalThis.LLMTranslatorShared.COST_PROFILES;
@@ -60,6 +57,7 @@ const fields = {
   maxCacheEntries: document.getElementById("maxCacheEntries"),
   apiTimeoutMs: document.getElementById("apiTimeoutMs"),
   disableThinking: document.getElementById("disableThinking"),
+  thinkingStrategy: document.getElementById("thinkingStrategy"),
   autoTranslate: document.getElementById("autoTranslate"),
   displayMode: document.getElementById("displayMode"),
   viewportOnly: document.getElementById("viewportOnly")
@@ -220,6 +218,7 @@ function fillForm(settings) {
   fields.maxCacheEntries.value = settings.maxCacheEntries || DEFAULT_SETTINGS.maxCacheEntries;
   fields.apiTimeoutMs.value = msToSeconds(settings.apiTimeoutMs || DEFAULT_SETTINGS.apiTimeoutMs);
   fields.disableThinking.checked = settings.disableThinking === true;
+  setSelectValue(fields.thinkingStrategy, settings.thinkingStrategy || DEFAULT_SETTINGS.thinkingStrategy);
   fields.autoTranslate.checked = settings.autoTranslate === true;
   setSelectValue(fields.displayMode, settings.displayMode || DEFAULT_SETTINGS.displayMode);
   fields.viewportOnly.checked = settings.viewportOnly !== false;
@@ -292,7 +291,7 @@ function setupAutoSave() {
 }
 
 function isConnectionField(name) {
-  return name === "apiUrl" || name === "apiKey" || name === "model";
+  return name === "apiUrl" || name === "apiKey" || name === "model" || name === "disableThinking" || name === "thinkingStrategy";
 }
 
 function isLanguageField(name) {
@@ -454,6 +453,7 @@ function readFormSettings() {
     maxCacheEntries: Math.max(100, Math.min(10000, Number(fields.maxCacheEntries.value) || DEFAULT_SETTINGS.maxCacheEntries)),
     apiTimeoutMs: secondsToMs(fields.apiTimeoutMs.value),
     disableThinking: fields.disableThinking.checked,
+    thinkingStrategy: globalThis.LLMTranslatorShared.normalizeThinkingStrategy(fields.thinkingStrategy.value),
     autoTranslate: fields.autoTranslate.checked,
     displayMode: fields.displayMode.value || DEFAULT_SETTINGS.displayMode,
     viewportOnly: fields.viewportOnly.checked
@@ -503,7 +503,6 @@ function applyProviderPreset(provider) {
 
   fields.apiUrl.value = preset.apiUrl;
   fields.model.value = preset.model;
-  fields.disableThinking.checked = preset.thinkingControl !== "none";
   updateSetupStatus();
   updateActionAvailability();
 }
@@ -601,31 +600,22 @@ function updateHelperText() {
     costProfileHintEl.textContent = getCostProfileHint(fields.costProfile.value);
   }
   if (thinkingHintEl) {
-    const control = updateThinkingControlAvailability();
-    thinkingHintEl.textContent = control === "none"
-      ? getThinkingHint("none")
-      : fields.disableThinking.checked
-      ? getThinkingHint(control)
-      : getThinkingHint("disabled");
+    updateThinkingControlAvailability();
+    thinkingHintEl.textContent = getThinkingHint();
   }
 }
 
 function updateThinkingControlAvailability() {
-  const control = getSelectedThinkingControl();
-  const isAvailable = control !== "none";
   const label = fields.disableThinking.closest(".checkbox");
+  const isActive = fields.disableThinking.checked;
 
-  fields.disableThinking.disabled = !isAvailable;
-  if (!isAvailable) {
-    fields.disableThinking.checked = false;
-  }
+  fields.disableThinking.disabled = false;
+  fields.thinkingStrategy.disabled = !isActive;
 
   if (label) {
-    label.classList.toggle("is-disabled", !isAvailable);
-    label.title = isAvailable ? "" : getThinkingHint("none");
+    label.classList.toggle("is-disabled", false);
+    label.title = "";
   }
-
-  return control;
 }
 
 function getProviderHint(provider) {
@@ -649,40 +639,39 @@ function getCostProfileHint(profile) {
   return hints[profile] || hints.custom;
 }
 
-function getThinkingHint(control) {
+function getThinkingHint() {
+  if (!fields.disableThinking.checked) {
+    return t("thinkingHintDisabled", [], "已关闭：请求体不会添加思考控制参数。");
+  }
+
+  const selected = globalThis.LLMTranslatorShared.normalizeThinkingStrategy(fields.thinkingStrategy.value);
+  const effective = getEffectiveThinkingStrategyFromForm();
+  const hint = getThinkingStrategyHint(effective);
+  if (selected === THINKING_STRATEGIES.AUTO) {
+    return t("thinkingHintAutoResolved", [hint], `自动选择：${hint}`);
+  }
+  return hint;
+}
+
+function getThinkingStrategyHint(strategy) {
   const hints = {
-    none: t("thinkingHintNone", [], "当前服务商不会添加额外思考参数。"),
-    dashscope: t("thinkingHintDashscope", [], "开启后请求体会加入 enable_thinking: false。"),
-    "self-hosted": t("thinkingHintSelfHosted", [], "开启后请求体会加入 chat_template_kwargs.enable_thinking = false。"),
-    disabled: t("thinkingHintDisabled", [], "已关闭：请求体不会添加思考控制参数。")
+    [THINKING_STRATEGIES.DASHSCOPE_ENABLE_THINKING]: t("thinkingHintDashscope", [], "请求体会加入 enable_thinking: false。"),
+    [THINKING_STRATEGIES.THINKING_DISABLED]: t("thinkingHintDisabledObject", [], "请求体会加入 thinking: { type: \"disabled\" }。"),
+    [THINKING_STRATEGIES.OPENROUTER_REASONING_LOW]: t("thinkingHintOpenRouterLow", [], "请求体会加入 reasoning_effort: \"low\"。"),
+    [THINKING_STRATEGIES.OPENROUTER_REASONING_MINIMAL]: t("thinkingHintOpenRouterMinimal", [], "请求体会加入 reasoning: { effort: \"minimal\", exclude: true }。"),
+    [THINKING_STRATEGIES.QWEN_CHAT_TEMPLATE_KWARGS]: t("thinkingHintSelfHosted", [], "请求体会加入 chat_template_kwargs.enable_thinking = false。"),
+    [THINKING_STRATEGIES.OMIT]: t("thinkingHintNone", [], "不会添加额外思考参数。")
   };
-  return hints[control] || hints.none;
+  return hints[strategy] || hints[THINKING_STRATEGIES.OMIT];
 }
 
-function getSelectedThinkingControl() {
-  const provider = fields.provider.value;
-  const preset = PROVIDER_PRESETS[provider];
-  const apiUrl = String(fields.apiUrl.value || "").toLowerCase();
-  if (apiUrl.includes("dashscope") || apiUrl.includes("aliyuncs.com")) return "dashscope";
-  if (isLocalOrTemplateServer(apiUrl) && isQwenLikeModel(fields.model.value)) return "self-hosted";
-  if (preset?.thinkingControl === "dashscope") return "dashscope";
-  if (preset?.thinkingControl === "self-hosted" && isQwenLikeModel(fields.model.value)) return "self-hosted";
-  if (preset?.thinkingControl === "none") return "none";
-
-  return "none";
-}
-
-function isQwenLikeModel(model) {
-  return String(model || "").toLowerCase().includes("qwen");
-}
-
-function isLocalOrTemplateServer(apiUrl) {
-  return (
-    apiUrl.includes("localhost") ||
-    apiUrl.includes("127.0.0.1") ||
-    apiUrl.includes("vllm") ||
-    apiUrl.includes("sglang")
-  );
+function getEffectiveThinkingStrategyFromForm() {
+  return globalThis.LLMTranslatorShared.getEffectiveThinkingStrategy({
+    provider: fields.provider.value,
+    apiUrl: fields.apiUrl.value,
+    model: fields.model.value,
+    thinkingStrategy: fields.thinkingStrategy.value
+  });
 }
 
 function msToSeconds(value) {

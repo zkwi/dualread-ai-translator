@@ -70,6 +70,8 @@ DashScope https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
 
 界面语言与翻译语言相互独立。你可以让插件界面保持英文，同时继续英译中、日译繁中，或使用服务商支持的其他翻译方向。
 
+思考模式可在 **高级连接设置** 中关闭。默认的 **自动选择** 会根据 API 地址和模型名称选择常见服务商参数，包括 `enable_thinking: false`、`thinking: { type: "disabled" }`、OpenRouter reasoning 控制参数，以及本地 Qwen 的 `chat_template_kwargs`。
+
 ## 使用
 
 - **开始翻译**：翻译当前可见区域及附近正文。
@@ -90,6 +92,10 @@ DashScope https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
 ### 支持哪些 AI 服务商？
 
 任何 OpenAI-compatible Chat Completions API 都可以使用。内置预设包括 OpenAI、DeepSeek、DashScope/Qwen、本地兼容服务和自定义接口。
+
+### 可以关闭模型思考模式吗？
+
+可以。保持 **自动关闭可控思考模式** 开启，并优先使用 **自动选择**。自动模式覆盖 DashScope/Qwen、DeepSeek-like 模型、OpenRouter 和本地 Qwen-compatible 服务。如果服务商拒绝某个思考参数，DualRead 会自动去掉该参数并重试一次。
 
 ### API Key 保存在哪里？
 

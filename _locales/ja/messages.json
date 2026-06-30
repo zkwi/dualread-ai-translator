@@ -422,6 +422,9 @@
   "optionsTesting": {
     "message": "テスト中..."
   },
+  "optionsThinkingStrategy": {
+    "message": "思考制御方式"
+  },
   "optionsTitle": {
     "message": "DualRead AI 設定"
   },
@@ -827,17 +830,53 @@
   "testButtonMissingTitle": {
     "message": "必須項目が未入力です。"
   },
+  "thinkingHintAuto": {
+    "message": "API URL とモデル名から思考制御パラメータを自動選択します。"
+  },
+  "thinkingHintAutoResolved": {
+    "message": "自動選択：$1"
+  },
   "thinkingHintDashscope": {
-    "message": "DashScope リクエストに enable_thinking: false を追加します。"
+    "message": "リクエスト本文に enable_thinking: false を追加します。"
   },
   "thinkingHintDisabled": {
     "message": "無効：思考制御パラメータはリクエストに追加されません。"
   },
+  "thinkingHintDisabledObject": {
+    "message": "リクエスト本文に thinking: { type: \"disabled\" } を追加します。"
+  },
   "thinkingHintNone": {
-    "message": "このサービスでは追加の思考パラメータは不要です。"
+    "message": "追加の思考制御パラメータは送信しません。"
+  },
+  "thinkingHintOpenRouterLow": {
+    "message": "リクエスト本文に reasoning_effort: \"low\" を追加します。"
+  },
+  "thinkingHintOpenRouterMinimal": {
+    "message": "リクエスト本文に reasoning: { effort: \"minimal\", exclude: true } を追加します。"
   },
   "thinkingHintSelfHosted": {
-    "message": "ローカル Qwen 互換サービス向けに chat_template_kwargs.enable_thinking = false を追加します。"
+    "message": "リクエスト本文に chat_template_kwargs.enable_thinking = false を追加します。"
+  },
+  "thinkingStrategyAuto": {
+    "message": "自動選択"
+  },
+  "thinkingStrategyDashscope": {
+    "message": "enable_thinking: false"
+  },
+  "thinkingStrategyDisabledObject": {
+    "message": "thinking.type: disabled"
+  },
+  "thinkingStrategyOmit": {
+    "message": "思考パラメータを送信しない"
+  },
+  "thinkingStrategyOpenRouterLow": {
+    "message": "OpenRouter reasoning_effort: low"
+  },
+  "thinkingStrategyOpenRouterMinimal": {
+    "message": "OpenRouter reasoning minimal"
+  },
+  "thinkingStrategyQwenTemplate": {
+    "message": "Qwen chat_template_kwargs"
   },
   "tooltipAutoTranslate": {
     "message": "グローバルスイッチとして保存します。外国語 Web ページを自動翻訳します。"
