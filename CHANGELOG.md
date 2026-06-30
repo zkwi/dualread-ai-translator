@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.23
+
+- Limited page-language sampling to the current viewport and nearby content so offscreen modules do not trigger unwanted auto translation.
+- Added a regression fixture for target-language pages with distant offscreen foreign-language sections.
+- Verified selected real samples for BBC, CNN, Reddit, and X with mocked translations.
+- Bumped the content script version so already-injected 0.4.22 scripts can clearly request a page refresh.
+
 ## 0.4.22
 
 - Re-rendered popup actions after refreshed page stats so buttons, badges, and notices no longer show stale active states.

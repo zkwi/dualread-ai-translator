@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.22";
+  const CONTENT_SCRIPT_VERSION = "0.4.23";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -2016,6 +2016,7 @@
           if (node.parentElement.closest(".llm-bilingual-translation")) return NodeFilter.FILTER_REJECT;
           if (hasBlockedAncestor(node.parentElement)) return NodeFilter.FILTER_REJECT;
           if (!isElementVisible(node.parentElement)) return NodeFilter.FILTER_REJECT;
+          if (!isElementNearActiveViewport(node.parentElement)) return NodeFilter.FILTER_REJECT;
 
           const text = normalizeText(node.textContent);
           return text.length >= 8 && !LLMTranslatorShared.shouldSkipTextByContent(text)

@@ -60,6 +60,7 @@ async function main() {
     await testAutoTranslationWaitsForDynamicEnglishContentWithTargetLocale(browser);
     await testAutoTranslationSkipsTargetLanguagePage(browser);
     await testAutoTranslationSkipsTargetLanguageDominantPage(browser);
+    await testAutoTranslationUsesCurrentViewportLanguageSample(browser);
     await testCanHideAndShowTranslations(browser);
     await testShowsSelectionTranslationCard(browser);
     await testShowsPageNotice(browser);
@@ -1216,6 +1217,37 @@ async function testAutoTranslationSkipsTargetLanguageDominantPage(browser) {
   assert.strictEqual(stats.active, false);
   assert.strictEqual(await page.evaluate(() => window.__mockItems.length), 0);
 
+  await page.close();
+}
+
+async function testAutoTranslationUsesCurrentViewportLanguageSample(browser) {
+  const englishParagraphs = Array.from({ length: 12 }, (_, index) => (
+    `<p>Offscreen English article paragraph ${index + 1} describes a different section and should not decide whether the current Chinese viewport needs automatic translation.</p>`
+  )).join("");
+  const page = await createHarnessPage(browser, {
+    targetLanguage: "简体中文",
+    html: `
+      <main>
+        <section id="visible-chinese">
+          <p>这是当前屏幕中用户正在阅读的中文正文，页面不应该因为远处的英文模块而自动翻译。</p>
+          <p>这一段继续提供中文上下文，只有当前可视区域附近的语言才应该决定自动翻译是否启动。</p>
+          <p>少量 OpenAI 英文名称不应该改变当前页面以中文为主的判断。</p>
+        </section>
+        <section id="offscreen-english" style="margin-top: 2600px">
+          ${englishParagraphs}
+        </section>
+      </main>
+    `
+  });
+
+  const response = await page.evaluate(() => window.__sendContentMessage({ action: "start_translation", auto: true }));
+  await page.waitForTimeout(600);
+  const stats = await page.evaluate(() => window.__sendContentMessage({ action: "get_page_stats" }));
+
+  assert.strictEqual(response.skipped, true);
+  assert.strictEqual(response.reason, "target-language");
+  assert.strictEqual(stats.active, false);
+  assert.strictEqual(await page.evaluate(() => window.__mockItems.length), 0);
   await page.close();
 }
 
