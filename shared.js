@@ -460,6 +460,10 @@
       return true;
     }
 
+    if (/^post$/i.test(clean)) {
+      return true;
+    }
+
     if (/^\d+[smhdwy]$/i.test(clean)) {
       return true;
     }

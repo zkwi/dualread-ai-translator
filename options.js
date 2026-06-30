@@ -503,6 +503,8 @@ function applyProviderPreset(provider) {
 
   fields.apiUrl.value = preset.apiUrl;
   fields.model.value = preset.model;
+  fields.disableThinking.checked = DEFAULT_SETTINGS.disableThinking === true;
+  setSelectValue(fields.thinkingStrategy, DEFAULT_SETTINGS.thinkingStrategy);
   updateSetupStatus();
   updateActionAvailability();
 }

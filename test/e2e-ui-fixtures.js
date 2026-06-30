@@ -759,10 +759,14 @@ async function testOptionsChangeEventSavesApiKey(browser) {
 async function testOptionsProviderPresetUpdatesConnection(browser) {
   const page = await createOptionsPage(browser);
 
+  await page.selectOption("#thinkingStrategy", "dashscope_enable_thinking");
   await page.selectOption("#provider", "deepseek");
   await page.waitForFunction(() => document.getElementById("apiUrl").value.includes("deepseek.com"));
   await page.waitForFunction(() => window.__lastSavedSettings?.provider === "deepseek");
   assert.strictEqual(await page.locator("#model").inputValue(), "deepseek-chat");
+  assert.strictEqual(await page.locator("#disableThinking").isChecked(), true);
+  assert.strictEqual(await page.locator("#thinkingStrategy").inputValue(), "auto");
+  assert.strictEqual(await page.evaluate(() => window.__lastSavedSettings?.thinkingStrategy), "auto");
   await page.close();
 }
 

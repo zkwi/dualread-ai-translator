@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.24
+
+- Skipped the low-value X/Twitter page chrome label "Post" so status pages only translate the actual post body.
+- Reset provider presets to the recommended automatic thinking-control strategy, avoiding stale provider-specific parameters after switching services.
+- Added shared, content, and options regression coverage for the X label filter and provider preset reset behavior.
+- Bumped the content script version so already-injected 0.4.23 scripts can clearly request a page refresh.
+
 ## 0.4.23
 
 - Limited page-language sampling to the current viewport and nearby content so offscreen modules do not trigger unwanted auto translation.

@@ -194,6 +194,7 @@ async function testXPrimaryColumnIgnoresSidebarAndComposer(browser) {
     html: `
       <main role="main">
         <div data-testid="primaryColumn">
+          <h1>Post</h1>
           <section role="region" aria-label="Timeline: Conversation">
             <article data-testid="tweet" role="article">
               <div data-testid="tweetText">
@@ -228,6 +229,7 @@ async function testXPrimaryColumnIgnoresSidebarAndComposer(browser) {
   assert.strictEqual(result.requestCount, 2);
   assert.match(requested, /GPT 5\.6 is marginally better/);
   assert.match(requested, /own evaluations yet/);
+  assert.doesNotMatch(requested, /^Post$/m);
   assert.doesNotMatch(requested, /Post your reply/);
   assert.doesNotMatch(requested, /Relevant people/);
   assert.doesNotMatch(requested, /Trending in United States/);

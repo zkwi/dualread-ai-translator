@@ -136,6 +136,7 @@ assert.strictEqual(shared.shouldSkipTextByContent("People on X are the first to 
 assert.strictEqual(shared.shouldSkipTextByContent("No releases published"), true);
 assert.strictEqual(shared.shouldSkipTextByContent("No packages published"), true);
 assert.strictEqual(shared.shouldSkipTextByContent("Show more"), true);
+assert.strictEqual(shared.shouldSkipTextByContent("Post"), true);
 assert.strictEqual(shared.shouldSkipTextByContent("2h"), true);
 assert.strictEqual(shared.shouldSkipTextByContent("US and Iran to ‘stand down for now,’ US official says after exchange of fire"), false);
 assert.strictEqual(shared.shouldSkipTextByContent("Artificial intelligence is the capability of computational systems to perform tasks typically associated with human intelligence."), false);
