@@ -546,7 +546,8 @@ async function testTranslateBatchRetriesWithoutUnsupportedThinkingParameter() {
     },
     fetch: async (url, options) => {
       fetchCalls.push({ url, options });
-      if (fetchCalls.length === 1) {
+      const body = JSON.parse(options.body);
+      if (body.thinking) {
         return {
           ok: false,
           status: 400,
@@ -569,6 +570,15 @@ async function testTranslateBatchRetriesWithoutUnsupportedThinkingParameter() {
   assert.strictEqual(fetchCalls.length, 2);
   assert.deepStrictEqual(JSON.parse(fetchCalls[0].options.body).thinking, { type: "disabled" });
   assert.strictEqual(JSON.parse(fetchCalls[1].options.body).thinking, undefined);
+
+  const secondResponse = await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [{ id: "item-2", text: "Goodbye." }]
+  });
+
+  assert.strictEqual(secondResponse.ok, true);
+  assert.strictEqual(fetchCalls.length, 3);
+  assert.strictEqual(JSON.parse(fetchCalls[2].options.body).thinking, undefined);
 }
 
 async function testTranslateBatchTimesOutSlowApi() {

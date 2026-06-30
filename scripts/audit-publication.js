@@ -181,6 +181,21 @@ if (fs.existsSync(zhTwFile)) {
   }
 }
 
+const zhCnMessages = readJson(path.join("_locales", "zh_CN", "messages.json"));
+for (const htmlFile of ["popup.html", "options.html"]) {
+  const fullPath = path.join(ROOT, htmlFile);
+  if (!fs.existsSync(fullPath)) continue;
+
+  const source = fs.readFileSync(fullPath, "utf8");
+  for (const match of source.matchAll(/data-i18n(?:-[\w-]+)?="([^"]+)"/g)) {
+    const key = match[1];
+    const message = zhCnMessages[key]?.message || "";
+    if (/\$\d/.test(message)) {
+      failures.push(`${htmlFile}:${key}: HTML data-i18n must not reference placeholder message "${message}"`);
+    }
+  }
+}
+
 const manifest = readJson("manifest.json");
 if (manifest.default_locale !== "en") {
   failures.push("manifest.json: default_locale should be en so unsupported browser locales fall back to the English open-source UI");

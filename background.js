@@ -12,6 +12,7 @@ const tabNotices = new Map();
 let lastCachePruneAt = 0;
 let cachePrunePromise = null;
 let contextMenuSetupPromise = Promise.resolve();
+const unsupportedThinkingControlKeys = new Set();
 
 chrome.runtime.onInstalled.addListener(async () => {
   const existing = await chrome.storage.local.get(Object.keys(DEFAULT_SETTINGS));
@@ -871,7 +872,9 @@ async function clearTranslationCache() {
 async function requestTranslations(settings, items) {
   const url = LLMTranslatorShared.normalizeChatCompletionsUrl(settings.apiUrl);
   const prompt = buildTranslationPrompt(settings, items);
-  const body = buildChatCompletionBody(settings, prompt);
+  const thinkingCacheKey = createThinkingControlCacheKey(settings);
+  const skipThinkingControl = thinkingCacheKey && unsupportedThinkingControlKeys.has(thinkingCacheKey);
+  const body = buildChatCompletionBody(settings, prompt, { skipThinkingControl });
   let response = await fetchWithOneRetry(url, {
     method: "POST",
     headers: {
@@ -883,7 +886,8 @@ async function requestTranslations(settings, items) {
 
   if (!response.ok) {
     let errorText = await response.text();
-    if (shouldRetryWithoutThinkingControl(settings, body, errorText)) {
+    if (!skipThinkingControl && shouldRetryWithoutThinkingControl(settings, body, errorText)) {
+      if (thinkingCacheKey) unsupportedThinkingControlKeys.add(thinkingCacheKey);
       const fallbackBody = buildChatCompletionBody(settings, prompt, { skipThinkingControl: true });
       response = await fetchWithOneRetry(url, {
         method: "POST",
@@ -993,6 +997,17 @@ function hasThinkingControl(body) {
     Object.prototype.hasOwnProperty.call(body, "reasoning") ||
     Object.prototype.hasOwnProperty.call(body, "chat_template_kwargs")
   );
+}
+
+function createThinkingControlCacheKey(settings) {
+  if (settings.disableThinking !== true) return "";
+
+  const strategy = LLMTranslatorShared.getEffectiveThinkingStrategy(settings);
+  if (strategy === THINKING_STRATEGIES.OMIT) return "";
+
+  const url = LLMTranslatorShared.normalizeChatCompletionsUrl(settings.apiUrl || "");
+  const model = String(settings.model || "").trim().toLowerCase();
+  return `${url}\n${model}\n${strategy}`;
 }
 
 async function fetchWithOneRetry(url, options, settings) {

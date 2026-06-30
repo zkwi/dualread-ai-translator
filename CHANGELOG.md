@@ -5,8 +5,10 @@
 - Replaced the disabled thinking-mode checkbox with an explicit strategy selector so users can force common provider parameters when needed.
 - Added auto thinking-control detection for DeepSeek-like models, DashScope/Qwen, OpenRouter, and local Qwen-compatible services.
 - Added a fallback retry that removes thinking-control parameters when an OpenAI-compatible provider rejects an unsupported field.
+- Remembered rejected thinking-control parameters per endpoint/model so later batches skip the unsupported field without paying another failed request.
 - Added the effective thinking-control strategy to the popup summary so users can confirm speed-related settings without opening the settings page.
 - Fixed the popup speed summary initial state so settings-load failures never expose placeholder text.
+- Added a publication-audit guard that blocks placeholder-based locale messages from being wired directly to static HTML UI.
 - Bumped the content script version so already-injected 0.4.10 scripts can clearly request a page refresh.
 
 ## 0.4.10
