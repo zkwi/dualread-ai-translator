@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.21
+
+- Preserved the target-language skip reason when content-script auto-start reports an inactive tab back to the background cache.
+- Ensured the popup can explain declarative auto-translate skips after reopening, instead of falling back to a generic idle state.
+- Added background and content fixture coverage for skipped auto-start notices.
+- Bumped the content script version so already-injected 0.4.20 scripts can clearly request a page refresh.
+
 ## 0.4.20
 
 - Fixed auto-translate skipped states in the popup so target-language pages return to an inactive "skipped" state instead of keeping stale active controls.

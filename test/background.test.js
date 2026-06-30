@@ -35,6 +35,7 @@ async function main() {
   await testAutoTranslateStartsActiveTabsWhenApiKeySaved();
   await testAutoTranslateTabRuntimeMessageStartsCurrentTab();
   await testContentAutoStartMarkActiveMakesFirstToggleStop();
+  await testContentAutoSkipMarkActiveStoresNotice();
   await testGetPageStatsSyncsActiveTabCache();
   await testAutoTranslateReportsUnconfiguredNotice();
   await testManualTranslationReportsMissingApiKeyBeforeInjecting();
@@ -825,6 +826,32 @@ async function testContentAutoStartMarkActiveMakesFirstToggleStop() {
   assert.strictEqual(response.active, false);
   assert.strictEqual(tabMessages.length, 1);
   assert.strictEqual(tabMessages[0].message.action, "stop_translation");
+}
+
+async function testContentAutoSkipMarkActiveStoresNotice() {
+  const context = createBackgroundContext({
+    sendMessage: async (tabId, message) => {
+      assert.strictEqual(tabId, 46);
+      assert.strictEqual(message.action, "get_page_stats");
+      return { ok: true, active: false, stats: { translated: 0, translationVisible: true } };
+    }
+  });
+
+  loadBackground(context);
+
+  const markResponse = await sendRuntimeMessageFromTab(
+    context,
+    { action: "mark_tab_active", active: false, reason: "target-language" },
+    { id: 46, url: "https://example.com/zh" }
+  );
+  assert.strictEqual(markResponse.ok, true);
+  assert.strictEqual(markResponse.active, false);
+
+  const stats = await sendRuntimeMessage(context, {
+    action: "get_page_stats",
+    tab: { id: 46, url: "https://example.com/zh" }
+  });
+  assert.strictEqual(stats.notice.reason, "target-language");
 }
 
 async function testGetPageStatsSyncsActiveTabCache() {

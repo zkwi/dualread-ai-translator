@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.20";
+  const CONTENT_SCRIPT_VERSION = "0.4.21";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -234,7 +234,7 @@
       const settings = await chrome.runtime.sendMessage({ action: "get_settings" });
       setAutoStartStatus("starting", { hasApiKey, hasModel });
       const response = await startTranslation({ auto: true, settings });
-      await markBackgroundTabActive(!response?.skipped);
+      await markBackgroundTabActive(!response?.skipped, response?.skipped ? response.reason : "");
       setAutoStartStatus(response?.skipped ? `skipped:${response.reason || "unknown"}` : "started", {
         hasApiKey,
         hasModel
@@ -255,9 +255,9 @@
     document.documentElement.setAttribute("data-llm-translator-auto", reason);
   }
 
-  async function markBackgroundTabActive(active) {
+  async function markBackgroundTabActive(active, reason = "") {
     try {
-      await chrome.runtime.sendMessage({ action: "mark_tab_active", active });
+      await chrome.runtime.sendMessage({ action: "mark_tab_active", active, reason });
     } catch (error) {
       // 后台状态只是缓存，通知失败时页面内状态仍然可用。
     }

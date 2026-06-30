@@ -926,6 +926,7 @@ async function testDeclarativeAutoTranslationSkipMarksBackgroundInactive(browser
 
   assert.strictEqual(markMessages.length, 1);
   assert.strictEqual(markMessages[0].active, false);
+  assert.strictEqual(markMessages[0].reason, "target-language");
   assert.strictEqual(await page.evaluate(() => window.__mockItems.length), 0);
   await page.close();
 }

@@ -110,7 +110,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "mark_tab_active") {
     const tabId = sender?.tab?.id;
     if (typeof tabId === "number") {
-      activeTabs.set(tabId, request.active !== false);
+      const active = request.active !== false;
+      activeTabs.set(tabId, active);
+      if (active) {
+        tabNotices.delete(tabId);
+      } else if (request.reason) {
+        tabNotices.set(tabId, {
+          type: "info",
+          reason: request.reason
+        });
+      }
     }
     sendResponse({ ok: true, active: typeof tabId === "number" ? !!activeTabs.get(tabId) : false });
     return false;
