@@ -68,6 +68,8 @@ Local     http://localhost:8000/v1/chat/completions
 
 Settings are saved automatically. The project does not include or require any developer-owned API key.
 
+UI language is configured separately from translation languages. You can keep the interface in English while translating English to Simplified Chinese, Japanese to Traditional Chinese, or any other provider-supported direction.
+
 ## Usage
 
 - **Start translation**: translate visible and nearby readable content.
@@ -93,9 +95,9 @@ Any OpenAI-compatible Chat Completions API can work. Built-in presets cover Open
 
 The API key is stored locally in Chrome extension storage. It is not sent to any project-owned server.
 
-### Can I use it for Chinese, Japanese, or Traditional Chinese UI?
+### Can I use a different UI language from the translation target?
 
-Yes. The extension UI includes Simplified Chinese, Traditional Chinese, English, and Japanese localization.
+Yes. Interface language is independent from source and target languages. The extension UI includes Simplified Chinese, Traditional Chinese, English, and Japanese localization.
 
 ## Privacy
 

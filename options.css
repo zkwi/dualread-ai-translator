@@ -397,6 +397,14 @@ textarea {
   accent-color: var(--blue);
 }
 
+.checkbox.is-disabled {
+  color: var(--muted);
+}
+
+.checkbox.is-disabled input {
+  cursor: not-allowed;
+}
+
 .choice {
   align-items: flex-start;
   min-height: 50px;
@@ -538,10 +546,15 @@ button.danger:hover:not(:disabled) {
 }
 
 #message {
+  display: -webkit-box;
+  overflow: hidden;
   min-height: 22px;
   margin: 0;
   color: var(--success);
   line-height: 1.5;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 #message.is-error {

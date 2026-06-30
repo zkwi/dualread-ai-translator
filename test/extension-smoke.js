@@ -14,6 +14,8 @@ main().catch((error) => {
 });
 
 async function main() {
+  assert.strictEqual(manifest.default_locale, "en");
+
   const server = await createFixtureServer();
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "dualread-extension-"));
   let context;
@@ -31,7 +33,8 @@ async function main() {
     const extensionId = getExtensionId(worker.url());
 
     const page = await context.newPage();
-    await page.goto(`http://127.0.0.1:${server.port}/`);
+    const fixtureUrl = `http://127.0.0.1:${server.port}/`;
+    await page.goto(fixtureUrl);
     await page.waitForFunction(
       (version) => document.documentElement.dataset.llmTranslatorVersion === version,
       manifest.version,
@@ -42,6 +45,16 @@ async function main() {
     await optionsPage.goto(`chrome-extension://${extensionId}/options.html`);
     await optionsPage.waitForSelector("#provider", { timeout: 10000 });
     assert.match(await optionsPage.locator("h1").textContent(), /DualRead AI/);
+    await optionsPage.waitForFunction(() => document.querySelector("[data-i18n='optionsQuickStart']").textContent === "Quick start");
+    assert.match(await optionsPage.locator("[data-i18n='optionsSubtitle']").textContent(), /Bilingual webpage translation settings/);
+    await configureAndTestApi(optionsPage, server.apiUrl);
+    await translateFixturePage(optionsPage, page, fixtureUrl);
+
+    const popupPage = await context.newPage();
+    await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
+    await popupPage.waitForSelector(".brand-bar", { timeout: 10000 });
+    await popupPage.waitForFunction(() => document.getElementById("options").textContent === "Open settings");
+    assert.match(await popupPage.locator("#toggle").textContent(), /Start translation|Stop translation/);
   } finally {
     if (context) {
       await context.close();
@@ -53,6 +66,32 @@ async function main() {
   console.log("extension smoke test passed");
 }
 
+async function configureAndTestApi(optionsPage, apiUrl) {
+  await optionsPage.selectOption("#provider", "custom");
+  await optionsPage.fill("#apiUrl", apiUrl);
+  await optionsPage.fill("#apiKey", "smoke-test-key");
+  await optionsPage.fill("#model", "smoke-model");
+  await optionsPage.click("#save");
+  await optionsPage.waitForFunction(() => document.getElementById("message").textContent.includes("Settings saved"));
+
+  await optionsPage.click("#test");
+  await optionsPage.waitForFunction(() => document.getElementById("message").textContent.includes("API works"), null, { timeout: 10000 });
+}
+
+async function translateFixturePage(optionsPage, page, fixtureUrl) {
+  const response = await optionsPage.evaluate(async (url) => {
+    const [tab] = await chrome.tabs.query({ url });
+    return chrome.runtime.sendMessage({
+      action: "toggle_translation",
+      tab
+    });
+  }, fixtureUrl);
+
+  assert.strictEqual(response.ok, true, response.error || "toggle_translation failed");
+  await page.waitForSelector(".llm-bilingual-translation.is-done", { timeout: 10000 });
+  assert.match(await page.locator(".llm-bilingual-translation.is-done").first().textContent(), /测试译文/);
+}
+
 function getExtensionId(workerUrl) {
   const match = String(workerUrl || "").match(/^chrome-extension:\/\/([^/]+)\//);
   assert.ok(match, `Unexpected extension worker URL: ${workerUrl}`);
@@ -61,6 +100,25 @@ function getExtensionId(workerUrl) {
 
 function createFixtureServer() {
   const server = http.createServer((request, response) => {
+    if (request.method === "POST" && request.url === "/v1/chat/completions") {
+      return readRequestBody(request).then((body) => {
+        const items = extractTranslationItems(body);
+        response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify(items.map((item) => ({
+                  id: item.id,
+                  text: `测试译文：${String(item.text || "").slice(0, 80)}`
+                })))
+              }
+            }
+          ]
+        }));
+      });
+    }
+
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(`
       <!doctype html>
@@ -68,7 +126,7 @@ function createFixtureServer() {
         <head><title>DualRead smoke fixture</title></head>
         <body>
           <main>
-            <p>This smoke page verifies that the packaged extension injects its content script.</p>
+            <p data-smoke-text>This smoke page verifies that the packaged extension injects its content script.</p>
           </main>
         </body>
       </html>
@@ -80,8 +138,36 @@ function createFixtureServer() {
     server.listen(0, "127.0.0.1", () => {
       resolve({
         port: server.address().port,
+        apiUrl: `http://127.0.0.1:${server.address().port}/v1/chat/completions`,
         close: () => new Promise((done) => server.close(done))
       });
     });
+  });
+}
+
+function extractTranslationItems(body) {
+  const fallback = [{ id: "test", text: "Hello world." }];
+
+  try {
+    const request = JSON.parse(body || "{}");
+    const prompt = request?.messages?.find((message) => message.role === "user")?.content || "";
+    const match = String(prompt).match(/\[\s*\{[\s\S]*\}\s*\]\s*$/);
+    if (!match) return fallback;
+    const parsed = JSON.parse(match[0]);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : fallback;
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function readRequestBody(request) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.on("end", () => resolve(body));
+    request.on("error", reject);
   });
 }

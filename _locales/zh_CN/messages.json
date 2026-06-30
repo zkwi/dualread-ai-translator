@@ -119,6 +119,9 @@
   "errorTranslationStartFailed": {
     "message": "翻译启动失败。"
   },
+  "errorUnknown": {
+    "message": "未知错误"
+  },
   "errorUnsupportedTab": {
     "message": "当前页面不支持注入脚本。"
   },
@@ -193,6 +196,9 @@
   },
   "listSeparator": {
     "message": "、"
+  },
+  "messageActionFailed": {
+    "message": "操作失败：$1"
   },
   "messageApiTestFailed": {
     "message": "API 测试失败。"
@@ -425,6 +431,12 @@
   "optionsTranslationScope": {
     "message": "翻译范围"
   },
+  "optionsUiLanguage": {
+    "message": "界面语言"
+  },
+  "optionsUiLanguageHelp": {
+    "message": "只影响插件界面和提示，不影响翻译源语言或目标语言。"
+  },
   "optionsViewportOnly": {
     "message": "仅翻译当前可视区域附近"
   },
@@ -538,6 +550,9 @@
   },
   "popupLanguage": {
     "message": "语言"
+  },
+  "popupLoadFailedHint": {
+    "message": "可以打开设置检查配置，或重新加载扩展后再试。"
   },
   "popupOpenSettings": {
     "message": "打开设置"
@@ -859,5 +874,20 @@
   },
   "tooltipUnsupportedPage": {
     "message": "当前页面不是普通网页，无法注入翻译脚本。"
+  },
+  "uiLanguageAuto": {
+    "message": "跟随浏览器"
+  },
+  "uiLanguageEn": {
+    "message": "English"
+  },
+  "uiLanguageJa": {
+    "message": "日本語"
+  },
+  "uiLanguageZhCn": {
+    "message": "简体中文"
+  },
+  "uiLanguageZhTw": {
+    "message": "繁體中文"
   }
 }

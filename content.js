@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.5";
+  const CONTENT_SCRIPT_VERSION = "0.4.10";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -16,7 +16,7 @@
     }
   }
 
-  const { i18n: t } = LLMTranslatorShared;
+  const { i18n: t, setUiLanguage } = LLMTranslatorShared;
   const state = {
     active: false,
     version: CONTENT_SCRIPT_VERSION,
@@ -56,6 +56,16 @@
       "[data-testid=\"trend\"]",
       "[data-testid=\"UserCell\"]"
     ],
+    blockedContentContainers: [
+      // MediaWiki/Wikipedia side templates are visually near the article but are navigation metadata.
+      ".mw-parser-output table.sidebar",
+      ".mw-parser-output .sidebar-list",
+      ".mw-parser-output .navbox",
+      ".mw-parser-output .vertical-navbox",
+      ".mw-parser-output .metadata",
+      ".mw-parser-output .ambox",
+      ".mw-parser-output .side-box"
+    ],
     utilityTextPatterns: [
       // X / social chrome
       /^(trending|what'?s happening|relevant people|streaming now)$/i,
@@ -65,7 +75,7 @@
     skippedExtractedLinePatterns: [
       // List markers and source labels
       /^[•·]+$/,
-      /^(source:?|cnn headlines|clipped from video|streaming now)$/i,
+      /^(source:?|cnn headlines|clipped from video|streaming now|live updates|latest updates|breaking news)$/i,
       // News agency bylines and malformed joined labels seen on CNN cards
       /^(cnn|reuters|associated press|ap|afp)$/i,
       /^(analysis\s*)?by\s+[A-Z][\p{L}.'-]+(?:\s+[A-Z][\p{L}.'-]+){0,5}$/u,
@@ -126,13 +136,13 @@
     }
 
     if (request.action === "show_selection_translation") {
-      sendResponse(showSelectionTranslation(request));
-      return false;
+      showSelectionTranslationWithUiLanguage(request).then(sendResponse);
+      return true;
     }
 
     if (request.action === "show_page_notice") {
-      sendResponse(showPageNotice(request));
-      return false;
+      showPageNoticeWithUiLanguage(request).then(sendResponse);
+      return true;
     }
 
     return false;
@@ -154,6 +164,7 @@
 
     state.runId += 1;
     state.settings = options.settings || await chrome.runtime.sendMessage({ action: "get_settings" });
+    await applyUiLanguageFromSettings(state.settings);
     if (options.auto && shouldSkipAutoTranslation(state.settings)) {
       setAutoStartStatus("skipped:target-language");
       return {
@@ -184,7 +195,8 @@
   async function maybeAutoStartTranslation() {
     try {
       // 后台事件可能早于 SPA 正文或骨架屏完成，这里让页面脚本自查一次自动翻译状态。
-      const quickSettings = await chrome.storage.local.get(["autoTranslate", "apiKey", "model"]);
+      const quickSettings = await chrome.storage.local.get(["autoTranslate", "apiKey", "model", "uiLanguage"]);
+      await applyUiLanguageFromSettings(quickSettings);
       const hasApiKey = String(quickSettings?.apiKey || "").trim().length > 0;
       const hasModel = String(quickSettings?.model || "").trim().length > 0;
 
@@ -229,6 +241,24 @@
       await chrome.runtime.sendMessage({ action: "mark_tab_active", active });
     } catch (error) {
       // 后台状态只是缓存，通知失败时页面内状态仍然可用。
+    }
+  }
+
+  async function applyUiLanguageFromSettings(settings) {
+    await setUiLanguage(settings?.uiLanguage);
+  }
+
+  async function ensureUiLanguageLoaded() {
+    if (state.settings?.uiLanguage) {
+      await applyUiLanguageFromSettings(state.settings);
+      return;
+    }
+
+    try {
+      state.settings = await chrome.runtime.sendMessage({ action: "get_settings" });
+      await applyUiLanguageFromSettings(state.settings);
+    } catch (error) {
+      await applyUiLanguageFromSettings(null);
     }
   }
 
@@ -390,8 +420,8 @@
     if (text.length < 12) return false;
     if (LLMTranslatorShared.shouldSkipTextByContent(text)) return false;
     if (LLMTranslatorShared.isLikelyTargetLanguageText(text, state.settings?.targetLanguage)) return false;
-    if (!/[A-Za-z]/.test(text)) return false;
-    if (node.parentElement.closest("a[href]") && text.length < 40 && !/[.!?。！？:;]/.test(text)) return false;
+    if (!hasSourceLanguageSignal(text)) return false;
+    if (node.parentElement.closest("a[href]") && isShortLowInformationLinkText(text)) return false;
     if (hasBlockedAncestor(node.parentElement)) return false;
     if (!isElementInActiveContentScope(node.parentElement)) return false;
     if (isBlockedInteractiveComposer(node.parentElement)) return false;
@@ -450,7 +480,7 @@
     if (text.length < 12 || text.length > costSettings.maxTextLength) return false;
     if (LLMTranslatorShared.shouldSkipTextByContent(text)) return false;
     if (LLMTranslatorShared.isLikelyTargetLanguageText(text, state.settings?.targetLanguage)) return false;
-    if (!/[A-Za-z]{3,}/.test(text)) return false;
+    if (!hasSourceLanguageSignal(text)) return false;
 
     if (!isElementVisible(element)) return false;
 
@@ -502,18 +532,27 @@
     return ["SPAN", "A", "STRONG", "EM", "B", "I"].includes(tagName);
   }
 
+  function isShortLowInformationLinkText(text) {
+    const clean = normalizeText(text);
+    if (clean.length >= 40) return false;
+
+    return getLatinWords(clean).length < 5
+      && countCjkChars(clean) < 8
+      && countKanaChars(clean) < 6
+      && countHangulChars(clean) < 8;
+  }
+
   function isUsefulInlineBlock(element, text, costSettings) {
     if (text.length < 24 || text.length > costSettings.maxTextLength) return false;
     if (element.closest("a[href],button,[role=\"button\"]")) return false;
     if (LLMTranslatorShared.shouldSkipTextByContent(text)) return false;
     if (LLMTranslatorShared.isLikelyTargetLanguageText(text, state.settings?.targetLanguage)) return false;
 
-    const words = text.match(/[A-Za-z][A-Za-z'-]*/g) || [];
-    const hasSentenceSignal = /[.!?。！？:;，,]/.test(text) || words.length >= 5;
-    const isLongStandaloneText = text.length >= 80 && words.length >= 8;
+    const hasSentenceSignal = hasSentenceLikeSignal(text);
+    const isLongStandaloneText = text.length >= 80 && hasSourceLanguageSignal(text);
     if (!element.closest(LLMTranslatorShared.getMainContentSelector()) && !isLongStandaloneText) return false;
 
-    return hasSentenceSignal && /[A-Za-z]{3,}/.test(text);
+    return hasSentenceSignal && hasSourceLanguageSignal(text);
   }
 
   function isUsefulGenericBlock(element, text, costSettings) {
@@ -527,12 +566,13 @@
     const interactiveCount = element.querySelectorAll("button,input,textarea,select,nav,a[href],[role=\"button\"]").length;
     if (interactiveCount > 0) return false;
 
-    return /[A-Za-z]{3,}/.test(text);
+    return hasSourceLanguageSignal(text);
   }
 
   function hasBlockedAncestor(element) {
     if (!element) return true;
     if (element.closest(LLMTranslatorShared.getStrictBlockedContainerSelector())) return true;
+    if (element.closest(SITE_HEURISTICS.blockedContentContainers.join(","))) return true;
 
     const softBlocked = element.closest(LLMTranslatorShared.getSoftBlockedContainerSelector());
     if (!softBlocked) return false;
@@ -543,6 +583,7 @@
 
   function isElementVisible(element) {
     if (!element || element.hidden || element.getAttribute("aria-hidden") === "true") return false;
+    if (isAssistiveOnlyElement(element)) return false;
 
     const style = window.getComputedStyle(element);
     if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
@@ -1083,6 +1124,7 @@
 
   function isElementVisibleForTextExtraction(element) {
     if (!element || element.hidden || element.getAttribute("aria-hidden") === "true") return false;
+    if (isAssistiveOnlyElement(element)) return false;
 
     const style = window.getComputedStyle(element);
     return style.display !== "none"
@@ -1091,15 +1133,90 @@
       && style.opacity !== "0";
   }
 
+  function isAssistiveOnlyElement(element) {
+    if (!element) return false;
+    const className = String(element.className || "").toLowerCase();
+    if (/\b(sr-only|screen-reader-only|visually-hidden|visuallyhidden|a11y-only)\b/.test(className)) return true;
+
+    const style = window.getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return style.position === "absolute"
+      && (style.clip !== "auto" || style.clipPath !== "none")
+      && rect.width <= 2
+      && rect.height <= 2;
+  }
+
   function normalizeText(text) {
     return String(text || "")
       .replace(/\s+/g, " ")
       .trim();
   }
 
+  function hasSourceLanguageSignal(text) {
+    const clean = normalizeText(text);
+    if (!clean) return false;
+
+    const languageKind = getSourceLanguageKind();
+    if (languageKind === "auto") return hasAnyLanguageSignal(clean);
+    if (languageKind === "chinese") return countCjkChars(clean) >= 4;
+    if (languageKind === "japanese") return countKanaChars(clean) >= 2 || countCjkChars(clean) >= 6;
+    if (languageKind === "korean") return countHangulChars(clean) >= 4;
+
+    return /[A-Za-z]{3,}/.test(clean);
+  }
+
+  function getSourceLanguageKind() {
+    const sourceLanguage = String(state.settings?.sourceLanguage || "English").trim().toLowerCase();
+    if (!sourceLanguage || sourceLanguage.includes("auto") || sourceLanguage.includes("自动") || sourceLanguage.includes("自動")) {
+      return "auto";
+    }
+    if (sourceLanguage.includes("chinese") || sourceLanguage.includes("中文") || sourceLanguage.includes("简体") || sourceLanguage.includes("簡體") || sourceLanguage.includes("繁體")) {
+      return "chinese";
+    }
+    if (sourceLanguage.includes("japanese") || sourceLanguage.includes("日语") || sourceLanguage.includes("日語") || sourceLanguage.includes("日本語")) {
+      return "japanese";
+    }
+    if (sourceLanguage.includes("korean") || sourceLanguage.includes("韩语") || sourceLanguage.includes("韓語") || sourceLanguage.includes("한국")) {
+      return "korean";
+    }
+    return "latin";
+  }
+
+  function hasAnyLanguageSignal(text) {
+    return /[A-Za-z]{3,}/.test(text)
+      || countCjkChars(text) >= 4
+      || countKanaChars(text) >= 2
+      || countHangulChars(text) >= 4;
+  }
+
+  function hasSentenceLikeSignal(text) {
+    return /[.!?。！？:;，,]/.test(text)
+      || getLatinWords(text).length >= 5
+      || countCjkChars(text) >= 12
+      || countKanaChars(text) >= 8
+      || countHangulChars(text) >= 10;
+  }
+
+  function getLatinWords(text) {
+    return normalizeText(text).match(/[A-Za-z][A-Za-z'-]*/g) || [];
+  }
+
+  function countCjkChars(text) {
+    return (String(text || "").match(/[\u3400-\u9fff\uf900-\ufaff]/g) || []).length;
+  }
+
+  function countKanaChars(text) {
+    return (String(text || "").match(/[\u3040-\u30ff]/g) || []).length;
+  }
+
+  function countHangulChars(text) {
+    return (String(text || "").match(/[\uac00-\ud7af]/g) || []).length;
+  }
+
   function ensureTranslationNode(element) {
     const placement = LLMTranslatorShared.getTranslationPlacement(element.tagName);
-    let node = findExistingTranslationNode(element, placement);
+    const insertionTarget = getTranslationInsertionTarget(element, placement);
+    let node = findExistingTranslationNode(element, placement, insertionTarget);
 
     if (!node) {
       node = document.createElement("div");
@@ -1107,7 +1224,11 @@
       node.dir = "auto";
 
       if (placement === "inside") {
-        element.appendChild(node);
+        if (insertionTarget && insertionTarget !== element) {
+          insertionTarget.insertAdjacentElement("afterend", node);
+        } else {
+          element.appendChild(node);
+        }
       } else {
         element.insertAdjacentElement("afterend", node);
       }
@@ -1118,13 +1239,58 @@
     return node;
   }
 
-  function findExistingTranslationNode(element, placement) {
+  function findExistingTranslationNode(element, placement, insertionTarget = null) {
     if (placement === "inside") {
+      const target = insertionTarget || getTranslationInsertionTarget(element, placement);
+      if (target && target !== element) {
+        const next = target.nextElementSibling;
+        if (next?.classList.contains("llm-bilingual-translation")) return next;
+      }
+
       return Array.from(element.children).find((child) => child.classList.contains("llm-bilingual-translation"));
     }
 
     const next = element.nextElementSibling;
     return next?.classList.contains("llm-bilingual-translation") ? next : null;
+  }
+
+  function getTranslationInsertionTarget(element, placement) {
+    if (placement !== "inside" || element.tagName !== "LI") return element;
+
+    return findPrimaryListItemLink(element) || element;
+  }
+
+  function findPrimaryListItemLink(element) {
+    const itemText = normalizeText(getCleanText(element));
+    if (!itemText) return null;
+
+    return Array.from(element.querySelectorAll("a[href]"))
+      .filter((link) => link.closest("li") === element && isElementVisible(link))
+      .map((link) => ({
+        link,
+        text: normalizeText(getCleanText(link)),
+        score: getListItemLinkScore(itemText, link)
+      }))
+      .filter((candidate) => candidate.text.length >= 12
+        && candidate.score > 0
+        && !LLMTranslatorShared.shouldSkipTextByContent(candidate.text)
+        && !LLMTranslatorShared.isLikelyTargetLanguageText(candidate.text, state.settings?.targetLanguage)
+        && hasSourceLanguageSignal(candidate.text))
+      .sort((a, b) => b.score - a.score || b.text.length - a.text.length)[0]?.link || null;
+  }
+
+  function getListItemLinkScore(itemText, link) {
+    const linkText = normalizeText(getCleanText(link));
+    if (!linkText) return 0;
+
+    let score = 0;
+    if (itemText === linkText) score += 80;
+    if (itemText.startsWith(linkText) || itemText.includes(linkText)) score += 40;
+    if (link.querySelector?.("[class*=\"headline\"], [data-testid*=\"headline\"]")) score += 20;
+    if (/\bheadline\b/i.test(String(link.className || ""))) score += 15;
+    if (linkText.length >= 40) score += 10;
+
+    return score;
   }
 
   function setLoading(element) {
@@ -1149,7 +1315,7 @@
     node.textContent = t("contentErrorRetry", [message], `翻译失败：${message}（点击重试）`);
     node.onclick = () => retryElement(element);
     node.onkeydown = (event) => {
-      if (event.key === "Enter") {
+      if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
         event.preventDefault();
         retryElement(element);
       }
@@ -1186,19 +1352,23 @@
   }
 
   async function retryElement(element) {
-    if (!state.active) {
-      const node = ensureTranslationNode(element);
-      node.textContent = t("contentStoppedRetryUnavailable", [], "页面翻译已停止，请重新点击插件的开始翻译。");
-      clearRetryInteraction(node);
-      return;
+    try {
+      if (!state.active) {
+        const node = ensureTranslationNode(element);
+        node.textContent = t("contentStoppedRetryUnavailable", [], "页面翻译已停止，请重新点击插件的开始翻译。");
+        clearRetryInteraction(node);
+        return;
+      }
+
+      state.settings = await chrome.runtime.sendMessage({ action: "get_settings" });
+
+      const id = ensureElementId(element);
+      state.queuedIds.delete(id);
+      enqueueElement(element);
+      flushQueue();
+    } catch (error) {
+      setError(element, error?.message || t("errorTranslationFailed", [], "翻译失败。"));
     }
-
-    state.settings = await chrome.runtime.sendMessage({ action: "get_settings" });
-
-    const id = ensureElementId(element);
-    state.queuedIds.delete(id);
-    enqueueElement(element);
-    flushQueue();
   }
 
   function injectStyles() {
@@ -1419,6 +1589,11 @@
     document.documentElement.appendChild(style);
   }
 
+  async function showPageNoticeWithUiLanguage(request) {
+    await ensureUiLanguageLoaded();
+    return showPageNotice(request);
+  }
+
   function showPageNotice(request) {
     injectStyles();
     document.querySelectorAll(".llm-bilingual-page-notice").forEach((node) => node.remove());
@@ -1434,6 +1609,11 @@
     }, 5000);
 
     return { ok: true };
+  }
+
+  async function showSelectionTranslationWithUiLanguage(request) {
+    await ensureUiLanguageLoaded();
+    return showSelectionTranslation(request);
   }
 
   function showSelectionTranslation(request) {

@@ -1,4 +1,4 @@
-const { i18n: t, applyI18n } = globalThis.LLMTranslatorShared;
+const { i18n: t, applyI18n, setUiLanguage } = globalThis.LLMTranslatorShared;
 applyI18n(document);
 
 const statusEl = document.getElementById("status");
@@ -30,22 +30,27 @@ let busy = false;
 init();
 
 async function init() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  currentTab = tab;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    currentTab = tab;
 
-  if (!tab?.id) {
-    setStatus(t("popupStatusNoTab", [], "没有找到当前标签页。"));
-    toggleBtn.disabled = true;
-    scanBtn.disabled = true;
-    visibilityBtn.disabled = true;
-    clearBtn.disabled = true;
-    autoTranslateToggle.disabled = true;
-    return;
+    if (!tab?.id) {
+      setStatus(t("popupStatusNoTab", [], "没有找到当前标签页。"));
+      setStateBadge(t("popupBadgeUnavailable", [], "不可用"), "warning");
+      setActionHint(t("popupLoadFailedHint", [], "可以打开设置检查配置，或重新加载扩展后再试。"));
+      disablePopupControls();
+      return;
+    }
+
+    await refreshSettings();
+    await refreshStats();
+    render();
+  } catch (error) {
+    setStatus(formatPopupError(error));
+    setStateBadge(t("popupBadgeUnavailable", [], "不可用"), "warning");
+    setActionHint(t("popupLoadFailedHint", [], "可以打开设置检查配置，或重新加载扩展后再试。"));
+    disablePopupControls();
   }
-
-  await refreshSettings();
-  await refreshStats();
-  render();
 }
 
 toggleBtn.addEventListener("click", async () => {
@@ -275,6 +280,8 @@ function render(count) {
 
 async function refreshSettings() {
   settings = await chrome.runtime.sendMessage({ action: "get_settings" });
+  await setUiLanguage(settings?.uiLanguage);
+  applyI18n(document);
   autoTranslateToggle.checked = settings.autoTranslate === true;
   renderConfigStatus();
 }
@@ -400,6 +407,9 @@ async function runPopupAction(statusText, action, pendingControl = null) {
 
   try {
     await action();
+  } catch (error) {
+    await recoverPopupState();
+    setStatus(formatPopupError(error));
   } finally {
     busy = false;
     if (pendingControl?.button) {
@@ -407,6 +417,18 @@ async function runPopupAction(statusText, action, pendingControl = null) {
     }
     updateButtonState();
   }
+}
+
+async function recoverPopupState() {
+  await refreshSettings().catch(() => {});
+  await refreshStats().catch(() => {});
+  render();
+}
+
+function formatPopupError(error) {
+  const message = error?.message || String(error || "") || t("errorUnknown", [], "未知错误");
+  const prefix = t("popupStatusActionFailed", [], "操作失败。");
+  return `${prefix} ${message}`;
 }
 
 function renderStats(stats) {
@@ -468,8 +490,21 @@ function updateButtonState() {
     : (!canTranslatePage ? t("tooltipAutoTranslateGlobalOnly", [], "会保存为全局设置，打开普通外文网页后生效。") : t("tooltipAutoTranslate", [], "保存为全局开关，打开外文网页时自动开始翻译。"));
 }
 
+function disablePopupControls() {
+  toggleBtn.disabled = true;
+  scanBtn.disabled = true;
+  visibilityBtn.disabled = true;
+  clearBtn.disabled = true;
+  autoTranslateToggle.disabled = true;
+  autoTranslateRow?.classList.add("is-disabled");
+  displayModeButtons.forEach((button) => {
+    button.disabled = true;
+  });
+}
+
 function setStatus(text) {
   statusEl.textContent = text;
+  statusEl.title = text && text.length > 80 ? text : "";
 }
 
 function escapeHtml(value) {

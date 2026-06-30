@@ -15,6 +15,8 @@
   const DEFAULT_CACHE_TTL_DAYS = 30;
   const DEFAULT_MAX_CACHE_ENTRIES = 2000;
   const DEFAULT_VIEWPORT_ONLY = true;
+  const DEFAULT_UI_LANGUAGE = "auto";
+  const SUPPORTED_UI_LANGUAGES = new Set(["auto", "zh_CN", "zh_TW", "en", "ja"]);
   const DEFAULT_TRANSLATION_PROMPT = [
     "Translate the following webpage text from {{sourceLanguage}} to {{targetLanguage}}.",
     "Keep meaning, tone, names, numbers, URLs, and code unchanged.",
@@ -56,6 +58,7 @@
   };
   const DEFAULT_SETTINGS = {
     provider: "openai",
+    uiLanguage: DEFAULT_UI_LANGUAGE,
     apiUrl: DEFAULT_API_URL,
     apiKey: "",
     model: "gpt-4o-mini",
@@ -123,6 +126,9 @@
     "[id*=\"paywall\"]",
     "[id*=\"modal\"]"
   ].join(",");
+
+  let i18nMessages = null;
+  let i18nLocale = DEFAULT_UI_LANGUAGE;
 
   const SOFT_BLOCKED_CONTAINER_SELECTOR = [
     "nav",
@@ -555,7 +561,47 @@
     return `${CACHE_PREFIX}${simpleHash(payload)}`;
   }
 
+  function normalizeUiLanguage(value) {
+    const language = String(value || DEFAULT_UI_LANGUAGE).trim();
+    return SUPPORTED_UI_LANGUAGES.has(language) ? language : DEFAULT_UI_LANGUAGE;
+  }
+
+  async function setUiLanguage(uiLanguage) {
+    const language = normalizeUiLanguage(uiLanguage);
+    if (language === i18nLocale && (language === DEFAULT_UI_LANGUAGE || i18nMessages)) return language;
+
+    i18nLocale = language;
+    i18nMessages = null;
+    if (language === DEFAULT_UI_LANGUAGE) return language;
+
+    try {
+      const url = root.chrome?.runtime?.getURL?.(`_locales/${language}/messages.json`);
+      if (!url || typeof root.fetch !== "function") return language;
+      const response = await root.fetch(url);
+      if (response.ok) {
+        i18nMessages = await response.json();
+      }
+    } catch (error) {
+      i18nMessages = null;
+    }
+
+    return language;
+  }
+
+  function setI18nMessages(messages, locale = DEFAULT_UI_LANGUAGE) {
+    i18nLocale = normalizeUiLanguage(locale);
+    i18nMessages = messages || null;
+  }
+
+  function applySubstitutions(template, substitutions = []) {
+    const values = Array.isArray(substitutions) ? substitutions : [substitutions];
+    return String(template || "").replace(/\$(\d+)/g, (_, index) => values[Number(index) - 1] ?? "");
+  }
+
   function i18n(messageName, substitutions = [], fallback = "") {
+    const override = i18nMessages?.[messageName]?.message;
+    if (override) return applySubstitutions(override, substitutions);
+
     const values = Array.isArray(substitutions) ? substitutions : [substitutions];
     try {
       const message = root.chrome?.i18n?.getMessage?.(messageName, values);
@@ -625,6 +671,9 @@
     normalizeCostSettings,
     normalizeCacheSettings,
     i18n,
+    setUiLanguage,
+    setI18nMessages,
+    normalizeUiLanguage,
     applyI18n,
     getBlockedContainerSelector,
     getStrictBlockedContainerSelector,

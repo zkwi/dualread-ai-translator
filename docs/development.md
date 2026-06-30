@@ -42,7 +42,7 @@ dualread-ai-translator/
 5. 未命中的文本按批次请求 OpenAI-compatible Chat Completions API。
 6. 返回结果按原文本块顺序写回页面，并保留换行和列表结构。
 
-自动翻译关闭时，content script 只读取本地 `autoTranslate/apiKey/model` 三个轻量字段，关闭则尽早退出，避免每个页面都唤醒后台读取完整设置。
+自动翻译关闭时，content script 只读取本地 `autoTranslate/apiKey/model/uiLanguage` 四个轻量字段，关闭则尽早退出，避免每个页面都唤醒后台读取完整设置，同时保证页面内提示能使用用户选择的界面语言。
 
 ## 批量请求和缓存
 
@@ -63,8 +63,9 @@ dualread-ai-translator/
 
 ## 当前限制
 
-- 默认只翻译包含英文字符的文本。
+- 候选文本会按源语言做轻量字符判断；自动检测不是完整语言识别，只是避免明显不相关的文本进入请求。
 - 不处理 PDF、图片 OCR、视频字幕。
+- 默认只支持普通 `http/https` 网页；Chrome 设置页、扩展页、新标签页和本地 `file://` 页面不会注入翻译脚本。
 - 对复杂网页布局可能会出现插入位置不理想。
 - 模型必须返回 JSON；如果模型不按要求返回，会显示解析失败。
 - 点击“停止翻译”或“清除译文”后，旧请求返回时不会继续写入页面。

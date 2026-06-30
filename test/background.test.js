@@ -35,9 +35,12 @@ async function main() {
   await testAutoTranslateReportsUnconfiguredNotice();
   await testManualTranslationReportsMissingApiKeyBeforeInjecting();
   await testScanCurrentAreaReportsMissingApiKeyBeforeInjecting();
+  await testFileUrlIsUnsupportedBeforeInjecting();
   await testSetDisplayModeForwardsToContentScript();
   await testAutoTranslateSkipsTargetLanguagePage();
   await testAutoTranslateSkipNoticeIsReported();
+  await testContextMenusUseConfiguredUiLanguage();
+  await testContextMenuSetupSerializesConcurrentLanguageRefreshes();
   await testContextMenuPageTranslationShowsMissingApiKeyNotice();
   await testContextMenuStartsPageTranslation();
   await testContextMenuTranslatesSelectedText();
@@ -775,6 +778,25 @@ async function testScanCurrentAreaReportsMissingApiKeyBeforeInjecting() {
   assert.strictEqual(tabMessages.length, 0);
 }
 
+async function testFileUrlIsUnsupportedBeforeInjecting() {
+  const context = createBackgroundContext({
+    sendMessage: async () => {
+      throw new Error("file:// pages should be treated as unsupported before content script injection.");
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "toggle_translation",
+    tab: { id: 38, url: "file:///example/article.html" }
+  });
+
+  assert.strictEqual(response.ok, false);
+  assert.match(response.error, /不支持|does not allow|unsupported/i);
+  assert.strictEqual(context.scriptingCalls.length, 0);
+}
+
 async function testSetDisplayModeForwardsToContentScript() {
   const tabMessages = [];
   const context = createBackgroundContext({
@@ -871,6 +893,42 @@ async function testContextMenuPageTranslationShowsMissingApiKeyNotice() {
   assert.strictEqual(typeof context.scriptingCalls[0].func, "function");
   assert.match(context.scriptingCalls[0].args[0], /API Key/);
   assert.strictEqual(context.scriptingCalls[0].args[1], true);
+}
+
+async function testContextMenusUseConfiguredUiLanguage() {
+  const context = createBackgroundContext({
+    storage: { uiLanguage: "en" }
+  });
+
+  loadBackground(context);
+  await context.onInstalledListener();
+
+  assert.ok(
+    context.contextMenuItems.some((item) => item.id === "llm_translate_page" && item.title === "Translate this page"),
+    "page context menu should use configured UI language"
+  );
+  assert.ok(
+    context.contextMenuItems.some((item) => item.id === "llm_translate_selection" && item.title === "Translate selected text"),
+    "selection context menu should use configured UI language"
+  );
+}
+
+async function testContextMenuSetupSerializesConcurrentLanguageRefreshes() {
+  const context = createBackgroundContext({
+    storage: { uiLanguage: "en" },
+    contextMenuRemoveAllDelayMs: 1,
+    failOnDuplicateContextMenu: true
+  });
+
+  loadBackground(context);
+  await Promise.all([
+    context.onInstalledListener(),
+    context.storageOnChangedListener({ uiLanguage: { oldValue: "auto", newValue: "en" } }, "local"),
+    context.storageOnChangedListener({ uiLanguage: { oldValue: "en", newValue: "ja" } }, "local")
+  ]);
+
+  assert.strictEqual(context.contextMenuItems.filter((item) => item.id === "llm_translate_page").length, 1);
+  assert.strictEqual(context.contextMenuItems.filter((item) => item.id === "llm_translate_selection").length, 1);
 }
 
 async function testContextMenuStartsPageTranslation() {
@@ -1057,7 +1115,7 @@ function createBackgroundContext(options = {}) {
     setTimeout,
     clearTimeout,
     AbortController,
-    fetch: options.fetch,
+    fetch: options.fetch || createLocaleFetch(),
     onInstalledListener: null,
     runtimeMessageListener: null,
     onStartupListener: null,
@@ -1074,6 +1132,9 @@ function createBackgroundContext(options = {}) {
     },
     chrome: {
       runtime: {
+        getURL(filePath) {
+          return `locale://${filePath}`;
+        },
         onInstalled: {
           addListener(listener) {
             context.onInstalledListener = listener;
@@ -1091,11 +1152,23 @@ function createBackgroundContext(options = {}) {
         }
       },
       contextMenus: {
-        async removeAll() {
+        async removeAll(callback) {
+          if (options.contextMenuRemoveAllDelayMs) {
+            await new Promise((resolve) => setTimeout(resolve, options.contextMenuRemoveAllDelayMs));
+          }
           context.contextMenuItems = [];
+          callback?.();
         },
-        create(item) {
+        create(item, callback) {
+          if (options.failOnDuplicateContextMenu && context.contextMenuItems.some((existing) => existing.id === item.id)) {
+            context.chrome.runtime.lastError = { message: `Cannot create item with duplicate id ${item.id}` };
+            callback?.();
+            context.chrome.runtime.lastError = null;
+            return item.id;
+          }
           context.contextMenuItems.push(item);
+          callback?.();
+          return item.id;
         },
         onClicked: {
           addListener(listener) {
@@ -1162,6 +1235,23 @@ function createBackgroundContext(options = {}) {
   };
 
   return vm.createContext(context);
+}
+
+function createLocaleFetch() {
+  return async (url) => {
+    const match = String(url || "").match(/^locale:\/\/_locales\/([^/]+)\/messages\.json$/);
+    if (!match) {
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    }
+
+    const file = path.join(extensionDir, "_locales", match[1], "messages.json");
+    return {
+      ok: true,
+      async json() {
+        return JSON.parse(fs.readFileSync(file, "utf8"));
+      }
+    };
+  };
 }
 
 function loadBackground(context) {

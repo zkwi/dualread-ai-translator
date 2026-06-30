@@ -1,7 +1,7 @@
 const DEFAULT_SETTINGS = globalThis.LLMTranslatorShared.DEFAULT_SETTINGS;
 const DEFAULT_TRANSLATION_PROMPT = globalThis.LLMTranslatorShared.DEFAULT_TRANSLATION_PROMPT;
 const LEGACY_DEFAULT_API_TIMEOUT_MS = globalThis.LLMTranslatorShared.LEGACY_DEFAULT_API_TIMEOUT_MS;
-const { i18n: t, applyI18n } = globalThis.LLMTranslatorShared;
+const { i18n: t, applyI18n, setUiLanguage } = globalThis.LLMTranslatorShared;
 applyI18n(document);
 const AUTO_SAVE_DELAY_MS = 700;
 const MAX_API_TIMEOUT_SECONDS = 300;
@@ -39,30 +39,9 @@ const COST_PROFILE_FIELDS = new Set([
   "viewportOnly"
 ]);
 
-const PROVIDER_HINTS = {
-  openai: t("providerHintOpenai", [], "使用 OpenAI 官方 Chat Completions 接口，不添加非标准思考参数。"),
-  deepseek: t("providerHintDeepseek", [], "使用 DeepSeek 官方 OpenAI-compatible 接口；DeepSeek 推理通常由模型名区分。"),
-  dashscope: t("providerHintDashscope", [], "使用阿里云 DashScope 兼容模式；可通过 enable_thinking 关闭 Qwen 思考。"),
-  local: t("providerHintLocal", [], "适合本机代理、vLLM、SGLang 等兼容服务；Qwen 模型可通过 chat_template_kwargs 关闭思考。"),
-  custom: t("providerHintCustom", [], "用于自定义 OpenAI-compatible 服务；会根据 API 地址和模型名判断是否支持关闭思考。")
-};
-
-const THINKING_HINTS = {
-  none: t("thinkingHintNone", [], "当前服务商不会添加额外思考参数。"),
-  dashscope: t("thinkingHintDashscope", [], "开启后请求体会加入 enable_thinking: false。"),
-  "self-hosted": t("thinkingHintSelfHosted", [], "开启后请求体会加入 chat_template_kwargs.enable_thinking = false。"),
-  disabled: t("thinkingHintDisabled", [], "已关闭：请求体不会添加思考控制参数。")
-};
-
-const COST_PROFILE_HINTS = {
-  economy: t("costHintEconomy", [], "省 Token 模式会少量预取，适合长页面、直播页或只想粗略阅读时使用。"),
-  balanced: t("costHintBalanced", [], "平衡模式适合日常阅读：控制请求数量，同时会预取当前屏附近的正文。"),
-  eager: t("costHintEager", [], "积极模式会多预取一些内容，阅读更连贯，但 token 消耗也会更高。"),
-  custom: t("costHintCustom", [], "自定义模式会使用你在高级设置中填写的批量、长度和每页预算。")
-};
-
 const fields = {
   provider: document.getElementById("provider"),
+  uiLanguage: document.getElementById("uiLanguage"),
   apiUrl: document.getElementById("apiUrl"),
   apiKey: document.getElementById("apiKey"),
   model: document.getElementById("model"),
@@ -110,7 +89,7 @@ let apiTestPassed = false;
 let apiTestError = "";
 let apiTestRunning = false;
 
-loadSettings();
+loadSettings().catch(handleLoadSettingsError);
 setupAutoSave();
 setupExitSave();
 setupLanguagePresets();
@@ -125,6 +104,7 @@ actionButtons.reset.addEventListener("click", async () => {
   clearPendingAutoSave();
   await runOptionAction(async () => {
     await chrome.storage.local.set(DEFAULT_SETTINGS);
+    await applyUiLanguage(DEFAULT_SETTINGS.uiLanguage);
     fillForm(DEFAULT_SETTINGS);
     showMessage(t("messageResetAllDone", [], "已恢复全部默认设置。"));
   });
@@ -198,8 +178,21 @@ async function loadSettings() {
   if (Object.keys(updates).length > 0) {
     await chrome.storage.local.set(updates);
   }
+  await applyUiLanguage(settings.uiLanguage || DEFAULT_SETTINGS.uiLanguage);
   fillForm(settings);
   hasLoadedSettings = true;
+}
+
+function handleLoadSettingsError(error) {
+  fillForm(DEFAULT_SETTINGS);
+  hasLoadedSettings = true;
+  const message = formatOptionError(error);
+  showMessage(message, true);
+  apiTestPassed = false;
+  apiTestRunning = false;
+  apiTestError = message;
+  updateSetupStatus();
+  updateActionAvailability();
 }
 
 function isLegacyDefaultTranslationPrompt(prompt) {
@@ -208,6 +201,7 @@ function isLegacyDefaultTranslationPrompt(prompt) {
 
 function fillForm(settings) {
   fields.provider.value = settings.provider || inferProvider(settings.apiUrl);
+  setSelectValue(fields.uiLanguage, settings.uiLanguage || DEFAULT_SETTINGS.uiLanguage);
   fields.apiUrl.value = settings.apiUrl || DEFAULT_SETTINGS.apiUrl;
   fields.apiKey.value = settings.apiKey || "";
   fields.model.value = settings.model || DEFAULT_SETTINGS.model;
@@ -229,6 +223,7 @@ function fillForm(settings) {
   fields.autoTranslate.checked = settings.autoTranslate === true;
   setSelectValue(fields.displayMode, settings.displayMode || DEFAULT_SETTINGS.displayMode);
   fields.viewportOnly.checked = settings.viewportOnly !== false;
+  updateApiKeyToggleText();
   updateLanguagePresetButtons();
   updateLanguageStatus();
   updateHelperText();
@@ -281,9 +276,10 @@ function setupAutoSave() {
         updateActionAvailability();
         scheduleAutoSave();
       });
-      field.addEventListener("change", () => {
+      field.addEventListener("change", async () => {
         if (isConnectionField(name)) markApiTestDirty();
         markCustomCostProfile();
+        if (isUiLanguageField(name)) await applyUiLanguage(field.value);
         if (isLanguageField(name)) updateLanguagePresetButtons();
         if (isLanguageField(name)) updateLanguageStatus();
         updateHelperText();
@@ -301,6 +297,10 @@ function isConnectionField(name) {
 
 function isLanguageField(name) {
   return name === "sourceLanguage" || name === "targetLanguage";
+}
+
+function isUiLanguageField(name) {
+  return name === "uiLanguage";
 }
 
 function setupExitSave() {
@@ -407,7 +407,7 @@ async function testApi() {
       apiTestPassed = true;
       apiTestError = "";
       updateSetupStatus();
-      showMessage(t("messageApiTestSuccess", [response.text || ""], `API 可用，测试译文：${response.text}`));
+      showMessage(t("messageApiTestSuccess", [compactStatusText(response.text || "")], `API 可用，测试译文：${compactStatusText(response.text || "")}`));
     });
   } finally {
     actionButtons.test.textContent = originalText || t("optionsTestApi", [], "测试 API");
@@ -435,6 +435,7 @@ function confirmDestructiveAction(message) {
 function readFormSettings() {
   const settings = {
     provider: fields.provider.value || DEFAULT_SETTINGS.provider,
+    uiLanguage: fields.uiLanguage.value || DEFAULT_SETTINGS.uiLanguage,
     apiUrl: fields.apiUrl.value.trim(),
     apiKey: fields.apiKey.value.trim(),
     model: fields.model.value.trim(),
@@ -463,9 +464,16 @@ function readFormSettings() {
 
 function showMessage(text, isError = false, state = "") {
   messageEl.textContent = text;
+  messageEl.title = text.length > 160 ? text : "";
   messageEl.classList.toggle("is-error", isError);
   updateSaveState(isError ? getErrorStateText(state) : getSaveStateText(text, state), isError ? "error" : state);
   updateActionAvailability();
+}
+
+function compactStatusText(value, maxLength = 120) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, Math.max(0, maxLength - 1))}…`;
 }
 
 function updateSaveState(text, state = "") {
@@ -498,6 +506,19 @@ function applyProviderPreset(provider) {
   fields.disableThinking.checked = preset.thinkingControl !== "none";
   updateSetupStatus();
   updateActionAvailability();
+}
+
+async function applyUiLanguage(uiLanguage) {
+  await setUiLanguage(uiLanguage || DEFAULT_SETTINGS.uiLanguage);
+  applyI18n(document);
+  updateApiKeyToggleText();
+}
+
+function updateApiKeyToggleText() {
+  const shouldShow = fields.apiKey.type === "password";
+  actionButtons.toggleApiKey.textContent = shouldShow ? t("show", [], "显示") : t("hide", [], "隐藏");
+  actionButtons.toggleApiKey.setAttribute("aria-pressed", shouldShow ? "false" : "true");
+  actionButtons.toggleApiKey.title = shouldShow ? t("showApiKey", [], "显示 API Key") : t("hideApiKey", [], "隐藏 API Key");
 }
 
 function markApiTestDirty() {
@@ -574,17 +595,68 @@ function applyCostProfile(profile) {
 
 function updateHelperText() {
   if (providerHintEl) {
-    providerHintEl.textContent = PROVIDER_HINTS[fields.provider.value] || PROVIDER_HINTS.custom;
+    providerHintEl.textContent = getProviderHint(fields.provider.value);
   }
   if (costProfileHintEl) {
-    costProfileHintEl.textContent = COST_PROFILE_HINTS[fields.costProfile.value] || COST_PROFILE_HINTS.custom;
+    costProfileHintEl.textContent = getCostProfileHint(fields.costProfile.value);
   }
   if (thinkingHintEl) {
-    const control = getSelectedThinkingControl();
-    thinkingHintEl.textContent = fields.disableThinking.checked
-      ? THINKING_HINTS[control] || THINKING_HINTS.none
-      : THINKING_HINTS.disabled;
+    const control = updateThinkingControlAvailability();
+    thinkingHintEl.textContent = control === "none"
+      ? getThinkingHint("none")
+      : fields.disableThinking.checked
+      ? getThinkingHint(control)
+      : getThinkingHint("disabled");
   }
+}
+
+function updateThinkingControlAvailability() {
+  const control = getSelectedThinkingControl();
+  const isAvailable = control !== "none";
+  const label = fields.disableThinking.closest(".checkbox");
+
+  fields.disableThinking.disabled = !isAvailable;
+  if (!isAvailable) {
+    fields.disableThinking.checked = false;
+  }
+
+  if (label) {
+    label.classList.toggle("is-disabled", !isAvailable);
+    label.title = isAvailable ? "" : getThinkingHint("none");
+  }
+
+  return control;
+}
+
+function getProviderHint(provider) {
+  const hints = {
+    openai: t("providerHintOpenai", [], "使用 OpenAI 官方 Chat Completions 接口，不添加非标准思考参数。"),
+    deepseek: t("providerHintDeepseek", [], "使用 DeepSeek 官方 OpenAI-compatible 接口；DeepSeek 推理通常由模型名区分。"),
+    dashscope: t("providerHintDashscope", [], "使用阿里云 DashScope 兼容模式；可通过 enable_thinking 关闭 Qwen 思考。"),
+    local: t("providerHintLocal", [], "适合本机代理、vLLM、SGLang 等兼容服务；Qwen 模型可通过 chat_template_kwargs 关闭思考。"),
+    custom: t("providerHintCustom", [], "用于自定义 OpenAI-compatible 服务；会根据 API 地址和模型名判断是否支持关闭思考。")
+  };
+  return hints[provider] || hints.custom;
+}
+
+function getCostProfileHint(profile) {
+  const hints = {
+    economy: t("costHintEconomy", [], "省 Token 模式会少量预取，适合长页面、直播页或只想粗略阅读时使用。"),
+    balanced: t("costHintBalanced", [], "平衡模式适合日常阅读：控制请求数量，同时会预取当前屏附近的正文。"),
+    eager: t("costHintEager", [], "积极模式会多预取一些内容，阅读更连贯，但 token 消耗也会更高。"),
+    custom: t("costHintCustom", [], "自定义模式会使用你在高级设置中填写的批量、长度和每页预算。")
+  };
+  return hints[profile] || hints.custom;
+}
+
+function getThinkingHint(control) {
+  const hints = {
+    none: t("thinkingHintNone", [], "当前服务商不会添加额外思考参数。"),
+    dashscope: t("thinkingHintDashscope", [], "开启后请求体会加入 enable_thinking: false。"),
+    "self-hosted": t("thinkingHintSelfHosted", [], "开启后请求体会加入 chat_template_kwargs.enable_thinking = false。"),
+    disabled: t("thinkingHintDisabled", [], "已关闭：请求体不会添加思考控制参数。")
+  };
+  return hints[control] || hints.none;
 }
 
 function getSelectedThinkingControl() {
@@ -698,10 +770,25 @@ async function runOptionAction(action) {
   setActionButtonsDisabled(true);
   try {
     await action();
+  } catch (error) {
+    const wasApiTesting = apiTestRunning;
+    const message = formatOptionError(error);
+    apiTestRunning = false;
+    apiTestPassed = false;
+    if (wasApiTesting) {
+      apiTestError = message;
+    }
+    showMessage(message, true, wasApiTesting ? "testing" : "");
+    updateSetupStatus();
   } finally {
     optionActionRunning = false;
     setActionButtonsDisabled(false);
   }
+}
+
+function formatOptionError(error) {
+  const message = error?.message || String(error || "") || t("errorUnknown", [], "未知错误");
+  return t("messageActionFailed", [message], `操作失败：${message}`);
 }
 
 function setActionButtonsDisabled(disabled) {

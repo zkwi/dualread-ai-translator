@@ -22,7 +22,12 @@ async function main() {
     await testPopupShowsAutoSkipNotice(browser);
     await testPopupShowsAutoUnconfiguredNotice(browser);
     await testPopupAutoToggleSavesAndTriggersCurrentTab(browser);
+    await testPopupActionFailureRestoresStoredState(browser);
+    await testPopupInitFailureShowsRecoverableState(browser);
+    await testPopupUnknownInitFailureShowsReadableMessage(browser);
     await testPopupEnglishLayoutDoesNotOverflow(browser);
+    await testPopupLocalizedLayoutsDoNotOverflow(browser);
+    await testPopupKeepsStableChromePopupWidth(browser);
     await testPopupPrimaryButtonsShowPendingText(browser);
     await testPopupDisplayModeToggleSavesAndApplies(browser);
     await testPopupExplainsUnsupportedPages(browser);
@@ -30,9 +35,13 @@ async function main() {
     await testOptionsActionsKeepTestApiPrimary(browser);
     await testUiDefinesKeyboardFocusStyles(browser);
     await testOptionsSetupStatusGuidesConnection(browser);
+    await testOptionsLoadFailureShowsDefaultsAndError(browser);
     await testOptionsSetupStatusShowsApiFailure(browser);
     await testOptionsEnterRunsApiTestWhenReady(browser);
     await testOptionsTestApiSavesSettingsBeforeRequest(browser);
+    await testOptionsApiExceptionShowsFailureState(browser);
+    await testOptionsUnknownApiExceptionShowsReadableMessage(browser);
+    await testOptionsApiSuccessMessageIsCompact(browser);
     await testOptionsChangeEventSavesApiKey(browser);
     await testOptionsProviderPresetUpdatesConnection(browser);
     await testOptionsHelpTextUpdates(browser);
@@ -43,6 +52,8 @@ async function main() {
     await testOptionsLanguagePresetSaves(browser);
     await testOptionsLanguagePresetButtons(browser);
     await testOptionsLanguageStatusWarnsOnSameLanguage(browser);
+    await testOptionsUiLanguageIsIndependent(browser);
+    await testOptionsEnglishMicrocopyIsUserFacing(browser);
     await testOptionsCostProfileUpdatesAdvancedDefaults(browser);
     await testOptionsDisplayModeAutoSaves(browser);
     await testOptionsAdvancedSettingsCanExpand(browser);
@@ -227,11 +238,65 @@ async function testPopupAutoToggleSavesAndTriggersCurrentTab(browser) {
   await page.close();
 }
 
-async function testPopupEnglishLayoutDoesNotOverflow(browser) {
-  const localeMessages = JSON.parse(fs.readFileSync(path.join(extensionDir, "_locales", "en", "messages.json"), "utf8"));
+async function testPopupActionFailureRestoresStoredState(browser) {
   const page = await createPopupPage(browser, {
-    localeMessages,
     settings: {
+      autoTranslate: false,
+      apiKey: "saved-key",
+      model: "test-model"
+    },
+    storageSetError: "Mock storage failure",
+    pageStats: {
+      ok: true,
+      active: false,
+      stats: { translated: 0, failed: 0, translationVisible: true }
+    }
+  });
+
+  await page.waitForFunction(() => document.getElementById("autoTranslateToggle").checked === false);
+  await page.click("#autoTranslateToggle");
+  await page.waitForFunction(() => document.getElementById("status").textContent.includes("Mock storage failure"));
+
+  assert.match(await page.locator("#status").textContent(), /操作失败/);
+  assert.strictEqual(await page.locator("#autoTranslateToggle").isChecked(), false);
+  assert.strictEqual(await page.locator("#autoTranslateToggle").isDisabled(), false);
+  await page.close();
+}
+
+async function testPopupInitFailureShowsRecoverableState(browser) {
+  const page = await createPopupPage(browser, {
+    runtimeErrorAction: "get_settings",
+    runtimeErrorMessage: "Mock settings load failure"
+  });
+
+  await page.waitForFunction(() => document.getElementById("status").textContent.includes("Mock settings load failure"));
+
+  assert.match(await page.locator("#status").textContent(), /操作失败/);
+  assert.match(await page.locator("#actionHint").textContent(), /打开设置/);
+  assert.strictEqual(await page.locator("#toggle").isDisabled(), true);
+  assert.strictEqual(await page.locator("#scan").isDisabled(), true);
+  assert.strictEqual(await page.locator("#autoTranslateToggle").isDisabled(), true);
+  assert.strictEqual(await page.locator("[data-display-mode='bilingual']").isDisabled(), true);
+  await page.close();
+}
+
+async function testPopupUnknownInitFailureShowsReadableMessage(browser) {
+  const page = await createPopupPage(browser, {
+    runtimeErrorAction: "get_settings",
+    runtimeThrowEmpty: true
+  });
+
+  await page.waitForFunction(() => document.getElementById("status").textContent.includes("未知错误"));
+
+  assert.match(await page.locator("#status").textContent(), /操作失败/);
+  assert.strictEqual(await page.locator("#toggle").isDisabled(), true);
+  await page.close();
+}
+
+async function testPopupEnglishLayoutDoesNotOverflow(browser) {
+  const page = await createPopupPage(browser, {
+    settings: {
+      uiLanguage: "en",
       apiKey: "saved-key",
       model: "deepseek-chat",
       provider: "deepseek",
@@ -288,6 +353,77 @@ async function testPopupEnglishLayoutDoesNotOverflow(browser) {
     `popup has horizontal overflow: ${JSON.stringify(overflow)}`
   );
   assert.deepStrictEqual(overflow.offenders, []);
+  await page.close();
+}
+
+async function testPopupLocalizedLayoutsDoNotOverflow(browser) {
+  for (const uiLanguage of ["zh_TW", "ja"]) {
+    const page = await createPopupPage(browser, {
+      settings: {
+        uiLanguage,
+        apiKey: "saved-key",
+        model: "deepseek-chat",
+        provider: "deepseek",
+        sourceLanguage: "English",
+        targetLanguage: "简体中文",
+        autoTranslate: true
+      },
+      pageStats: {
+        ok: true,
+        active: true,
+        content: { count: 30 },
+        stats: {
+          translated: 8,
+          cacheHits: 1,
+          apiRequested: 7,
+          skippedBudget: 2,
+          failed: 0,
+          translationVisible: true
+        }
+      }
+    });
+
+    await page.setViewportSize({ width: 344, height: 760 });
+    await page.waitForSelector(".brand-bar");
+
+    const result = await page.evaluate(() => ({
+      text: document.body.innerText,
+      clientWidth: document.body.clientWidth,
+      scrollWidth: document.body.scrollWidth
+    }));
+
+    assert.ok(
+      result.scrollWidth <= result.clientWidth + 1,
+      `${uiLanguage} popup has horizontal overflow: ${JSON.stringify(result)}`
+    );
+    assert.doesNotMatch(result.text, /Status No Tab|Auto Save|Viewport Only|Unsupported Hint/);
+    await page.close();
+  }
+}
+
+async function testPopupKeepsStableChromePopupWidth(browser) {
+  const page = await createPopupPage(browser, {
+    settings: {
+      apiKey: "saved-key",
+      model: "test-model"
+    },
+    pageStats: {
+      ok: true,
+      active: false,
+      stats: { translated: 0, failed: 0, translationVisible: true }
+    }
+  });
+
+  await page.setViewportSize({ width: 80, height: 760 });
+  await page.waitForSelector(".brand-bar");
+
+  const size = await page.evaluate(() => ({
+    bodyWidth: document.body.getBoundingClientRect().width,
+    bodyScrollWidth: document.body.scrollWidth
+  }));
+
+  assert.strictEqual(size.bodyWidth, 344);
+  assert.strictEqual(size.bodyScrollWidth, 344);
   await page.close();
 }
 
@@ -396,6 +532,59 @@ async function testOptionsTestApiSavesSettingsBeforeRequest(browser) {
   await page.close();
 }
 
+async function testOptionsApiExceptionShowsFailureState(browser) {
+  const page = await createOptionsPage(browser, {
+    runtimeErrorAction: "test_api",
+    runtimeErrorMessage: "Mock test failure"
+  });
+
+  await page.fill("#apiKey", "test-key");
+  await page.click("#test");
+  await page.waitForFunction(() => document.getElementById("message").textContent.includes("Mock test failure"));
+
+  assert.strictEqual(await page.locator("#test").isDisabled(), false);
+  assert.match(await page.locator("#message").textContent(), /操作失败/);
+  assert.strictEqual(await page.locator("#setupStatus").evaluate((node) => node.classList.contains("is-testing")), false);
+  assert.strictEqual(await page.locator("#setupStatus").evaluate((node) => node.classList.contains("is-error")), true);
+  assert.match(await page.locator("#setupStatus").textContent(), /API 测试失败/);
+  assert.match(await page.locator("#setupStatus").textContent(), /Mock test failure/);
+  await page.close();
+}
+
+async function testOptionsUnknownApiExceptionShowsReadableMessage(browser) {
+  const page = await createOptionsPage(browser, {
+    runtimeErrorAction: "test_api",
+    runtimeThrowEmpty: true
+  });
+
+  await page.fill("#apiKey", "test-key");
+  await page.click("#test");
+  await page.waitForFunction(() => document.getElementById("message").textContent.includes("未知错误"));
+
+  assert.match(await page.locator("#message").textContent(), /操作失败/);
+  assert.strictEqual(await page.locator("#setupStatus").evaluate((node) => node.classList.contains("is-error")), true);
+  await page.close();
+}
+
+async function testOptionsApiSuccessMessageIsCompact(browser) {
+  const page = await createOptionsPage(browser);
+
+  await page.fill("#apiKey", "long-success-key");
+  await page.click("#test");
+  await page.evaluate(() => window.__resolveTestApi({
+    ok: true,
+    text: "This is a deliberately long translation result. ".repeat(12)
+  }));
+  await page.waitForFunction(() => document.getElementById("message").textContent.includes("API 可用"));
+
+  const message = await page.locator("#message").textContent();
+  const lineClamp = await page.locator("#message").evaluate((node) => getComputedStyle(node).webkitLineClamp);
+  assert.ok(message.length < 180, `API success message should stay compact: ${message.length}`);
+  assert.match(message, /…$/);
+  assert.strictEqual(lineClamp, "2");
+  await page.close();
+}
+
 async function testOptionsChangeEventSavesApiKey(browser) {
   const page = await createOptionsPage(browser);
 
@@ -433,14 +622,36 @@ async function testOptionsHelpTextUpdates(browser) {
 async function testOptionsProviderThinkingHints(browser) {
   const page = await createOptionsPage(browser);
 
+  await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("不会添加"));
+  assert.strictEqual(await page.locator("#disableThinking").isChecked(), false);
+  assert.strictEqual(await page.locator("#disableThinking").isDisabled(), true);
+
   await page.selectOption("#provider", "dashscope");
   await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("enable_thinking"));
   assert.strictEqual(await page.locator("#disableThinking").isChecked(), true);
+  assert.strictEqual(await page.locator("#disableThinking").isDisabled(), false);
 
   await page.selectOption("#provider", "openai");
   await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("不会添加"));
   assert.strictEqual(await page.locator("#disableThinking").isChecked(), false);
+  assert.strictEqual(await page.locator("#disableThinking").isDisabled(), true);
+  assert.strictEqual(await page.locator(".compact-checkbox").evaluate((node) => node.classList.contains("is-disabled")), true);
   await page.close();
+
+  const savedDeepSeekPage = await createOptionsPage(browser, {
+    settings: {
+      provider: "deepseek",
+      apiUrl: "https://api.deepseek.com/v1/chat/completions",
+      model: "deepseek-chat",
+      disableThinking: true
+    }
+  });
+
+  await savedDeepSeekPage.waitForFunction(() => document.getElementById("provider").value === "deepseek");
+  await savedDeepSeekPage.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("不会添加"));
+  assert.strictEqual(await savedDeepSeekPage.locator("#disableThinking").isChecked(), false);
+  assert.strictEqual(await savedDeepSeekPage.locator("#disableThinking").isDisabled(), true);
+  await savedDeepSeekPage.close();
 }
 
 async function testOptionsTimeoutUsesSeconds(browser) {
@@ -541,6 +752,37 @@ async function testOptionsLanguageStatusWarnsOnSameLanguage(browser) {
   await page.close();
 }
 
+async function testOptionsUiLanguageIsIndependent(browser) {
+  const page = await createOptionsPage(browser);
+
+  await page.waitForFunction(() => document.getElementById("uiLanguage").value === "auto");
+  await page.selectOption("#uiLanguage", "en");
+  await page.waitForFunction(() => document.querySelector("[data-i18n='optionsTitle']").textContent === "DualRead AI Settings");
+  await page.waitForFunction(() => window.__lastSavedSettings?.uiLanguage === "en");
+
+  assert.strictEqual(await page.locator("[data-i18n='optionsUiLanguage']").textContent(), "Interface language");
+  assert.strictEqual(await page.locator("#sourceLanguage").inputValue(), "English");
+  assert.strictEqual(await page.locator("#targetLanguage").inputValue(), "简体中文");
+  assert.strictEqual(await page.locator("#uiLanguage").inputValue(), "en");
+  await page.close();
+}
+
+async function testOptionsEnglishMicrocopyIsUserFacing(browser) {
+  const page = await createOptionsPage(browser);
+
+  await page.selectOption("#uiLanguage", "en");
+  await page.waitForFunction(() => document.querySelector("[data-i18n='optionsQuickStartDesc']").textContent.includes("three steps"));
+  await page.fill("#apiKey", "english-copy-key");
+  await page.waitForFunction(() => document.getElementById("setupStatus").textContent.includes("Connection looks ready"));
+
+  const visibleText = await page.locator("body").innerText();
+  assert.match(visibleText, /Changes are saved automatically/);
+  assert.match(visibleText, /Only translate the current screen and nearby content/);
+  assert.match(visibleText, /Increase this for slow networks/);
+  assert.doesNotMatch(visibleText, /Auto Save Message|Ready Ready|Viewport Only/);
+  await page.close();
+}
+
 async function testOptionsCostProfileUpdatesAdvancedDefaults(browser) {
   const page = await createOptionsPage(browser);
 
@@ -636,6 +878,22 @@ async function testOptionsSetupStatusGuidesConnection(browser) {
   await page.close();
 }
 
+async function testOptionsLoadFailureShowsDefaultsAndError(browser) {
+  const page = await createOptionsPage(browser, {
+    storageGetError: "Mock options load failure"
+  });
+
+  await page.waitForFunction(() => document.getElementById("message").textContent.includes("Mock options load failure"));
+
+  assert.match(await page.locator("#message").textContent(), /操作失败/);
+  assert.strictEqual(await page.locator("#provider").inputValue(), "openai");
+  assert.strictEqual(await page.locator("#model").inputValue(), "gpt-4o-mini");
+  assert.strictEqual(await page.locator("#test").isDisabled(), true);
+  assert.strictEqual(await page.locator("#saveState").evaluate((node) => node.classList.contains("is-error")), true);
+  assert.strictEqual(await page.locator("#setupStatus").evaluate((node) => node.classList.contains("is-incomplete")), true);
+  await page.close();
+}
+
 async function testOptionsSetupStatusShowsApiFailure(browser) {
   const page = await createOptionsPage(browser);
 
@@ -726,7 +984,19 @@ async function testOptionsResetPromptRequiresConfirm(browser) {
 async function createPopupPage(browser, options = {}) {
   const page = await browser.newPage();
   await page.setContent(readHtml("popup.html"));
-  await page.evaluate(({ pageStats, settings, autoTranslateResponse, tabUrl, deferredAction, localeMessages }) => {
+  const allLocaleMessages = readAllLocaleMessages();
+  await page.evaluate(({ pageStats, settings, autoTranslateResponse, tabUrl, deferredAction, storageSetError, runtimeErrorAction, runtimeErrorMessage, runtimeThrowEmpty, localeMessages, allLocaleMessages }) => {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (url, fetchOptions) => {
+      const match = String(url || "").match(/^locale:\/\/_locales\/([^/]+)\/messages\.json$/);
+      if (match) {
+        return new Response(JSON.stringify(allLocaleMessages[match[1]] || {}), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      return nativeFetch(url, fetchOptions);
+    };
     window.__popupSettings = {
       autoTranslate: false,
       apiKey: "",
@@ -751,6 +1021,7 @@ async function createPopupPage(browser, options = {}) {
       storage: {
         local: {
           async set(updates) {
+            if (storageSetError) throw new Error(storageSetError);
             window.__storageUpdates.push(updates);
             Object.assign(window.__popupSettings, updates);
           }
@@ -765,8 +1036,15 @@ async function createPopupPage(browser, options = {}) {
         getMessage: getLocaleMessage
       },
       runtime: {
+        getURL(filePath) {
+          return `locale://${filePath}`;
+        },
         async sendMessage(request) {
           window.__runtimeMessages.push(request);
+          if (runtimeErrorAction && request.action === runtimeErrorAction) {
+            if (runtimeThrowEmpty) throw undefined;
+            throw new Error(runtimeErrorMessage || "Mock runtime failure");
+          }
           if (request.action === "get_settings") return window.__popupSettings;
           if (request.action === "get_page_stats") {
             if (window.__pageStatsQueue?.length > 1) return window.__pageStatsQueue.shift();
@@ -790,17 +1068,34 @@ async function createPopupPage(browser, options = {}) {
     autoTranslateResponse: options.autoTranslateResponse,
     tabUrl: options.tabUrl,
     deferredAction: options.deferredAction,
-    localeMessages: options.localeMessages
+    storageSetError: options.storageSetError,
+    runtimeErrorAction: options.runtimeErrorAction,
+    runtimeErrorMessage: options.runtimeErrorMessage,
+    runtimeThrowEmpty: options.runtimeThrowEmpty,
+    localeMessages: options.localeMessages,
+    allLocaleMessages
   });
   await page.evaluate(readText("shared.js"));
   await page.evaluate(readText("popup.js"));
   return page;
 }
 
-async function createOptionsPage(browser) {
+async function createOptionsPage(browser, options = {}) {
   const page = await browser.newPage();
   await page.setContent(readHtml("options.html"));
-  await page.evaluate(() => {
+  const allLocaleMessages = readAllLocaleMessages();
+  await page.evaluate(({ allLocaleMessages, runtimeErrorAction, runtimeErrorMessage, runtimeThrowEmpty, storageGetError, settings }) => {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (url, fetchOptions) => {
+      const match = String(url || "").match(/^locale:\/\/_locales\/([^/]+)\/messages\.json$/);
+      if (match) {
+        return new Response(JSON.stringify(allLocaleMessages[match[1]] || {}), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      return nativeFetch(url, fetchOptions);
+    };
     let resolveTestApi;
     window.__events = [];
     window.__setCalls = [];
@@ -816,7 +1111,8 @@ async function createOptionsPage(browser) {
       storage: {
         local: {
           async get(defaults) {
-            return defaults;
+            if (storageGetError) throw new Error(storageGetError);
+            return { ...defaults, ...(settings || {}) };
           },
           async set(updates) {
             window.__events.push(`set:${updates.apiKey || ""}`);
@@ -826,8 +1122,15 @@ async function createOptionsPage(browser) {
         }
       },
       runtime: {
+        getURL(filePath) {
+          return `locale://${filePath}`;
+        },
         async sendMessage(request) {
           window.__runtimeMessages.push(request);
+          if (runtimeErrorAction && request.action === runtimeErrorAction) {
+            if (runtimeThrowEmpty) throw undefined;
+            throw new Error(runtimeErrorMessage || "Mock runtime failure");
+          }
           if (request.action === "test_api") {
             window.__events.push("test_api");
             return new Promise((resolve) => {
@@ -838,14 +1141,29 @@ async function createOptionsPage(browser) {
         }
       }
     };
+  }, {
+    allLocaleMessages,
+    runtimeErrorAction: options.runtimeErrorAction,
+    runtimeErrorMessage: options.runtimeErrorMessage,
+    runtimeThrowEmpty: options.runtimeThrowEmpty,
+    storageGetError: options.storageGetError,
+    settings: options.settings
   });
   await page.evaluate(readText("shared.js"));
   await page.evaluate(readText("options.js"));
   return page;
 }
 
+function readAllLocaleMessages() {
+  return Object.fromEntries(["zh_CN", "zh_TW", "en", "ja"].map((locale) => [
+    locale,
+    JSON.parse(readText(path.join("_locales", locale, "messages.json")))
+  ]));
+}
+
 function readHtml(fileName) {
   return fs.readFileSync(path.join(extensionDir, fileName), "utf8")
+    .replace(/<link rel="stylesheet" href="([^"]+)">/g, (_, stylesheet) => `<style>\n${readText(stylesheet)}\n</style>`)
     .replace(/<script src="[^"]+"><\/script>/g, "");
 }
 

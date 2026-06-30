@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.4.10
+
+- Made the thinking-mode setting capability-aware: providers without supported thinking parameters now show a disabled unchecked control instead of a misleading checked state.
+- Bumped the content script version so already-injected 0.4.9 scripts can clearly request a page refresh.
+
+## 0.4.9
+
+- Skipped MediaWiki/Wikipedia sidebar and navigation templates so article text is prioritized over visible metadata lists.
+- Excluded MediaWiki article title headers from the sample-test blocked-area warning, avoiding false positives for real page titles.
+- Bumped the content script version so already-injected 0.4.8 scripts can clearly request a page refresh.
+
+## 0.4.8
+
+- Anchored translations for CNN-style list cards next to the primary headline link, reducing missed-looking or displaced output on lazy-loaded news layouts.
+- Bumped the content script version so already-injected 0.4.7 scripts can clearly request a page refresh.
+
+## 0.4.7
+
+- Fixed Chrome popup width collapse caused by viewport-based popup sizing.
+- Improved CNN-style card extraction so utility labels like "LIVE UPDATES" and "BREAKING NEWS" are removed without dropping the actual headline.
+- Skipped short low-information trend links with punctuation, such as "E. Jean Carroll", so navigation/ribbon items no longer steal translation budget.
+- Made candidate extraction respect non-Latin source languages, so Japanese -> Chinese and Chinese -> English settings can actually translate matching page text.
+- Replaced remaining machine-style English/Japanese locale fallbacks and cleaned up Traditional Chinese copy.
+- Added publication-audit checks for untranslated locale fallbacks and Simplified Chinese residue in Traditional Chinese strings.
+- Switched the Chrome manifest fallback locale to English to match the open-source README and SEO-facing default language.
+- Expanded the extension smoke test to cover settings API testing and real page translation insertion through the loaded MV3 extension.
+- Aligned background injection checks with the popup: only regular http/https pages are treated as translatable.
+- Kept long API test success messages compact so the sticky settings status bar does not stretch the layout.
+- Made popup actions recover from storage/runtime failures by refreshing the real saved state and showing a readable error.
+- Made options-page actions surface unexpected save/API/cache failures instead of leaving users stuck in a pending state.
+- Improved in-page retry blocks so Space also triggers retry and retry-time failures remain visible and keyboard accessible.
+- Added recoverable startup states for popup/settings load failures instead of leaving users on stale loading UI.
+- Normalized empty runtime failures to a readable "unknown error" message in popup and settings UI.
+- Skipped assistive-only text such as X/Twitter sr-only page titles so hidden metadata no longer consumes translation budget.
+- Bumped the content script version so already-injected 0.4.6 scripts can clearly request a page refresh.
+
+## 0.4.6
+
+- Added an independent UI language setting so interface language no longer has to follow the translation source or target language.
+- Made popup, options, context menus, and in-page notices load the configured UI language consistently.
+- Exposed packaged locale JSON files to content scripts so page-level notices can use the selected UI language.
+- Fixed duplicate context menu creation when UI language refresh overlaps extension install or settings changes.
+- Bumped the content script version so already-injected 0.4.5 scripts can clearly request a page refresh.
+
 ## 0.4.5
 
 - Fixed auto-started translations not syncing active tab state back to the background worker, which caused the first Stop action to be treated as Start.

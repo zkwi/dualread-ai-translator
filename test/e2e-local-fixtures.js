@@ -22,14 +22,21 @@ async function main() {
     await testMainContentPriorityBeatsEarlierSideCards(browser);
     await testContentScriptReinjectsWhenVersionChanges(browser);
     await testXPrimaryColumnIgnoresSidebarAndComposer(browser);
+    await testXScreenReaderTitleIsNotTranslated(browser);
     await testNewsCardSkipsCreditsAndHiddenMetadata(browser);
+    await testNewsCardKeepsHeadlineWhenUtilityLabelIsPresent(browser);
+    await testCnnHomepageLeadCardSurvivesUtilityFiltering(browser);
+    await testShortUtilityLinkWithPunctuationDoesNotStealBudget(browser);
+    await testMediaWikiSidebarDoesNotStealArticleBudget(browser);
     await testSkipsTargetLanguageText(browser);
+    await testNonLatinSourceLanguagesTranslate(browser);
     await testTranslationUiResetsBidiStyles(browser);
     await testDarkThemeReadable(browser);
     await testLocalDarkSectionReadableOnLightPage(browser);
     await testTranslationFirstModeDimsOriginalText(browser);
     await testPageBudgetLimitsRequests(browser);
     await testRetrySuccessDoesNotDoubleCountStats(browser);
+    await testRetryFailureStaysKeyboardAccessible(browser);
     await testTranslationBatchesUseLimitedConcurrency(browser);
     await testFarViewportCancelsStalePendingTranslations(browser);
     await testAutoTranslationStartsEnglishContentWithTargetLocale(browser);
@@ -160,7 +167,7 @@ async function testContentScriptReinjectsWhenVersionChanges(browser) {
   await page.evaluate(contentSource);
 
   assert.strictEqual(await page.evaluate(() => window.__listenerCount()), 1);
-  assert.strictEqual(await page.evaluate(() => document.documentElement.dataset.llmTranslatorVersion), "0.4.5");
+  assert.strictEqual(await page.evaluate(() => document.documentElement.dataset.llmTranslatorVersion), "0.4.10");
 
   const result = await runTranslation(page);
   assert.strictEqual(result.requestCount, 1);
@@ -215,6 +222,36 @@ async function testXPrimaryColumnIgnoresSidebarAndComposer(browser) {
   await page.close();
 }
 
+async function testXScreenReaderTitleIsNotTranslated(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main role="main">
+        <div data-testid="primaryColumn">
+          <article data-testid="tweet" role="article">
+            <div data-testid="tweetText">
+              Mythos 6 Leaks: Already Exists?
+
+              - A new Mythos model has finished training internally, and could launch as Mythos 5.1 or Mythos 6.
+            </div>
+          </article>
+        </div>
+        <div class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">
+          Pankaj Kumar on X: "Mythos 6 Leaks: Already Exists? - A new Mythos model has finished training internally, and could launch as Mythos 5.1 or Mythos 6." / X
+        </div>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.strictEqual(result.requestCount, 1);
+  assert.match(requested, /Mythos 6 Leaks/);
+  assert.doesNotMatch(requested, /Pankaj Kumar on X/);
+  assert.strictEqual(await page.locator(".sr-only .llm-bilingual-translation").count(), 0);
+  await page.close();
+}
+
 async function testNewsCardSkipsCreditsAndHiddenMetadata(browser) {
   const page = await createHarnessPage(browser, {
     html: `
@@ -245,6 +282,194 @@ async function testNewsCardSkipsCreditsAndHiddenMetadata(browser) {
   assert.doesNotMatch(requested, /^•$/m);
 
   await page.close();
+}
+
+async function testNewsCardKeepsHeadlineWhenUtilityLabelIsPresent(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main>
+        <ul>
+          <li class="card card--label-above-headline">
+            <div>•</div>
+            <div>LIVE UPDATES</div>
+            <a href="/live-story">
+              <div class="container__headline">
+                <span class="container__headline-text">Trump and Iran issue conflicting statements about new talks</span>
+              </div>
+            </a>
+          </li>
+        </ul>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+
+  assert.strictEqual(result.requestCount, 1);
+  assert.strictEqual(result.requestedTexts[0], "Trump and Iran issue conflicting statements about new talks");
+  assert.doesNotMatch(result.requestedTexts[0], /LIVE UPDATES/i);
+  await page.close();
+}
+
+async function testCnnHomepageLeadCardSurvivesUtilityFiltering(browser) {
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 4,
+    bodyStyle: "font:18px Arial;margin:0",
+    html: `
+      <main class="layout-homepage__main">
+        <section class="container_ribbon">
+          <a href="/topic">Live Updates: Iran latest</a>
+          <a href="/topic">Trending: World Cup</a>
+          <a href="/topic">E. Jean Carroll</a>
+          <a href="/topic">CNN Underscored: Amazon deals</a>
+        </section>
+        <section class="layout__main" style="display:grid;grid-template-columns:320px 1fr 320px;gap:32px;margin-top:32px">
+          <ul style="list-style:none;padding:0;margin:0">
+            <li class="lead-card card--label-above-headline">
+              <div>•</div>
+              <div>LIVE UPDATES</div>
+              <a id="cnn-lead-link" href="/2026/06/29/world/live-news/iran-war-strikes-trump">
+                <div class="container__headline">
+                  <span class="container__headline-text">Trump and Iran issue conflicting statements about new talks</span>
+                </div>
+              </a>
+            </li>
+            <li>
+              <a href="/story">Speaker Johnson sends bipartisan housing bill to White House — but Trump says it’s a ‘yawn’</a>
+            </li>
+          </ul>
+          <article>
+            <h2>Takeaways as Supreme Court hands Trump wins and losses</h2>
+            <p>The court expanded Trump’s power but snubbed other key efforts ahead of midterms.</p>
+          </article>
+          <aside>
+            <h2>Catch up on today’s headlines</h2>
+            <a href="/world-cup">Paraguay shocks Germany on penalty kicks to bounce the 4-time champions out of the tournament</a>
+          </aside>
+        </section>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.match(requested, /Trump and Iran issue conflicting statements about new talks/);
+  assert.doesNotMatch(requested, /LIVE UPDATES/);
+  assert.doesNotMatch(requested, /E\. Jean Carroll/);
+  assert.strictEqual(await hasTranslationNear(page, ".lead-card"), true);
+  assert.strictEqual(await hasTranslationNear(page, "#cnn-lead-link"), true);
+  await page.close();
+}
+
+async function testShortUtilityLinkWithPunctuationDoesNotStealBudget(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <section class="container_ribbon">
+        <ul>
+          <li class="card">
+            <a href="/topic"><span class="container__headline-text">E. Jean Carroll</span></a>
+          </li>
+        </ul>
+      </section>
+      <main>
+        <article>
+          <p>Primary article paragraph about diplomatic talks and regional security updates.</p>
+        </article>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.match(requested, /Primary article paragraph/);
+  assert.doesNotMatch(requested, /E\. Jean Carroll/);
+  await page.close();
+}
+
+async function testMediaWikiSidebarDoesNotStealArticleBudget(browser) {
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 4,
+    html: `
+      <main>
+        <article>
+          <div class="mw-parser-output">
+            <table class="sidebar sidebar-collapse nomobile nowraplinks hlist">
+              <tbody>
+                <tr>
+                  <td class="sidebar-content">
+                    <div class="sidebar-list mw-collapsible mw-collapsed">
+                      <div class="sidebar-list-content">
+                        <ul>
+                          <li><a href="/wiki/Taylor_Swift_deepfake_pornography_controversy">Taylor Swift deepfake pornography controversy</a></li>
+                          <li><a href="/wiki/Google_Gemini_image_generation_controversy">Google Gemini image generation controversy</a></li>
+                        </ul>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <h1>Artificial intelligence</h1>
+            <p>Artificial intelligence is the capability of computational systems to perform tasks typically associated with human intelligence, such as learning, reasoning, problem-solving, perception, and decision-making.</p>
+            <p>High-profile applications of AI include advanced web search engines, chatbots, virtual assistants, autonomous vehicles, and analysis in strategy games.</p>
+          </div>
+        </article>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.match(requested, /Artificial intelligence is the capability/);
+  assert.match(requested, /High-profile applications of AI/);
+  assert.doesNotMatch(requested, /Taylor Swift deepfake/);
+  assert.doesNotMatch(requested, /Google Gemini image generation/);
+  assert.strictEqual(await page.locator("table.sidebar .llm-bilingual-translation").count(), 0);
+  await page.close();
+}
+
+async function testNonLatinSourceLanguagesTranslate(browser) {
+  const japanesePage = await createHarnessPage(browser, {
+    sourceLanguage: "Japanese",
+    targetLanguage: "简体中文",
+    html: `
+      <main>
+        <p>これは新しいモデルの評価についての詳しい説明です。多くの読者が背景を理解できるように整理しています。</p>
+      </main>
+    `
+  });
+  const japaneseResult = await runTranslation(japanesePage);
+  assert.strictEqual(japaneseResult.requestCount, 1);
+  assert.match(japaneseResult.requestedTexts[0], /新しいモデル/);
+  await japanesePage.close();
+
+  const chinesePage = await createHarnessPage(browser, {
+    sourceLanguage: "简体中文",
+    targetLanguage: "English",
+    html: `
+      <main>
+        <p>这是关于网页翻译体验的一段中文说明，用户切换为中译英时应该能够正常触发翻译。</p>
+      </main>
+    `
+  });
+  const chineseResult = await runTranslation(chinesePage);
+  assert.strictEqual(chineseResult.requestCount, 1);
+  assert.match(chineseResult.requestedTexts[0], /中译英/);
+  await chinesePage.close();
+
+  const englishDefaultPage = await createHarnessPage(browser, {
+    html: `
+      <main>
+        <p>これは日本語の文章です。既定の英語ソース設定では翻訳候補に入れないでください。</p>
+      </main>
+    `
+  });
+  const englishDefaultResult = await runTranslation(englishDefaultPage);
+  assert.strictEqual(englishDefaultResult.requestCount, 0);
+  await englishDefaultPage.close();
 }
 
 async function testAutoTranslationWaitsForDynamicEnglishContentWithTargetLocale(browser) {
@@ -324,7 +549,7 @@ async function testDisabledAutoTranslationDoesNotWakeBackgroundForSettings(brows
   const storageGets = await page.evaluate(() => window.__storageGetCalls);
 
   assert.deepStrictEqual(messages, []);
-  assert.deepStrictEqual(storageGets, [["autoTranslate", "apiKey", "model"]]);
+  assert.deepStrictEqual(storageGets, [["autoTranslate", "apiKey", "model", "uiLanguage"]]);
   await page.close();
 }
 
@@ -449,6 +674,34 @@ async function testRetrySuccessDoesNotDoubleCountStats(browser) {
   assert.strictEqual(retriedStats.requestCount, 2);
   assert.strictEqual(retriedStats.stats.failed, 0);
   assert.strictEqual(retriedStats.stats.translated, 1);
+  await page.close();
+}
+
+async function testRetryFailureStaysKeyboardAccessible(browser) {
+  const page = await createHarnessPage(browser, {
+    failFirstTranslate: true,
+    html: `
+      <main>
+        <p>This paragraph keeps a usable retry block if settings cannot be read during retry.</p>
+      </main>
+    `
+  });
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForFunction(() => document.querySelectorAll(".llm-bilingual-translation.is-error").length === 1);
+
+  await page.evaluate(() => {
+    window.__failGetSettings = true;
+  });
+  await page.focus(".llm-bilingual-translation.is-error");
+  await page.keyboard.press("Space");
+  await page.waitForFunction(() => document.querySelector(".llm-bilingual-translation.is-error")?.textContent.includes("Mock settings failure"));
+
+  assert.strictEqual(await page.locator(".llm-bilingual-translation.is-error").getAttribute("role"), "button");
+  assert.strictEqual(await page.locator(".llm-bilingual-translation.is-error").getAttribute("tabindex"), "0");
+  const stats = await page.evaluate(async () => (await window.__sendContentMessage({ action: "get_page_stats" })).stats);
+  assert.strictEqual(stats.failed, 1);
+  assert.strictEqual(stats.translated, 0);
   await page.close();
 }
 
@@ -919,6 +1172,7 @@ async function createHarnessPage(browser, options = {}) {
         async sendMessage(request) {
           window.__runtimeMessages.push(request);
           if (request.action === "get_settings") {
+            if (window.__failGetSettings) throw new Error("Mock settings failure");
             return settings;
           }
 
@@ -983,7 +1237,7 @@ async function createHarnessPage(browser, options = {}) {
       apiUrl: "http://127.0.0.1/mock/v1/chat/completions",
       apiKey: "mock-key",
       model: "mock-model",
-      sourceLanguage: "English",
+      sourceLanguage: options.sourceLanguage || "English",
       targetLanguage: options.targetLanguage || "简体中文",
       batchSize: options.batchSize ?? 4,
       maxElementsPerScan: options.maxElementsPerScan ?? 12,

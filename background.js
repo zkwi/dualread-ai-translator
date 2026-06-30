@@ -15,6 +15,7 @@ const activeTabs = new Map();
 const tabNotices = new Map();
 let lastCachePruneAt = 0;
 let cachePrunePromise = null;
+let contextMenuSetupPromise = Promise.resolve();
 
 chrome.runtime.onInstalled.addListener(async () => {
   const existing = await chrome.storage.local.get(Object.keys(DEFAULT_SETTINGS));
@@ -30,7 +31,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     await chrome.storage.local.set(missing);
   }
 
-  await setupContextMenus();
+  await queueSetupContextMenus();
   await autoTranslateActiveTabs();
 });
 
@@ -156,16 +157,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local") return;
-  if (!shouldRecheckAutoTranslate(changes)) return;
+  let contextMenuRefresh = Promise.resolve();
+  if (Object.prototype.hasOwnProperty.call(changes, "uiLanguage")) {
+    contextMenuRefresh = queueSetupContextMenus().catch((error) => {
+      console.warn("Context menu language update failed:", error);
+    });
+  }
+  if (!shouldRecheckAutoTranslate(changes)) return contextMenuRefresh;
 
-  return getSettings()
+  return Promise.all([
+    contextMenuRefresh,
+    getSettings()
     .then((settings) => {
       if (!settings.autoTranslate || !settings.apiKey || !settings.model) return [];
       return autoTranslateActiveTabs();
     })
     .catch((error) => {
       console.warn("Auto translation after settings change failed:", error);
-    });
+    })
+  ]);
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
@@ -202,12 +212,13 @@ async function getSettings() {
   if (Object.keys(updates).length > 0) {
     await chrome.storage.local.set(updates);
   }
+  await LLMTranslatorShared.setUiLanguage(settings.uiLanguage);
   return settings;
 }
 
 function isInjectableTab(tab) {
   if (!tab?.id || !tab.url) return false;
-  return tab.url.startsWith("http://") || tab.url.startsWith("https://") || tab.url.startsWith("file://");
+  return tab.url.startsWith("http://") || tab.url.startsWith("https://");
 }
 
 function shouldRecheckAutoTranslate(changes) {
@@ -238,18 +249,68 @@ async function ensureContentScript(tabId) {
   });
 }
 
+function queueSetupContextMenus() {
+  contextMenuSetupPromise = contextMenuSetupPromise
+    .catch(() => {})
+    .then(setupContextMenus);
+  return contextMenuSetupPromise;
+}
+
 async function setupContextMenus() {
-  await chrome.contextMenus.removeAll();
-  chrome.contextMenus.create({
+  await getSettings();
+  await removeAllContextMenus();
+  await createContextMenu({
     id: CONTEXT_MENU_TRANSLATE_PAGE,
     title: t("contextTranslatePage", [], "翻译当前页面"),
     contexts: ["page"]
   });
-  chrome.contextMenus.create({
+  await createContextMenu({
     id: CONTEXT_MENU_TRANSLATE_SELECTION,
     title: t("contextTranslateSelection", [], "翻译选中文本"),
     contexts: ["selection"]
   });
+}
+
+function removeAllContextMenus() {
+  return new Promise((resolve, reject) => {
+    const done = onceCallback(resolve, reject);
+    try {
+      const result = chrome.contextMenus.removeAll(done);
+      if (result && typeof result.then === "function") {
+        result.then(() => done(), reject);
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function createContextMenu(item) {
+  return new Promise((resolve, reject) => {
+    const done = onceCallback(resolve, reject);
+    try {
+      const result = chrome.contextMenus.create(item, done);
+      if (result && typeof result.then === "function") {
+        result.then(() => done(), reject);
+      }
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function onceCallback(resolve, reject) {
+  let settled = false;
+  return () => {
+    if (settled) return;
+    settled = true;
+    const error = chrome.runtime.lastError;
+    if (error?.message) {
+      reject(new Error(error.message));
+      return;
+    }
+    resolve();
+  };
 }
 
 async function handleContextMenuClick(info, tab) {

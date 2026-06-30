@@ -16,6 +16,10 @@ const allSamples = [
     auto: true
   },
   {
+    key: "cnn-home",
+    url: "https://www.cnn.com/"
+  },
+  {
     key: "cnn-live",
     url: "https://www.cnn.com/2026/06/28/world/live-news/iran-war-strikes-trump"
   },
@@ -44,7 +48,7 @@ const allSamples = [
 
 const blockedTranslationSelector = [
   "nav .llm-bilingual-translation",
-  "header .llm-bilingual-translation",
+  "header:not(.mw-body-header):not(.vector-page-titlebar) .llm-bilingual-translation",
   "footer .llm-bilingual-translation",
   "aside .llm-bilingual-translation",
   "[role='dialog'] .llm-bilingual-translation",

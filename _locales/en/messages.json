@@ -21,13 +21,13 @@
     "message": "Translating..."
   },
   "contentNoOperationResult": {
-    "message": "No Operation Result"
+    "message": "The translation action returned no result."
   },
   "contentReloadRequired": {
-    "message": "Reload Required"
+    "message": "DualRead AI was updated. Refresh this page before continuing."
   },
   "contentStoppedRetryUnavailable": {
-    "message": "Stopped Retry Unavailable"
+    "message": "Page translation has stopped. Start translation again from the extension popup."
   },
   "contextTranslatePage": {
     "message": "Translate this page"
@@ -78,52 +78,55 @@
     "message": "Translation-first"
   },
   "errorApiKeyMissing": {
-    "message": "API Key Missing"
+    "message": "DualRead AI cannot read an API Key. Open settings and confirm it is saved. If it is already saved, you may have loaded a different extension copy."
   },
   "errorApiMissingContent": {
-    "message": "API Missing Content"
+    "message": "The API response did not include choices[0].message.content."
   },
   "errorApiRequestFailed": {
-    "message": "API Request Failed"
+    "message": "API request failed: $1 $2"
   },
   "errorApiRequestGeneric": {
-    "message": "API Request Generic"
+    "message": "API request failed."
   },
   "errorApiTimeout": {
-    "message": "API Timeout"
+    "message": "API request timed out after $1 seconds."
   },
   "errorMissingParagraphTranslation": {
-    "message": "Missing Paragraph Translation"
+    "message": "The model did not return a translation for this paragraph."
   },
   "errorModelMissing": {
-    "message": "Model Missing"
+    "message": "Enter a model name in settings first."
   },
   "errorModelReturnedNonArray": {
-    "message": "Model Returned Non Array"
+    "message": "The model response is not a JSON array."
   },
   "errorNoSelectionText": {
-    "message": "No Selection"
+    "message": "No selected text to translate."
   },
   "errorNoTranslationResult": {
-    "message": "No Translation Result"
+    "message": "No translation was returned."
   },
   "errorParseJson": {
-    "message": "Parse Json"
+    "message": "Could not parse the model JSON response: $1"
   },
   "errorTestNoTranslation": {
-    "message": "Test No Translation"
+    "message": "The test request did not return a translation."
   },
   "errorTranslationFailed": {
-    "message": "Translation Failed"
+    "message": "Translation failed."
   },
   "errorTranslationStartFailed": {
-    "message": "Translation Start Failed"
+    "message": "Could not start translation."
+  },
+  "errorUnknown": {
+    "message": "Unknown error"
   },
   "errorUnsupportedTab": {
-    "message": "Unsupported Tab"
+    "message": "This page does not allow extension script injection."
   },
   "errorUnsupportedTabTest": {
-    "message": "Unsupported Tab Test"
+    "message": "This page does not allow extension script injection. Test on a regular webpage."
   },
   "extensionDescription": {
     "message": "AI bilingual webpage translation with original text preserved and translations shown nearby."
@@ -194,56 +197,59 @@
   "listSeparator": {
     "message": ", "
   },
+  "messageActionFailed": {
+    "message": "Action failed: $1"
+  },
   "messageApiTestFailed": {
-    "message": "API Test Failed"
+    "message": "API test failed."
   },
   "messageApiTestSuccess": {
-    "message": "API Test Success"
+    "message": "API works. Test translation: $1"
   },
   "messageApiUrlModelRequired": {
-    "message": "API URL Model Required"
+    "message": "API URL and model name are required."
   },
   "messageAutoSaveFailed": {
-    "message": "Auto Save Failed"
+    "message": "Auto save failed: $1"
   },
   "messageAutoSaveMissing": {
-    "message": "Auto Save Missing"
+    "message": "API URL and model name are required. Changes were not auto-saved."
   },
   "messageAutoSaved": {
-    "message": "Auto Saved"
+    "message": "Saved automatically."
   },
   "messageAutoSaving": {
-    "message": "Auto Saving"
+    "message": "Saving automatically..."
   },
   "messageClearCacheDone": {
-    "message": "Clear Cache Done"
+    "message": "Cleared $1 cached items."
   },
   "messageClearCacheFailed": {
-    "message": "Clear Cache Failed"
+    "message": "Failed to clear cache."
   },
   "messageCompleteConnectionFirst": {
-    "message": "Complete Connection First"
+    "message": "Enter API URL, API Key, and model name first."
   },
   "messagePromptAlreadyDefault": {
-    "message": "Prompt Already Default"
+    "message": "The prompt is already the default."
   },
   "messagePromptResetSaving": {
-    "message": "Prompt Reset Saving"
+    "message": "Default prompt restored. Saving automatically..."
   },
   "messageResetAllDone": {
-    "message": "Reset All Done"
+    "message": "All settings were restored to defaults."
   },
   "messageSettingsSaved": {
-    "message": "Settings Saved"
+    "message": "Settings saved."
   },
   "messageTestingApi": {
-    "message": "Testing API"
+    "message": "Testing API..."
   },
   "noticeSelectionAlreadyTarget": {
-    "message": "Selection Already Target"
+    "message": "The selected text is already in the target language."
   },
   "noticeTranslationAlreadyActive": {
-    "message": "Translation Already Active"
+    "message": "Translation is already active. Scroll the page or use Translate screen in the popup."
   },
   "optionsAdvancedConnection": {
     "message": "Advanced connection settings"
@@ -252,31 +258,31 @@
     "message": "Advanced settings"
   },
   "optionsAdvancedSettingsDesc": {
-    "message": "Advanced Settings"
+    "message": "Prompt, batching, concurrency, cache, and detailed cost limits."
   },
   "optionsApiKeyHelp": {
-    "message": "API Key"
+    "message": "Stored only in local Chrome extension storage. It is not sent to this project."
   },
   "optionsApiTimeout": {
     "message": "API maximum wait time (seconds)"
   },
   "optionsApiTimeoutHelp": {
-    "message": "API Timeout"
+    "message": "Increase this for slow networks or slower reasoning models. Default is 120 seconds."
   },
   "optionsApiUrl": {
     "message": "Chat Completions API URL"
   },
   "optionsApiUrlHelp": {
-    "message": "API URL"
+    "message": "Use any OpenAI-compatible proxy or local service endpoint."
   },
   "optionsAutoSave": {
     "message": "Auto save"
   },
   "optionsAutoSaveMessage": {
-    "message": "Auto Save Message"
+    "message": "Changes are saved automatically."
   },
   "optionsAutoTranslateHelp": {
-    "message": "Auto Translate"
+    "message": "The page language is checked first. Pages already in the target language are skipped."
   },
   "optionsAutoTranslateLabel": {
     "message": "Auto start translation on foreign-language pages"
@@ -297,7 +303,7 @@
     "message": "Cost control"
   },
   "optionsCostControlDesc": {
-    "message": "Cost Control"
+    "message": "Translate nearby visible content first to reduce token usage."
   },
   "optionsDisableThinking": {
     "message": "Automatically disable controllable thinking mode"
@@ -306,16 +312,16 @@
     "message": "Language"
   },
   "optionsLanguageDesc": {
-    "message": "Language"
+    "message": "Default is English to Simplified Chinese. Target-language pages are skipped automatically."
   },
   "optionsLanguagePresetsAria": {
-    "message": "Language Presets"
+    "message": "Common language presets"
   },
   "optionsLanguageStatusInitial": {
-    "message": "Language Status"
+    "message": "Choose source and target languages."
   },
   "optionsMaintenanceActions": {
-    "message": "Maintenance Actions"
+    "message": "Maintenance actions"
   },
   "optionsMaxCacheEntries": {
     "message": "Max cache entries"
@@ -330,7 +336,7 @@
     "message": "Concurrent request batches"
   },
   "optionsMaxConcurrentHelp": {
-    "message": "Max Concurrent"
+    "message": "Recommended: 2. Use 3 only when your API and network are stable."
   },
   "optionsMaxElementsPerScan": {
     "message": "Max paragraphs per scan"
@@ -342,19 +348,19 @@
     "message": "Max characters per block"
   },
   "optionsModelHelp": {
-    "message": "Model"
+    "message": "A recommended model is filled in after you choose a provider. You can still edit it."
   },
   "optionsModelName": {
     "message": "Model name"
   },
   "optionsPrivacyNote": {
-    "message": "Privacy Note"
+    "message": "API Key stays in local extension storage. Page text is sent only to the API endpoint you configure."
   },
   "optionsPrompt": {
     "message": "Prompt"
   },
   "optionsPromptHelp": {
-    "message": "Prompt"
+    "message": "Supports {{sourceLanguage}} and {{targetLanguage}} placeholders. The JSON array of text blocks is appended automatically."
   },
   "optionsProvider": {
     "message": "Provider"
@@ -363,13 +369,13 @@
     "message": "Quick start"
   },
   "optionsQuickStartDesc": {
-    "message": "Quick Start"
+    "message": "Most users only need these three steps."
   },
   "optionsReadingExperience": {
     "message": "Reading experience"
   },
   "optionsReadingExperienceDesc": {
-    "message": "Reading Experience"
+    "message": "Defaults are tuned to be quiet, readable, and cost-aware."
   },
   "optionsResetAll": {
     "message": "Restore all defaults"
@@ -381,16 +387,16 @@
     "message": "Save now"
   },
   "optionsSetupLoadingText": {
-    "message": "Setup Loading"
+    "message": "Saved settings will appear here."
   },
   "optionsSetupLoadingTitle": {
-    "message": "Setup Loading"
+    "message": "Loading settings"
   },
   "optionsSourceLanguage": {
     "message": "Source language"
   },
   "optionsSourceLanguageHelp": {
-    "message": "Source Language"
+    "message": "Use Auto detect when you are not sure what language the page uses."
   },
   "optionsStepApiKey": {
     "message": "Enter API Key"
@@ -408,7 +414,7 @@
     "message": "Target language"
   },
   "optionsTargetLanguageHelp": {
-    "message": "Target Language"
+    "message": "Translations are inserted below the original text."
   },
   "optionsTestApi": {
     "message": "Test API"
@@ -425,11 +431,17 @@
   "optionsTranslationScope": {
     "message": "Translation scope"
   },
+  "optionsUiLanguage": {
+    "message": "Interface language"
+  },
+  "optionsUiLanguageHelp": {
+    "message": "Only changes extension UI and notices. Translation source and target languages stay separate."
+  },
   "optionsViewportOnly": {
-    "message": "Viewport Only"
+    "message": "Only translate the current screen and nearby content"
   },
   "optionsViewportOnlyHelp": {
-    "message": "Viewport Only"
+    "message": "Recommended. If disabled, per-page request and character budgets still apply."
   },
   "popupActionHintInitial": {
     "message": "Start translating the current page or only the current screen."
@@ -447,13 +459,13 @@
     "message": "API not configured"
   },
   "popupAutoDisabledStatus": {
-    "message": "Auto Disabled Status"
+    "message": "Auto translate is off. Existing translations stay on the page."
   },
   "popupAutoEnabledUnsupportedStatus": {
-    "message": "Auto Enabled Unsupported Status"
+    "message": "Auto translate is on. It will run on regular foreign-language webpages."
   },
   "popupAutoStartFailed": {
-    "message": "Auto Start Failed"
+    "message": "Could not start auto translation."
   },
   "popupAutoTranslateLabel": {
     "message": "Auto translate foreign pages"
@@ -483,10 +495,10 @@
     "message": "Clear translations"
   },
   "popupClearing": {
-    "message": "Clearing"
+    "message": "Clearing translations..."
   },
   "popupClearingShort": {
-    "message": "Clearing Short"
+    "message": "Clearing..."
   },
   "popupConfigLoading": {
     "message": "Loading settings..."
@@ -498,25 +510,25 @@
     "message": "Not ready"
   },
   "popupConfirmClearTranslations": {
-    "message": "Confirm Clear Translations"
+    "message": "Clear translations inserted on this page? Local cache will not be deleted."
   },
   "popupDisablingAuto": {
-    "message": "Disabling Auto"
+    "message": "Turning off auto translate..."
   },
   "popupDisplayModeBilingualStatus": {
-    "message": "Display Mode Bilingual Status"
+    "message": "Switched to bilingual display."
   },
   "popupDisplayModeSavedButNotApplied": {
-    "message": "Display Mode Saved But Not Applied"
+    "message": "Display mode was saved, but cannot be applied to this page right now."
   },
   "popupDisplayModeSavedForNormalPages": {
-    "message": "Display Mode Saved For Normal Pages"
+    "message": "Display mode saved. It will apply on regular webpages."
   },
   "popupDisplayModeTranslationFirstStatus": {
-    "message": "Display Mode Translation First Status"
+    "message": "Switched to translation-first display."
   },
   "popupEnablingAuto": {
-    "message": "Enabling Auto"
+    "message": "Turning on auto translate..."
   },
   "popupGoSettings": {
     "message": "Settings"
@@ -525,10 +537,10 @@
     "message": "Hide translations"
   },
   "popupHiding": {
-    "message": "Hiding"
+    "message": "Hiding..."
   },
   "popupHidingTranslations": {
-    "message": "Hiding Translations"
+    "message": "Hiding translations..."
   },
   "popupIdleHint": {
     "message": "Start page translation, or translate only the current screen."
@@ -539,11 +551,14 @@
   "popupLanguage": {
     "message": "Language"
   },
+  "popupLoadFailedHint": {
+    "message": "Open settings to check your configuration, or reload the extension and try again."
+  },
   "popupOpenSettings": {
     "message": "Open settings"
   },
   "popupScanning": {
-    "message": "Scanning"
+    "message": "Scanning..."
   },
   "popupScope": {
     "message": "Scope"
@@ -552,10 +567,10 @@
     "message": "Show translations"
   },
   "popupShowing": {
-    "message": "Showing"
+    "message": "Showing..."
   },
   "popupShowingTranslations": {
-    "message": "Showing Translations"
+    "message": "Showing translations..."
   },
   "popupSkippedTargetLanguageHint": {
     "message": "Click Start translation if you still want to force translation."
@@ -567,43 +582,43 @@
     "message": "Start translation"
   },
   "popupStarting": {
-    "message": "Starting"
+    "message": "Starting..."
   },
   "popupStatusActionFailed": {
-    "message": "Status Action Failed"
+    "message": "Action failed."
   },
   "popupStatusClearFailed": {
-    "message": "Status Clear Failed"
+    "message": "Clear failed."
   },
   "popupStatusLoading": {
     "message": "Reading current page status..."
   },
   "popupStatusNoTab": {
-    "message": "Status No Tab"
+    "message": "No active tab found."
   },
   "popupStatusProcessing": {
-    "message": "Status Processing"
+    "message": "Processing..."
   },
   "popupStatusScanFailed": {
-    "message": "Status Scan Failed"
+    "message": "Scan failed."
   },
   "popupStatusScanningArea": {
-    "message": "Status Scanning Area"
+    "message": "Scanning the current screen..."
   },
   "popupStatusVisibilityFailed": {
-    "message": "Status Visibility Failed"
+    "message": "Could not change translation visibility."
   },
   "popupStopTranslation": {
     "message": "Stop translation"
   },
   "popupStopping": {
-    "message": "Stopping"
+    "message": "Stopping..."
   },
   "popupSummaryAria": {
     "message": "Current translation settings"
   },
   "popupSwitchingDisplayMode": {
-    "message": "Switching Display Mode"
+    "message": "Switching display mode..."
   },
   "popupTranslateCurrentScreen": {
     "message": "Translate screen"
@@ -615,16 +630,16 @@
     "message": "Not ready: enter an API Key and model first."
   },
   "popupUnsupportedConfiguredHint": {
-    "message": "Unsupported Configured Hint"
+    "message": "Auto translate and display mode are saved as global settings and will apply on supported webpages."
   },
   "popupUnsupportedHint": {
-    "message": "Unsupported Hint"
+    "message": "Chrome settings, extension pages, and new tab pages cannot be translated."
   },
   "popupUnsupportedPageStatus": {
-    "message": "Unsupported Page Status"
+    "message": "This page cannot be translated. Open a regular http/https webpage."
   },
   "popupUnsupportedUnconfiguredHint": {
-    "message": "Unsupported Unconfigured Hint"
+    "message": "Finish API setup first, then open a regular foreign-language webpage."
   },
   "presetAutoToZhCn": {
     "message": "Auto -> Simplified Chinese"
@@ -669,7 +684,7 @@
     "message": "Maintenance"
   },
   "saveStateSaveFailed": {
-    "message": "Save Failed"
+    "message": "Save failed"
   },
   "saveStateSaved": {
     "message": "Saved"
@@ -678,7 +693,7 @@
     "message": "Saving"
   },
   "saveStateTestFailed": {
-    "message": "Test Failed"
+    "message": "Test failed"
   },
   "saveStateTesting": {
     "message": "Testing"
@@ -690,25 +705,25 @@
     "message": "Within page budget"
   },
   "selectionCardAria": {
-    "message": "Card"
+    "message": "Selected text translation"
   },
   "selectionCardTitle": {
     "message": "Selected text translation"
   },
   "selectionCloseAria": {
-    "message": "Close"
+    "message": "Close selected text translation"
   },
   "selectionCopied": {
     "message": "Copied"
   },
   "selectionCopiedStatus": {
-    "message": "Copied Status"
+    "message": "Translation copied to clipboard."
   },
   "selectionCopyFailed": {
-    "message": "Copy Failed"
+    "message": "Copy failed"
   },
   "selectionCopyFailedStatus": {
-    "message": "Copy Failed Status"
+    "message": "Copy failed. Select and copy the translation manually."
   },
   "selectionCopyTranslation": {
     "message": "Copy translation"
@@ -717,10 +732,10 @@
     "message": "Error"
   },
   "selectionErrorText": {
-    "message": "Error"
+    "message": "Translation failed: $1"
   },
   "selectionNoCopyText": {
-    "message": "No Copy"
+    "message": "No translation to copy"
   },
   "selectionNoticeLabel": {
     "message": "Notice"
@@ -732,34 +747,34 @@
     "message": "Translation"
   },
   "setupErrorText": {
-    "message": "Error"
+    "message": "$1 Update the connection settings and test again."
   },
   "setupErrorTitle": {
-    "message": "Error"
+    "message": "API test failed"
   },
   "setupMissingText": {
-    "message": "Missing"
+    "message": "Complete the fields, then click Test API."
   },
   "setupMissingTitle": {
-    "message": "Missing"
+    "message": "Missing $1"
   },
   "setupReadyText": {
-    "message": "Ready"
+    "message": "Press Enter or click Test API to verify this provider."
   },
   "setupReadyTitle": {
-    "message": "Ready"
+    "message": "Connection looks ready"
   },
   "setupSuccessText": {
-    "message": "Success"
+    "message": "Return to a webpage and start translating."
   },
   "setupSuccessTitle": {
-    "message": "Success"
+    "message": "API test passed"
   },
   "setupTestingText": {
-    "message": "Testing"
+    "message": "Sending a test request to the selected provider."
   },
   "setupTestingTitle": {
-    "message": "Testing"
+    "message": "Testing API"
   },
   "show": {
     "message": "Show"
@@ -774,31 +789,31 @@
     "message": "Cache"
   },
   "statCacheTitle": {
-    "message": "Cache"
+    "message": "Cache hits"
   },
   "statFailed": {
     "message": "Failed"
   },
   "statFailedTitle": {
-    "message": "Failed"
+    "message": "Failed translations"
   },
   "statRequests": {
     "message": "Requests"
   },
   "statRequestsTitle": {
-    "message": "Requests"
+    "message": "API requested text blocks"
   },
   "statSkipped": {
     "message": "Skipped"
   },
   "statSkippedTitle": {
-    "message": "Skipped"
+    "message": "Skipped by page budget"
   },
   "statTranslated": {
     "message": "Done"
   },
   "statTranslatedTitle": {
-    "message": "Translated"
+    "message": "Translated text blocks"
   },
   "statusDisabled": {
     "message": "Off"
@@ -825,39 +840,54 @@
     "message": "Adds chat_template_kwargs.enable_thinking = false for local Qwen-compatible services."
   },
   "tooltipAutoTranslate": {
-    "message": "Auto Translate"
+    "message": "Save as a global switch. Foreign-language webpages will translate automatically."
   },
   "tooltipAutoTranslateGlobalOnly": {
-    "message": "Auto Translate Global Only"
+    "message": "Saved as a global setting. It will apply on regular foreign-language webpages."
   },
   "tooltipClearTranslations": {
-    "message": "Clear Translations"
+    "message": "Remove translations inserted on this page. Local cache will not be deleted."
   },
   "tooltipCurrentPageUnavailable": {
-    "message": "Current Page Unavailable"
+    "message": "The current page is unavailable."
   },
   "tooltipHideTranslations": {
-    "message": "Hide Translations"
+    "message": "Temporarily hide translations on this page without clearing cache."
   },
   "tooltipNeedConfig": {
-    "message": "Need Config"
+    "message": "Enter an API Key and model name in settings first."
   },
   "tooltipNoTranslations": {
-    "message": "No Translations"
+    "message": "This page has no translations yet."
   },
   "tooltipScanCurrentScreen": {
-    "message": "Scan Current Screen"
+    "message": "Only process text near the current viewport to control token usage."
   },
   "tooltipShowTranslations": {
-    "message": "Show Translations"
+    "message": "Show hidden translations again."
   },
   "tooltipStartTranslation": {
-    "message": "Start Translation"
+    "message": "Translate this webpage. Scrolling will keep translating nearby content."
   },
   "tooltipStopTranslation": {
-    "message": "Stop Translation"
+    "message": "Stop translating new content. Existing translations stay visible."
   },
   "tooltipUnsupportedPage": {
-    "message": "Unsupported Page"
+    "message": "This is not a regular webpage, so translation scripts cannot be injected."
+  },
+  "uiLanguageAuto": {
+    "message": "Follow browser"
+  },
+  "uiLanguageEn": {
+    "message": "English"
+  },
+  "uiLanguageJa": {
+    "message": "Japanese"
+  },
+  "uiLanguageZhCn": {
+    "message": "Simplified Chinese"
+  },
+  "uiLanguageZhTw": {
+    "message": "Traditional Chinese"
   }
 }

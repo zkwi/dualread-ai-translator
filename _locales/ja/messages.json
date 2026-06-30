@@ -21,13 +21,13 @@
     "message": "翻訳中..."
   },
   "contentNoOperationResult": {
-    "message": "No Operation Result"
+    "message": "翻訳操作から結果が返りませんでした。"
   },
   "contentReloadRequired": {
-    "message": "Reload Required"
+    "message": "DualRead AI が更新されました。このページを再読み込みしてから続行してください。"
   },
   "contentStoppedRetryUnavailable": {
-    "message": "Stopped Retry Unavailable"
+    "message": "ページ翻訳は停止しています。拡張機能のポップアップからもう一度開始してください。"
   },
   "contextTranslatePage": {
     "message": "このページを翻訳"
@@ -78,52 +78,55 @@
     "message": "訳文優先"
   },
   "errorApiKeyMissing": {
-    "message": "API Key Missing"
+    "message": "DualRead AI が API Key を読み取れません。設定を開いて保存済みか確認してください。既に保存済みの場合は、別の拡張機能コピーを読み込んでいる可能性があります。"
   },
   "errorApiMissingContent": {
-    "message": "API Missing Content"
+    "message": "API レスポンスに choices[0].message.content がありません。"
   },
   "errorApiRequestFailed": {
-    "message": "API Request Failed"
+    "message": "API リクエスト失敗：$1 $2"
   },
   "errorApiRequestGeneric": {
-    "message": "API Request Generic"
+    "message": "API リクエストに失敗しました。"
   },
   "errorApiTimeout": {
-    "message": "API Timeout"
+    "message": "API リクエストが $1 秒でタイムアウトしました。"
   },
   "errorMissingParagraphTranslation": {
-    "message": "Missing Paragraph Translation"
+    "message": "この段落の訳文がモデルから返りませんでした。"
   },
   "errorModelMissing": {
-    "message": "Model Missing"
+    "message": "先に設定でモデル名を入力してください。"
   },
   "errorModelReturnedNonArray": {
-    "message": "Model Returned Non Array"
+    "message": "モデルのレスポンスが JSON 配列ではありません。"
   },
   "errorNoSelectionText": {
-    "message": "No Selection"
+    "message": "翻訳できる選択テキストがありません。"
   },
   "errorNoTranslationResult": {
-    "message": "No Translation Result"
+    "message": "訳文を取得できませんでした。"
   },
   "errorParseJson": {
-    "message": "Parse Json"
+    "message": "モデルの JSON レスポンスを解析できません：$1"
   },
   "errorTestNoTranslation": {
-    "message": "Test No Translation"
+    "message": "テストリクエストから訳文が返りませんでした。"
   },
   "errorTranslationFailed": {
-    "message": "Translation Failed"
+    "message": "翻訳に失敗しました。"
   },
   "errorTranslationStartFailed": {
-    "message": "Translation Start Failed"
+    "message": "翻訳を開始できませんでした。"
+  },
+  "errorUnknown": {
+    "message": "不明なエラー"
   },
   "errorUnsupportedTab": {
-    "message": "Unsupported Tab"
+    "message": "このページには拡張機能スクリプトを挿入できません。"
   },
   "errorUnsupportedTabTest": {
-    "message": "Unsupported Tab Test"
+    "message": "このページには拡張機能スクリプトを挿入できません。通常の Web ページでテストしてください。"
   },
   "extensionDescription": {
     "message": "原文を残したまま近くに訳文を表示する AI 対照翻訳拡張機能です。"
@@ -194,167 +197,170 @@
   "listSeparator": {
     "message": "、"
   },
+  "messageActionFailed": {
+    "message": "操作に失敗しました：$1"
+  },
   "messageApiTestFailed": {
-    "message": "API Test Failed"
+    "message": "API テストに失敗しました。"
   },
   "messageApiTestSuccess": {
-    "message": "API Test Success"
+    "message": "API は利用できます。テスト訳文：$1"
   },
   "messageApiUrlModelRequired": {
-    "message": "API URL Model Required"
+    "message": "API URL とモデル名は必須です。"
   },
   "messageAutoSaveFailed": {
-    "message": "Auto Save Failed"
+    "message": "自動保存に失敗しました：$1"
   },
   "messageAutoSaveMissing": {
-    "message": "Auto Save Missing"
+    "message": "API URL とモデル名は必須です。変更は自動保存されませんでした。"
   },
   "messageAutoSaved": {
-    "message": "Auto Saved"
+    "message": "自動保存しました。"
   },
   "messageAutoSaving": {
-    "message": "Auto Saving"
+    "message": "自動保存中..."
   },
   "messageClearCacheDone": {
-    "message": "Clear Cache Done"
+    "message": "$1 件のキャッシュを削除しました。"
   },
   "messageClearCacheFailed": {
-    "message": "Clear Cache Failed"
+    "message": "キャッシュの削除に失敗しました。"
   },
   "messageCompleteConnectionFirst": {
-    "message": "Complete Connection First"
+    "message": "先に API URL、API Key、モデル名を入力してください。"
   },
   "messagePromptAlreadyDefault": {
-    "message": "Prompt Already Default"
+    "message": "プロンプトは既に既定値です。"
   },
   "messagePromptResetSaving": {
-    "message": "Prompt Reset Saving"
+    "message": "既定プロンプトに戻しました。自動保存中..."
   },
   "messageResetAllDone": {
-    "message": "Reset All Done"
+    "message": "すべての設定を初期値に戻しました。"
   },
   "messageSettingsSaved": {
-    "message": "Settings Saved"
+    "message": "設定を保存しました。"
   },
   "messageTestingApi": {
-    "message": "Testing API"
+    "message": "API をテスト中..."
   },
   "noticeSelectionAlreadyTarget": {
-    "message": "Selection Already Target"
+    "message": "選択テキストは既に目標言語です。"
   },
   "noticeTranslationAlreadyActive": {
-    "message": "Translation Already Active"
+    "message": "翻訳は既に有効です。ページをスクロールするか、ポップアップの現在の画面翻訳を使ってください。"
   },
   "optionsAdvancedConnection": {
-    "message": "Advanced connection settings"
+    "message": "詳細な接続設定"
   },
   "optionsAdvancedSettings": {
     "message": "詳細設定"
   },
   "optionsAdvancedSettingsDesc": {
-    "message": "Advanced Settings"
+    "message": "プロンプト、バッチ、並行数、キャッシュ、詳細なコスト上限。"
   },
   "optionsApiKeyHelp": {
-    "message": "API Key"
+    "message": "ローカルの Chrome 拡張機能ストレージにのみ保存されます。"
   },
   "optionsApiTimeout": {
-    "message": "API maximum wait time (seconds)"
+    "message": "API 最大待ち時間（秒）"
   },
   "optionsApiTimeoutHelp": {
-    "message": "API Timeout"
+    "message": "低速なネットワークや応答の遅いモデルでは長めにします。既定は 120 秒です。"
   },
   "optionsApiUrl": {
     "message": "Chat Completions API URL"
   },
   "optionsApiUrlHelp": {
-    "message": "API URL"
+    "message": "OpenAI 互換のプロキシやローカルサービスも指定できます。"
   },
   "optionsAutoSave": {
     "message": "自動保存"
   },
   "optionsAutoSaveMessage": {
-    "message": "Auto Save Message"
+    "message": "設定は自動的に保存されます。"
   },
   "optionsAutoTranslateHelp": {
-    "message": "Auto Translate"
+    "message": "最初にページ言語を確認し、目標言語のページはスキップします。"
   },
   "optionsAutoTranslateLabel": {
-    "message": "Auto start translation on foreign-language pages"
+    "message": "外国語ページで自動的に翻訳を開始"
   },
   "optionsBatchSize": {
-    "message": "Paragraphs per batch"
+    "message": "1 バッチの段落数"
   },
   "optionsCacheMaintenance": {
-    "message": "Cache and maintenance"
+    "message": "キャッシュとメンテナンス"
   },
   "optionsCacheTtlDays": {
-    "message": "Cache retention days"
+    "message": "キャッシュ保持日数"
   },
   "optionsClearCache": {
-    "message": "Clear cache"
+    "message": "キャッシュを削除"
   },
   "optionsCostControl": {
     "message": "コスト制御"
   },
   "optionsCostControlDesc": {
-    "message": "Cost Control"
+    "message": "表示中の近くの内容を優先して token 使用量を抑えます。"
   },
   "optionsDisableThinking": {
-    "message": "Automatically disable controllable thinking mode"
+    "message": "制御可能な思考モードを自動で無効化"
   },
   "optionsLanguage": {
     "message": "言語"
   },
   "optionsLanguageDesc": {
-    "message": "Language"
+    "message": "既定は英語から簡体字中国語です。目標言語のページは自動的にスキップされます。"
   },
   "optionsLanguagePresetsAria": {
-    "message": "Language Presets"
+    "message": "よく使う言語プリセット"
   },
   "optionsLanguageStatusInitial": {
-    "message": "Language Status"
+    "message": "翻訳元言語と目標言語を選択してください。"
   },
   "optionsMaintenanceActions": {
-    "message": "Maintenance Actions"
+    "message": "メンテナンス操作"
   },
   "optionsMaxCacheEntries": {
-    "message": "Max cache entries"
+    "message": "最大キャッシュ件数"
   },
   "optionsMaxCharsPerBatch": {
-    "message": "Max characters per batch"
+    "message": "1 バッチの最大文字数"
   },
   "optionsMaxCharsPerPage": {
-    "message": "Max requested characters per page"
+    "message": "ページごとの最大リクエスト文字数"
   },
   "optionsMaxConcurrentBatches": {
-    "message": "Concurrent request batches"
+    "message": "並行リクエスト数"
   },
   "optionsMaxConcurrentHelp": {
-    "message": "Max Concurrent"
+    "message": "推奨は 2。API とネットワークが安定している場合のみ 3 にします。"
   },
   "optionsMaxElementsPerScan": {
-    "message": "Max paragraphs per scan"
+    "message": "1 回の最大段落数"
   },
   "optionsMaxRequestsPerPage": {
-    "message": "Max requested paragraphs per page"
+    "message": "ページごとの最大リクエスト段落数"
   },
   "optionsMaxTextLength": {
-    "message": "Max characters per block"
+    "message": "1 ブロックの最大文字数"
   },
   "optionsModelHelp": {
-    "message": "Model"
+    "message": "サービスを選ぶと推奨モデルが入ります。手動変更もできます。"
   },
   "optionsModelName": {
     "message": "モデル名"
   },
   "optionsPrivacyNote": {
-    "message": "Privacy Note"
+    "message": "API Key はローカルに保存されます。ページ本文は設定した API のみに送信されます。"
   },
   "optionsPrompt": {
     "message": "プロンプト"
   },
   "optionsPromptHelp": {
-    "message": "Prompt"
+    "message": "{{sourceLanguage}} と {{targetLanguage}} を使用できます。翻訳対象の JSON 配列は自動で追加されます。"
   },
   "optionsProvider": {
     "message": "サービス"
@@ -363,34 +369,34 @@
     "message": "クイックスタート"
   },
   "optionsQuickStartDesc": {
-    "message": "Quick Start"
+    "message": "通常はこの 3 ステップだけで使い始められます。"
   },
   "optionsReadingExperience": {
     "message": "読書体験"
   },
   "optionsReadingExperienceDesc": {
-    "message": "Reading Experience"
+    "message": "静かで読みやすく、コストを抑える既定値です。"
   },
   "optionsResetAll": {
-    "message": "Restore all defaults"
+    "message": "すべて初期値に戻す"
   },
   "optionsResetPrompt": {
-    "message": "Restore default prompt"
+    "message": "既定プロンプトに戻す"
   },
   "optionsSaveNow": {
     "message": "今すぐ保存"
   },
   "optionsSetupLoadingText": {
-    "message": "Setup Loading"
+    "message": "保存済みの設定を読み込んでいます。"
   },
   "optionsSetupLoadingTitle": {
-    "message": "Setup Loading"
+    "message": "設定を読み込み中"
   },
   "optionsSourceLanguage": {
     "message": "元言語"
   },
   "optionsSourceLanguageHelp": {
-    "message": "Source Language"
+    "message": "ページの言語が不明な場合は自動検出を選びます。"
   },
   "optionsStepApiKey": {
     "message": "API Key を入力"
@@ -402,34 +408,40 @@
     "message": "API をテスト"
   },
   "optionsSubtitle": {
-    "message": "Bilingual webpage translation settings. Changes are saved automatically."
+    "message": "Web ページ対照翻訳設定。変更は自動的に保存されます。"
   },
   "optionsTargetLanguage": {
     "message": "目標言語"
   },
   "optionsTargetLanguageHelp": {
-    "message": "Target Language"
+    "message": "訳文は原文の下に挿入されます。"
   },
   "optionsTestApi": {
     "message": "API をテスト"
   },
   "optionsTesting": {
-    "message": "Testing..."
+    "message": "テスト中..."
   },
   "optionsTitle": {
     "message": "DualRead AI 設定"
   },
   "optionsTranslationPrompt": {
-    "message": "Translation prompt"
+    "message": "翻訳プロンプト"
   },
   "optionsTranslationScope": {
-    "message": "Translation scope"
+    "message": "翻訳範囲"
+  },
+  "optionsUiLanguage": {
+    "message": "UI 言語"
+  },
+  "optionsUiLanguageHelp": {
+    "message": "拡張機能の UI と通知だけを変更します。翻訳元言語と目標言語には影響しません。"
   },
   "optionsViewportOnly": {
-    "message": "Viewport Only"
+    "message": "現在の画面と周辺だけを翻訳"
   },
   "optionsViewportOnlyHelp": {
-    "message": "Viewport Only"
+    "message": "推奨。オフにしてもページごとの予算制限は適用されます。"
   },
   "popupActionHintInitial": {
     "message": "ページ全体、または現在の画面だけを翻訳できます。"
@@ -447,13 +459,13 @@
     "message": "API 未設定"
   },
   "popupAutoDisabledStatus": {
-    "message": "Auto Disabled Status"
+    "message": "自動翻訳はオフです。既に表示された訳文は残ります。"
   },
   "popupAutoEnabledUnsupportedStatus": {
-    "message": "Auto Enabled Unsupported Status"
+    "message": "自動翻訳はオンです。通常の外国語 Web ページで自動的に実行されます。"
   },
   "popupAutoStartFailed": {
-    "message": "Auto Start Failed"
+    "message": "自動翻訳を開始できませんでした。"
   },
   "popupAutoTranslateLabel": {
     "message": "外国語ページを自動翻訳"
@@ -483,52 +495,52 @@
     "message": "訳文を削除"
   },
   "popupClearing": {
-    "message": "Clearing"
+    "message": "訳文を削除中..."
   },
   "popupClearingShort": {
-    "message": "Clearing Short"
+    "message": "削除中..."
   },
   "popupConfigLoading": {
-    "message": "Loading settings..."
+    "message": "設定を読み込み中..."
   },
   "popupConfigNoticeText": {
-    "message": "Please enter an API Key and model first."
+    "message": "先に API Key とモデルを入力してください。"
   },
   "popupConfigNoticeTitle": {
-    "message": "Not ready"
+    "message": "未設定"
   },
   "popupConfirmClearTranslations": {
-    "message": "Confirm Clear Translations"
+    "message": "このページに挿入された訳文を削除しますか？ローカルキャッシュは削除されません。"
   },
   "popupDisablingAuto": {
-    "message": "Disabling Auto"
+    "message": "自動翻訳をオフにしています..."
   },
   "popupDisplayModeBilingualStatus": {
-    "message": "Display Mode Bilingual Status"
+    "message": "対照表示に切り替えました。"
   },
   "popupDisplayModeSavedButNotApplied": {
-    "message": "Display Mode Saved But Not Applied"
+    "message": "表示モードを保存しましたが、このページにはすぐ適用できません。"
   },
   "popupDisplayModeSavedForNormalPages": {
-    "message": "Display Mode Saved For Normal Pages"
+    "message": "表示モードを保存しました。通常の Web ページで適用されます。"
   },
   "popupDisplayModeTranslationFirstStatus": {
-    "message": "Display Mode Translation First Status"
+    "message": "訳文優先表示に切り替えました。"
   },
   "popupEnablingAuto": {
-    "message": "Enabling Auto"
+    "message": "自動翻訳をオンにしています..."
   },
   "popupGoSettings": {
-    "message": "Settings"
+    "message": "設定"
   },
   "popupHideTranslations": {
     "message": "訳文を隠す"
   },
   "popupHiding": {
-    "message": "Hiding"
+    "message": "非表示中..."
   },
   "popupHidingTranslations": {
-    "message": "Hiding Translations"
+    "message": "訳文を非表示にしています..."
   },
   "popupIdleHint": {
     "message": "ページ翻訳を開始するか、現在の画面だけを翻訳できます。"
@@ -537,25 +549,28 @@
     "message": "原文を保持し、その下に訳文を表示します。"
   },
   "popupLanguage": {
-    "message": "Language"
+    "message": "言語"
+  },
+  "popupLoadFailedHint": {
+    "message": "設定を開いて接続設定を確認するか、拡張機能を再読み込みしてから再試行してください。"
   },
   "popupOpenSettings": {
     "message": "設定を開く"
   },
   "popupScanning": {
-    "message": "Scanning"
+    "message": "スキャン中..."
   },
   "popupScope": {
-    "message": "Scope"
+    "message": "範囲"
   },
   "popupShowTranslations": {
     "message": "訳文を表示"
   },
   "popupShowing": {
-    "message": "Showing"
+    "message": "表示中..."
   },
   "popupShowingTranslations": {
-    "message": "Showing Translations"
+    "message": "訳文を表示中..."
   },
   "popupSkippedTargetLanguageHint": {
     "message": "それでも翻訳したい場合は「翻訳開始」をクリックしてください。"
@@ -567,43 +582,43 @@
     "message": "翻訳開始"
   },
   "popupStarting": {
-    "message": "Starting"
+    "message": "開始中..."
   },
   "popupStatusActionFailed": {
-    "message": "Status Action Failed"
+    "message": "操作に失敗しました。"
   },
   "popupStatusClearFailed": {
-    "message": "Status Clear Failed"
+    "message": "削除に失敗しました。"
   },
   "popupStatusLoading": {
-    "message": "Reading current page status..."
+    "message": "現在のページ状態を確認中..."
   },
   "popupStatusNoTab": {
-    "message": "Status No Tab"
+    "message": "現在のタブが見つかりません。"
   },
   "popupStatusProcessing": {
-    "message": "Status Processing"
+    "message": "処理中..."
   },
   "popupStatusScanFailed": {
-    "message": "Status Scan Failed"
+    "message": "スキャンに失敗しました。"
   },
   "popupStatusScanningArea": {
-    "message": "Status Scanning Area"
+    "message": "現在の画面をスキャン中..."
   },
   "popupStatusVisibilityFailed": {
-    "message": "Status Visibility Failed"
+    "message": "訳文の表示状態を変更できませんでした。"
   },
   "popupStopTranslation": {
     "message": "翻訳停止"
   },
   "popupStopping": {
-    "message": "Stopping"
+    "message": "停止中..."
   },
   "popupSummaryAria": {
-    "message": "Current translation settings"
+    "message": "現在の翻訳設定"
   },
   "popupSwitchingDisplayMode": {
-    "message": "Switching Display Mode"
+    "message": "表示モードを切り替え中..."
   },
   "popupTranslateCurrentScreen": {
     "message": "現在の画面だけ翻訳"
@@ -615,16 +630,16 @@
     "message": "未準備：API Key とモデルを先に入力してください。"
   },
   "popupUnsupportedConfiguredHint": {
-    "message": "Unsupported Configured Hint"
+    "message": "自動翻訳と表示モードはグローバル設定として保存され、対応ページで適用されます。"
   },
   "popupUnsupportedHint": {
-    "message": "Unsupported Hint"
+    "message": "Chrome 設定ページ、拡張機能ページ、新しいタブページには翻訳スクリプトを挿入できません。"
   },
   "popupUnsupportedPageStatus": {
-    "message": "Unsupported Page Status"
+    "message": "このページは翻訳できません。通常の http/https ページを開いてください。"
   },
   "popupUnsupportedUnconfiguredHint": {
-    "message": "Unsupported Unconfigured Hint"
+    "message": "先に API 設定を完了してから、通常の外国語 Web ページを開いてください。"
   },
   "presetAutoToZhCn": {
     "message": "自動 -> 簡体字中国語"
@@ -666,22 +681,22 @@
     "message": "ローカルサービス"
   },
   "saveStateMaintenance": {
-    "message": "Maintenance"
+    "message": "メンテナンス中"
   },
   "saveStateSaveFailed": {
-    "message": "Save Failed"
+    "message": "保存失敗"
   },
   "saveStateSaved": {
-    "message": "Saved"
+    "message": "保存済み"
   },
   "saveStateSaving": {
-    "message": "Saving"
+    "message": "保存中"
   },
   "saveStateTestFailed": {
-    "message": "Test Failed"
+    "message": "テスト失敗"
   },
   "saveStateTesting": {
-    "message": "Testing"
+    "message": "テスト中"
   },
   "scopeCurrentViewport": {
     "message": "現在の画面付近"
@@ -690,25 +705,25 @@
     "message": "ページ予算内"
   },
   "selectionCardAria": {
-    "message": "Card"
+    "message": "選択テキスト翻訳"
   },
   "selectionCardTitle": {
     "message": "選択テキスト翻訳"
   },
   "selectionCloseAria": {
-    "message": "Close"
+    "message": "選択テキスト翻訳を閉じる"
   },
   "selectionCopied": {
-    "message": "Copied"
+    "message": "コピー済み"
   },
   "selectionCopiedStatus": {
-    "message": "Copied Status"
+    "message": "訳文をクリップボードにコピーしました。"
   },
   "selectionCopyFailed": {
-    "message": "Copy Failed"
+    "message": "コピー失敗"
   },
   "selectionCopyFailedStatus": {
-    "message": "Copy Failed Status"
+    "message": "コピーに失敗しました。訳文を手動で選択してコピーしてください。"
   },
   "selectionCopyTranslation": {
     "message": "訳文をコピー"
@@ -717,10 +732,10 @@
     "message": "エラー"
   },
   "selectionErrorText": {
-    "message": "Error"
+    "message": "翻訳に失敗しました：$1"
   },
   "selectionNoCopyText": {
-    "message": "No Copy"
+    "message": "コピーできる訳文がありません"
   },
   "selectionNoticeLabel": {
     "message": "通知"
@@ -732,34 +747,34 @@
     "message": "訳文"
   },
   "setupErrorText": {
-    "message": "Error"
+    "message": "$1 接続設定を変更して再テストしてください。"
   },
   "setupErrorTitle": {
-    "message": "Error"
+    "message": "API テスト失敗"
   },
   "setupMissingText": {
-    "message": "Missing"
+    "message": "項目を入力してから API テストをクリックしてください。"
   },
   "setupMissingTitle": {
-    "message": "Missing"
+    "message": "$1 が不足しています"
   },
   "setupReadyText": {
-    "message": "Ready"
+    "message": "Enter または API テストをクリックして確認します。"
   },
   "setupReadyTitle": {
-    "message": "Ready"
+    "message": "接続設定は完了しています"
   },
   "setupSuccessText": {
-    "message": "Success"
+    "message": "Web ページに戻って翻訳を開始できます。"
   },
   "setupSuccessTitle": {
-    "message": "Success"
+    "message": "API テスト成功"
   },
   "setupTestingText": {
-    "message": "Testing"
+    "message": "選択したサービスにテストリクエストを送信しています。"
   },
   "setupTestingTitle": {
-    "message": "Testing"
+    "message": "API をテスト中"
   },
   "show": {
     "message": "表示"
@@ -774,31 +789,31 @@
     "message": "キャッシュ"
   },
   "statCacheTitle": {
-    "message": "Cache"
+    "message": "キャッシュヒット"
   },
   "statFailed": {
     "message": "失敗"
   },
   "statFailedTitle": {
-    "message": "Failed"
+    "message": "失敗した翻訳"
   },
   "statRequests": {
     "message": "リクエスト"
   },
   "statRequestsTitle": {
-    "message": "Requests"
+    "message": "API に送信したテキストブロック"
   },
   "statSkipped": {
     "message": "スキップ"
   },
   "statSkippedTitle": {
-    "message": "Skipped"
+    "message": "ページ予算でスキップ"
   },
   "statTranslated": {
     "message": "訳文"
   },
   "statTranslatedTitle": {
-    "message": "Translated"
+    "message": "翻訳済みテキストブロック"
   },
   "statusDisabled": {
     "message": "オフ"
@@ -825,39 +840,54 @@
     "message": "ローカル Qwen 互換サービス向けに chat_template_kwargs.enable_thinking = false を追加します。"
   },
   "tooltipAutoTranslate": {
-    "message": "Auto Translate"
+    "message": "グローバルスイッチとして保存します。外国語 Web ページを自動翻訳します。"
   },
   "tooltipAutoTranslateGlobalOnly": {
-    "message": "Auto Translate Global Only"
+    "message": "グローバル設定として保存され、通常の外国語 Web ページで適用されます。"
   },
   "tooltipClearTranslations": {
-    "message": "Clear Translations"
+    "message": "このページに挿入された訳文を削除します。ローカルキャッシュは削除されません。"
   },
   "tooltipCurrentPageUnavailable": {
-    "message": "Current Page Unavailable"
+    "message": "現在のページは利用できません。"
   },
   "tooltipHideTranslations": {
-    "message": "Hide Translations"
+    "message": "キャッシュを残したまま、このページの訳文を一時的に隠します。"
   },
   "tooltipNeedConfig": {
-    "message": "Need Config"
+    "message": "先に設定で API Key とモデル名を入力してください。"
   },
   "tooltipNoTranslations": {
-    "message": "No Translations"
+    "message": "このページにはまだ訳文がありません。"
   },
   "tooltipScanCurrentScreen": {
-    "message": "Scan Current Screen"
+    "message": "token 使用量を抑えるため、現在の表示範囲付近だけを処理します。"
   },
   "tooltipShowTranslations": {
-    "message": "Show Translations"
+    "message": "隠した訳文を再表示します。"
   },
   "tooltipStartTranslation": {
-    "message": "Start Translation"
+    "message": "この Web ページを翻訳します。スクロール時も近くの内容を処理します。"
   },
   "tooltipStopTranslation": {
-    "message": "Stop Translation"
+    "message": "新しい内容の翻訳を停止します。既存の訳文は表示されたままです。"
   },
   "tooltipUnsupportedPage": {
-    "message": "Unsupported Page"
+    "message": "通常の Web ページではないため、翻訳スクリプトを挿入できません。"
+  },
+  "uiLanguageAuto": {
+    "message": "ブラウザに合わせる"
+  },
+  "uiLanguageEn": {
+    "message": "英語"
+  },
+  "uiLanguageJa": {
+    "message": "日本語"
+  },
+  "uiLanguageZhCn": {
+    "message": "簡体字中国語"
+  },
+  "uiLanguageZhTw": {
+    "message": "繁体字中国語"
   }
 }

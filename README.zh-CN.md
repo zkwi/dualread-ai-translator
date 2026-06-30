@@ -68,6 +68,8 @@ DashScope https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
 
 设置会自动保存。本项目不内置、也不需要任何开发者自己的 API Key。
 
+界面语言与翻译语言相互独立。你可以让插件界面保持英文，同时继续英译中、日译繁中，或使用服务商支持的其他翻译方向。
+
 ## 使用
 
 - **开始翻译**：翻译当前可见区域及附近正文。
@@ -93,9 +95,9 @@ DashScope https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
 
 API Key 只保存在本机 Chrome 扩展存储中，不会发送到项目自有服务器。
 
-### UI 支持中文、繁体中文和日语吗？
+### UI 语言可以和目标翻译语言不同吗？
 
-支持。扩展 UI 已包含简体中文、繁體中文、英语和日语。
+可以。界面语言独立于源语言和目标语言；扩展 UI 已包含简体中文、繁體中文、英语和日语。
 
 ## 隐私
 
