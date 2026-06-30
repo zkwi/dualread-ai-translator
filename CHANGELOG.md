@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.12
+
+- Synced package, lockfile, manifest, and content-script versions so user-visible fixes can move forward with clear release numbers.
+- Bumped the content script version so already-injected 0.4.11 scripts can clearly request a page refresh.
+
 ## 0.4.11
 
 - Replaced the disabled thinking-mode checkbox with an explicit strategy selector so users can force common provider parameters when needed.
