@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.26
+
+- Skipped embedded video-player DRM/browser error overlays so they do not consume page translation budget.
+- Added regression coverage for CNN-style player errors while preserving nearby news headline translation.
+- Made real-page sample tests fail on blocked-region injections and mock translation errors instead of only logging them.
+- Bumped the content script version so already-injected 0.4.25 scripts can clearly request a page refresh.
+
 ## 0.4.25
 
 - Restored Hacker News story title translation without reopening dense table and repository row layout regressions.

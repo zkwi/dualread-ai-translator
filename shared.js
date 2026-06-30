@@ -181,6 +181,8 @@
     "blocked due to a network policy",
     "file a ticket",
     "enable javascript",
+    "drm system not supported",
+    "digital rights management (drm) system required to play this content",
     // Login / signup prompts
     "log in to continue",
     "sign up to continue",

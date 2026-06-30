@@ -33,6 +33,7 @@ async function main() {
     await testNewsCardSkipsCreditsAndHiddenMetadata(browser);
     await testNewsCardKeepsHeadlineWhenUtilityLabelIsPresent(browser);
     await testCnnHomepageLeadCardSurvivesUtilityFiltering(browser);
+    await testEmbeddedPlayerErrorsDoNotStealNewsBudget(browser);
     await testRedditTextBodyUsesSafeTranslationAnchor(browser);
     await testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser);
     await testGitHubFlexRepositoryRowsDoNotReceiveTranslations(browser);
@@ -377,6 +378,40 @@ async function testCnnHomepageLeadCardSurvivesUtilityFiltering(browser) {
   assert.doesNotMatch(requested, /E\. Jean Carroll/);
   assert.strictEqual(await hasTranslationNear(page, ".lead-card"), true);
   assert.strictEqual(await hasTranslationNear(page, "#cnn-lead-link"), true);
+  await page.close();
+}
+
+async function testEmbeddedPlayerErrorsDoNotStealNewsBudget(browser) {
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 3,
+    html: `
+      <main>
+        <section class="video-resource">
+          <div class="video-resource__wrapper">
+            <div class="fave-player-container fave-bolt-player">
+              <div id="overlay-root" role="group">
+                <h2>DRM System Not Supported</h2>
+                <p>It looks like your browser doesn't support the Digital Rights Management (DRM) system required to play this content. To stream on CNN, try restarting your browser or try a different browser. contact our Help Center.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+        <article>
+          <h2>Takeaways as Supreme Court hands Trump wins and losses</h2>
+          <p>The court expanded Trump’s power but snubbed other key efforts ahead of midterms.</p>
+        </article>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.match(requested, /Takeaways as Supreme Court/);
+  assert.match(requested, /The court expanded Trump/);
+  assert.doesNotMatch(requested, /Digital Rights Management/);
+  assert.doesNotMatch(requested, /DRM System Not Supported/);
+  assert.strictEqual(await page.locator(".fave-player-container .llm-bilingual-translation").count(), 0);
   await page.close();
 }
 

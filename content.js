@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.25";
+  const CONTENT_SCRIPT_VERSION = "0.4.26";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -69,6 +69,11 @@
       "nav.vector-appearance-landmark",
       "#vector-appearance",
       "#vector-appearance-pinned-container",
+      // Embedded player overlays often contain DRM/browser errors instead of article text.
+      ".fave-player-container",
+      ".fave-bolt-player",
+      "#overlay-root",
+      ".video-resource__wrapper",
       // GitHub repository file browsers are dense tables; translating commit/date cells breaks the row layout.
       "table[aria-labelledby=\"folders-and-files\"]",
       ".react-directory-row",

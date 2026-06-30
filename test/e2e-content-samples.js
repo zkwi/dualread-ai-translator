@@ -87,12 +87,24 @@ async function main() {
   const loaded = results.filter((result) => result.loaded);
   const actionable = loaded.filter((result) => !result.siteBlocked);
   const noOutput = actionable.filter((result) => result.doneCount === 0 && result.errorCount === 0);
+  const blockedOutput = actionable.filter((result) => result.blockedTranslationCount > 0);
+  const failedOutput = actionable.filter((result) => result.errorCount > 0);
 
   assert.ok(loaded.length >= 1, "Expected at least one sample page to load.");
   assert.deepStrictEqual(
     noOutput.map((result) => result.key),
     [],
     "Loaded, unblocked sample pages should produce translation output."
+  );
+  assert.deepStrictEqual(
+    blockedOutput.map((result) => result.key),
+    [],
+    "Loaded, unblocked sample pages should not inject translations into blocked UI regions."
+  );
+  assert.deepStrictEqual(
+    failedOutput.map((result) => result.key),
+    [],
+    "Loaded, unblocked sample pages should not produce translation errors with the mock provider."
   );
 }
 
