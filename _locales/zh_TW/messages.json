@@ -576,10 +576,10 @@
     "message": "正在顯示譯文..."
   },
   "popupSkippedTargetLanguageHint": {
-    "message": "如果仍想强制翻譯，可以點擊“開始翻譯”。"
+    "message": "无需整頁翻譯；如需翻譯少量外文，可選取文字後使用右键翻譯。"
   },
   "popupSkippedTargetLanguageStatus": {
-    "message": "自動翻譯已跳過：目前頁面已是目標語言。"
+    "message": "已跳過：目前頁面已是目標語言。"
   },
   "popupSpeed": {
     "message": "速度"

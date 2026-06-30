@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.17
+
+- Switched page translation to page-language gating so target-language pages are skipped before block-level scanning.
+- Kept source-language filtering while allowing short readable headings and labels on pages that need translation.
+- Fixed manual page translation skipped states so the popup and background tab cache stay inactive.
+- Bumped the content script version so already-injected 0.4.16 scripts can clearly request a page refresh.
+
 ## 0.4.16
 
 - Strengthened settings and popup guidance to strongly recommend disabling controllable thinking mode for faster translation.

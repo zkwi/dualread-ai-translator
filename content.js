@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.16";
+  const CONTENT_SCRIPT_VERSION = "0.4.17";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -29,6 +29,7 @@
     counter: 0,
     settings: null,
     runId: 0,
+    pageLanguageContext: null,
     mutationObserver: null,
     mutationScanTimer: null,
     pendingScanRoots: new Set(),
@@ -182,8 +183,11 @@
     state.runId += 1;
     state.settings = options.settings || await chrome.runtime.sendMessage({ action: "get_settings" });
     await applyUiLanguageFromSettings(state.settings);
-    if (options.auto && shouldSkipAutoTranslation(state.settings)) {
-      setAutoStartStatus("skipped:target-language");
+    const pageLanguageContext = refreshPageLanguageContext(state.settings);
+    if (pageLanguageContext.isTargetLanguagePage) {
+      if (options.auto) {
+        setAutoStartStatus("skipped:target-language");
+      }
       return {
         ok: true,
         skipped: true,
@@ -434,10 +438,10 @@
     if (!node || !node.parentElement) return false;
 
     const text = normalizeText(node.textContent);
-    if (text.length < 12) return false;
-    if (LLMTranslatorShared.shouldSkipTextByContent(text)) return false;
-    if (LLMTranslatorShared.isLikelyTargetLanguageText(text, state.settings?.targetLanguage)) return false;
-    if (!hasSourceLanguageSignal(text)) return false;
+    if (text.length < getMinimumTextNodeLength()) return false;
+    if (shouldSkipCandidateByContent(text, node.parentElement)) return false;
+    if (shouldSkipCandidateByLanguage(text)) return false;
+    if (!hasCandidateLanguageSignal(text)) return false;
     if (node.parentElement.closest("a[href]") && isShortLowInformationLinkText(text)) return false;
     if (hasBlockedAncestor(node.parentElement)) return false;
     if (!isElementInActiveContentScope(node.parentElement)) return false;
@@ -518,10 +522,11 @@
     if (element.querySelector(".llm-bilingual-translation")) return false;
 
     const text = knownText === null ? getCleanText(element) : knownText;
-    if (text.length < 12 || text.length > costSettings.maxTextLength) return false;
-    if (LLMTranslatorShared.shouldSkipTextByContent(text)) return false;
-    if (LLMTranslatorShared.isLikelyTargetLanguageText(text, state.settings?.targetLanguage)) return false;
-    if (!hasSourceLanguageSignal(text)) return false;
+    if (text.length < getMinimumCandidateTextLength(element) || text.length > costSettings.maxTextLength) return false;
+    if (shouldSkipCandidateByContent(text, element)) return false;
+    if (shouldSkipShortBrandLabel(text, element)) return false;
+    if (shouldSkipCandidateByLanguage(text)) return false;
+    if (!hasCandidateLanguageSignal(text)) return false;
 
     if (!isElementVisible(element)) return false;
 
@@ -583,23 +588,97 @@
       && countHangulChars(clean) < 8;
   }
 
+  function getMinimumTextNodeLength() {
+    return shouldUsePageLanguageCandidateMode() ? 4 : 12;
+  }
+
+  function getMinimumCandidateTextLength(element) {
+    if (!shouldUsePageLanguageCandidateMode()) return 12;
+    return isShortReadableTextElement(element) ? 4 : 8;
+  }
+
+  function getMinimumInlineTextLength() {
+    return shouldUsePageLanguageCandidateMode() ? 4 : 24;
+  }
+
+  function getMinimumGenericTextLength() {
+    return shouldUsePageLanguageCandidateMode() ? 8 : 12;
+  }
+
+  function shouldSkipCandidateByLanguage(text) {
+    if (shouldUsePageLanguageCandidateMode()) return false;
+    return LLMTranslatorShared.isLikelyTargetLanguageText(text, state.settings?.targetLanguage);
+  }
+
+  function hasCandidateLanguageSignal(text) {
+    return hasSourceLanguageSignal(text);
+  }
+
+  function shouldUsePageLanguageCandidateMode() {
+    return state.pageLanguageContext?.isTargetLanguagePage === false;
+  }
+
+  function shouldSkipCandidateByContent(text, element) {
+    if (!LLMTranslatorShared.shouldSkipTextByContent(text)) return false;
+    return !isAllowedPageLanguageShortLabel(text, element);
+  }
+
+  function isAllowedPageLanguageShortLabel(text, element) {
+    if (!shouldUsePageLanguageCandidateMode()) return false;
+    if (!isUppercaseShortLabel(text)) return false;
+    if (!isShortReadableTextElement(element)) return false;
+    if (!hasCandidateLanguageSignal(text)) return false;
+    if (SITE_HEURISTICS.utilityTextPatterns.some((pattern) => pattern.test(normalizeText(text)))) return false;
+    return true;
+  }
+
+  function shouldSkipShortBrandLabel(text, element) {
+    const clean = normalizeText(text);
+    if (!shouldUsePageLanguageCandidateMode()) return false;
+    if (!isShortReadableTextElement(element)) return false;
+    if (clean.length > 32 || isUppercaseShortLabel(clean)) return false;
+
+    const words = getLatinWords(clean);
+    if (words.length < 2 || words.length > 4) return false;
+
+    return words.some((word) => /[A-Z][a-z]+[A-Z]/.test(word) || /^[A-Z]{2,}$/.test(word));
+  }
+
+  function isUppercaseShortLabel(text) {
+    const clean = normalizeText(text);
+    return clean.length >= 4
+      && clean.length <= 32
+      && /^[A-Z0-9\s&|:./_-]+$/.test(clean)
+      && /[A-Z]{3,}/.test(clean);
+  }
+
+  function isShortReadableTextElement(element) {
+    if (!element?.closest) return false;
+    const readable = element.closest("h1,h2,h3,h4,h5,h6,p,li,figcaption");
+    if (!readable) return false;
+    if (!readable.closest(LLMTranslatorShared.getMainContentSelector())) return false;
+    return true;
+  }
+
   function isUsefulInlineBlock(element, text, costSettings) {
-    if (text.length < 24 || text.length > costSettings.maxTextLength) return false;
+    if (text.length < getMinimumInlineTextLength() || text.length > costSettings.maxTextLength) return false;
     if (element.closest("a[href],button,[role=\"button\"]")) return false;
-    if (LLMTranslatorShared.shouldSkipTextByContent(text)) return false;
-    if (LLMTranslatorShared.isLikelyTargetLanguageText(text, state.settings?.targetLanguage)) return false;
+    if (shouldSkipCandidateByContent(text, element)) return false;
+    if (shouldSkipShortBrandLabel(text, element)) return false;
+    if (shouldSkipCandidateByLanguage(text)) return false;
 
     const hasSentenceSignal = hasSentenceLikeSignal(text);
-    const isLongStandaloneText = text.length >= 80 && hasSourceLanguageSignal(text);
+    const isLongStandaloneText = text.length >= 80 && hasCandidateLanguageSignal(text);
     if (!element.closest(LLMTranslatorShared.getMainContentSelector()) && !isLongStandaloneText) return false;
 
-    return hasSentenceSignal && hasSourceLanguageSignal(text);
+    return hasSentenceSignal && hasCandidateLanguageSignal(text);
   }
 
   function isUsefulGenericBlock(element, text, costSettings) {
-    if (text.length < 12 || text.length > costSettings.maxTextLength) return false;
-    if (LLMTranslatorShared.shouldSkipTextByContent(text)) return false;
-    if (LLMTranslatorShared.isLikelyTargetLanguageText(text, state.settings?.targetLanguage)) return false;
+    if (text.length < getMinimumGenericTextLength() || text.length > costSettings.maxTextLength) return false;
+    if (shouldSkipCandidateByContent(text, element)) return false;
+    if (shouldSkipShortBrandLabel(text, element)) return false;
+    if (shouldSkipCandidateByLanguage(text)) return false;
 
     const nestedReadableBlocks = element.querySelectorAll(LLMTranslatorShared.getCandidateSelector()).length;
     if (nestedReadableBlocks > 1) return false;
@@ -607,7 +686,7 @@
     const interactiveCount = element.querySelectorAll("button,input,textarea,select,nav,a[href],[role=\"button\"]").length;
     if (interactiveCount > 0) return false;
 
-    return hasSourceLanguageSignal(text);
+    return hasCandidateLanguageSignal(text);
   }
 
   function hasBlockedAncestor(element) {
@@ -821,6 +900,7 @@
     }
 
     state.settings = await chrome.runtime.sendMessage({ action: "get_settings" });
+    refreshPageLanguageContext(state.settings);
     setTranslationVisibility(true);
     const elements = scanViewport(document);
     return { ok: true, count: elements.length, stats: state.stats };
@@ -1347,9 +1427,9 @@
       }))
       .filter((candidate) => candidate.text.length >= 12
         && candidate.score > 0
-        && !LLMTranslatorShared.shouldSkipTextByContent(candidate.text)
-        && !LLMTranslatorShared.isLikelyTargetLanguageText(candidate.text, state.settings?.targetLanguage)
-        && hasSourceLanguageSignal(candidate.text))
+        && !shouldSkipCandidateByContent(candidate.text, candidate.link)
+        && !shouldSkipCandidateByLanguage(candidate.text)
+        && hasCandidateLanguageSignal(candidate.text))
       .sort((a, b) => b.score - a.score || b.text.length - a.text.length)[0]?.link || null;
   }
 
@@ -1877,7 +1957,7 @@
     };
   }
 
-  function shouldSkipAutoTranslation(settings) {
+  function refreshPageLanguageContext(settings) {
     const segments = collectVisibleTextSegments();
     const pageInfo = {
       htmlLang: document.documentElement.lang || "",
@@ -1885,7 +1965,12 @@
       segments
     };
 
-    return LLMTranslatorShared.isLikelyTargetLanguagePage(pageInfo, settings?.targetLanguage);
+    state.pageLanguageContext = {
+      isTargetLanguagePage: LLMTranslatorShared.isLikelyTargetLanguagePage(pageInfo, settings?.targetLanguage),
+      checkedAt: Date.now(),
+      segmentCount: segments.length
+    };
+    return state.pageLanguageContext;
   }
 
   function collectVisibleTextSample(maxLength = 4000) {

@@ -576,10 +576,10 @@
     "message": "Showing translations..."
   },
   "popupSkippedTargetLanguageHint": {
-    "message": "Click Start translation if you still want to force translation."
+    "message": "No page translation is needed. Select specific foreign text and use right-click translation if needed."
   },
   "popupSkippedTargetLanguageStatus": {
-    "message": "Auto translation skipped: this page is already in the target language."
+    "message": "Skipped: this page is already in the target language."
   },
   "popupSpeed": {
     "message": "Speed mode"

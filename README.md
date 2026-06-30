@@ -81,7 +81,7 @@ Strongly recommended: keep **disable controllable thinking** enabled from **Adva
 - **Right-click page**: translate the current page.
 - **Right-click selected text**: translate only the selected text.
 
-Manual translation bypasses the auto-skip decision. Auto translation still respects viewport scope, per-page request limits, and language detection.
+Page translation first checks the page language. Pages already in the target language are skipped; otherwise DualRead translates readable visible and nearby blocks, including short headings and labels. Selected-text translation remains available for small mixed-language snippets.
 
 ## FAQ
 

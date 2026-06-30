@@ -317,6 +317,8 @@ async function handleContextMenuClick(info, tab) {
     const response = await startTranslation(tab);
     if (!response.ok) {
       await showPageNotice(tab, response.error || t("errorTranslationStartFailed", [], "翻译启动失败。"), true);
+    } else if (response.content?.skipped && response.content?.reason === "target-language") {
+      await showPageNotice(tab, t("popupSkippedTargetLanguageStatus", [], "已跳过：当前页面已是目标语言。"));
     } else if (response.content?.message === "already active") {
       await showPageNotice(tab, t("noticeTranslationAlreadyActive", [], "翻译已开启。可滚动页面或点击插件里的“只翻译当前屏”。"));
     }
@@ -390,9 +392,17 @@ async function toggleTranslation(tab) {
     return createFailedContentActionResponse(response, isActive);
   }
 
-  activeTabs.set(tab.id, !isActive);
-  tabNotices.delete(tab.id);
-  return { ok: true, active: !isActive, content: response };
+  const active = isActive ? false : !response.skipped;
+  activeTabs.set(tab.id, active);
+  if (response?.skipped) {
+    tabNotices.set(tab.id, {
+      type: "info",
+      reason: response.reason || "skipped"
+    });
+  } else {
+    tabNotices.delete(tab.id);
+  }
+  return { ok: true, active, content: response };
 }
 
 async function startTranslation(tab, options = {}) {

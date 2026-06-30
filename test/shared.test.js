@@ -179,6 +179,17 @@ assert.strictEqual(
 );
 assert.strictEqual(
   shared.isLikelyTargetLanguagePage({
+    htmlLang: "zh-CN",
+    segments: [
+      "这是一段已经是中文的内容，不需要再翻译。",
+      "这是 OpenAI 发布的新模型说明，当前内容已经主要是中文。",
+      "Grok 4.5 is now in private beta at SpaceX and Tesla."
+    ]
+  }, "简体中文"),
+  true
+);
+assert.strictEqual(
+  shared.isLikelyTargetLanguagePage({
     htmlLang: "en-US",
     segments: [
       "这是一小段中文导航。",

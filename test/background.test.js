@@ -39,6 +39,7 @@ async function main() {
   await testAutoTranslateReportsUnconfiguredNotice();
   await testManualTranslationReportsMissingApiKeyBeforeInjecting();
   await testManualTranslationPropagatesContentStartFailure();
+  await testManualTranslationSkipKeepsTabInactive();
   await testScanCurrentAreaReportsMissingApiKeyBeforeInjecting();
   await testScanCurrentAreaPropagatesContentFailure();
   await testFileUrlIsUnsupportedBeforeInjecting();
@@ -919,6 +920,38 @@ async function testManualTranslationPropagatesContentStartFailure() {
 
   const state = await sendRuntimeMessage(context, { action: "get_tab_state", tabId: 39 });
   assert.strictEqual(state.active, false);
+}
+
+async function testManualTranslationSkipKeepsTabInactive() {
+  const context = createBackgroundContext({
+    sendMessage: async (tabId, message) => {
+      assert.strictEqual(tabId, 44);
+      if (message.action === "start_translation") {
+        return { ok: true, skipped: true, reason: "target-language" };
+      }
+      if (message.action === "get_page_stats") {
+        return { ok: true, active: false, stats: { translated: 0, translationVisible: true } };
+      }
+      return { ok: true };
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "toggle_translation",
+    tab: { id: 44, url: "https://example.com/zh" }
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.strictEqual(response.active, false);
+  assert.strictEqual(response.content.skipped, true);
+
+  const stats = await sendRuntimeMessage(context, {
+    action: "get_page_stats",
+    tab: { id: 44, url: "https://example.com/zh" }
+  });
+  assert.strictEqual(stats.notice.reason, "target-language");
 }
 
 async function testScanCurrentAreaReportsMissingApiKeyBeforeInjecting() {

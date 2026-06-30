@@ -67,7 +67,12 @@ toggleBtn.addEventListener("click", async () => {
     }
 
     active = response.active;
-    latestNotice = null;
+    if (response.skipped || response.content?.skipped) {
+      const reason = response.reason || response.content?.reason;
+      latestNotice = reason ? { reason } : latestNotice;
+    } else {
+      latestNotice = null;
+    }
     render(response.content?.count);
     await refreshStats();
   }, {
@@ -265,8 +270,8 @@ function render(count) {
     setActionHint(t("popupUnconfiguredHint", [], "点击“去设置”完成连接配置，测试通过后再回到网页翻译。"));
     setStateBadge(t("popupBadgeUnconfigured", [], "未配置"), "warning");
   } else if (latestNotice?.reason === "target-language") {
-    setStatus(t("popupSkippedTargetLanguageStatus", [], "自动翻译已跳过：当前页面已是目标语言。"));
-    setActionHint(t("popupSkippedTargetLanguageHint", [], "如果仍想强制翻译，可以点击“开始翻译”。"));
+    setStatus(t("popupSkippedTargetLanguageStatus", [], "已跳过：当前页面已是目标语言。"));
+    setActionHint(t("popupSkippedTargetLanguageHint", [], "无需整页翻译；如需翻译少量外文，可选中文本后使用右键翻译。"));
     setStateBadge(t("popupBadgeSkipped", [], "已跳过"), "warning");
   } else if (latestNotice?.reason === "unconfigured") {
     setStatus(t("popupAutoUnconfiguredStatus", [], "自动翻译未启动：请先在设置页填写 API Key 和模型名称。"));

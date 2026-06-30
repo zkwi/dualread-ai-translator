@@ -37,7 +37,8 @@ async function main() {
     await testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser);
     await testShortUtilityLinkWithPunctuationDoesNotStealBudget(browser);
     await testMediaWikiSidebarDoesNotStealArticleBudget(browser);
-    await testSkipsTargetLanguageText(browser);
+    await testSkipsTargetLanguagePage(browser);
+    await testPageLanguageModeTranslatesShortReadableLabels(browser);
     await testNonLatinSourceLanguagesTranslate(browser);
     await testTranslationUiResetsBidiStyles(browser);
     await testDarkThemeReadable(browser);
@@ -855,7 +856,7 @@ async function testDeclarativeAutoTranslationStartsOnLoad(browser) {
   await page.close();
 }
 
-async function testSkipsTargetLanguageText(browser) {
+async function testSkipsTargetLanguagePage(browser) {
   const page = await createHarnessPage(browser, {
     targetLanguage: "简体中文",
     html: `
@@ -869,12 +870,38 @@ async function testSkipsTargetLanguageText(browser) {
 
   const result = await runTranslation(page);
 
-  assert.strictEqual(result.requestCount, 1, "Only the English paragraph should be requested.");
-  assert.strictEqual(result.translatedTexts.length, 1);
-  assert.ok(result.requestedTexts[0].includes("Grok 4.5"));
+  assert.strictEqual(result.requestCount, 0, "Target-language dominant pages should be skipped before block-level filtering.");
+  assert.strictEqual(result.translatedTexts.length, 0);
   assert.strictEqual(await hasTranslationNear(page, "#zh"), false);
   assert.strictEqual(await hasTranslationNear(page, "#mixed"), false);
-  assert.strictEqual(await hasTranslationNear(page, "#en"), true);
+  assert.strictEqual(await hasTranslationNear(page, "#en"), false);
+
+  await page.close();
+}
+
+async function testPageLanguageModeTranslatesShortReadableLabels(browser) {
+  const page = await createHarnessPage(browser, {
+    htmlLang: "en",
+    targetLanguage: "简体中文",
+    html: `
+      <main>
+        <article>
+          <h2 id="world-cup">WORLD CUP</h2>
+          <h3 id="weather">Weather</h3>
+          <p id="story">A strong summer storm system is expected to affect travel across several states this week.</p>
+        </article>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.match(requested, /WORLD CUP/);
+  assert.match(requested, /Weather/);
+  assert.match(requested, /strong summer storm/);
+  assert.strictEqual(await hasTranslationNear(page, "#world-cup"), true);
+  assert.strictEqual(await hasTranslationNear(page, "#weather"), true);
 
   await page.close();
 }

@@ -530,7 +530,7 @@
 
   function isTargetLanguageDominantPageSegments(segments, targetLanguage) {
     const target = normalizeTargetLanguageKind(targetLanguage);
-    const minTargetUnits = target === "en" ? 80 : 40;
+    const minTargetUnits = target === "en" ? 80 : 24;
     const minTargetRatio = target === "en" ? 0.55 : 0.3;
     let targetSegments = 0;
     let otherSegments = 0;
