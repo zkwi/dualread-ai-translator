@@ -99,8 +99,7 @@
 
   const runtimeMessageListener = (request, sender, sendResponse) => {
     if (request.action === "start_translation") {
-      startTranslation(request).then(sendResponse);
-      return true;
+      return respondAsync(startTranslation(request), sendResponse);
     }
 
     if (request.action === "stop_translation") {
@@ -116,8 +115,7 @@
     }
 
     if (request.action === "scan_current_area") {
-      scanCurrentArea().then(sendResponse);
-      return true;
+      return respondAsync(scanCurrentArea(), sendResponse);
     }
 
     if (request.action === "get_page_stats") {
@@ -136,13 +134,11 @@
     }
 
     if (request.action === "show_selection_translation") {
-      showSelectionTranslationWithUiLanguage(request).then(sendResponse);
-      return true;
+      return respondAsync(showSelectionTranslationWithUiLanguage(request), sendResponse);
     }
 
     if (request.action === "show_page_notice") {
-      showPageNoticeWithUiLanguage(request).then(sendResponse);
-      return true;
+      return respondAsync(showPageNoticeWithUiLanguage(request), sendResponse);
     }
 
     return false;
@@ -152,6 +148,22 @@
   chrome.runtime.onMessage.addListener(runtimeMessageListener);
 
   maybeAutoStartTranslation();
+
+  function respondAsync(promise, sendResponse) {
+    Promise.resolve(promise)
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({
+          ok: false,
+          error: formatContentError(error)
+        });
+      });
+    return true;
+  }
+
+  function formatContentError(error) {
+    return error?.message || String(error || "") || t("errorUnknown", [], "未知错误");
+  }
 
   async function startTranslation(options = {}) {
     if (state.active) {

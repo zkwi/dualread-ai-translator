@@ -37,6 +37,7 @@ async function main() {
     await testPageBudgetLimitsRequests(browser);
     await testRetrySuccessDoesNotDoubleCountStats(browser);
     await testRetryFailureStaysKeyboardAccessible(browser);
+    await testContentMessageFailureReturnsReadableResponse(browser);
     await testTranslationBatchesUseLimitedConcurrency(browser);
     await testFarViewportCancelsStalePendingTranslations(browser);
     await testAutoTranslationStartsEnglishContentWithTargetLocale(browser);
@@ -702,6 +703,34 @@ async function testRetryFailureStaysKeyboardAccessible(browser) {
   const stats = await page.evaluate(async () => (await window.__sendContentMessage({ action: "get_page_stats" })).stats);
   assert.strictEqual(stats.failed, 1);
   assert.strictEqual(stats.translated, 0);
+  await page.close();
+}
+
+async function testContentMessageFailureReturnsReadableResponse(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main>
+        <p>This paragraph should not leave the popup waiting if settings fail to load.</p>
+      </main>
+    `
+  });
+
+  await page.evaluate(() => {
+    window.__failGetSettings = true;
+  });
+
+  const response = await page.evaluate(() => Promise.race([
+    window.__sendContentMessage({ action: "start_translation" }),
+    new Promise((resolve) => setTimeout(() => resolve({ timedOut: true }), 600))
+  ]));
+
+  assert.strictEqual(response.timedOut, undefined);
+  assert.strictEqual(response.ok, false);
+  assert.match(response.error, /Mock settings failure/);
+
+  const stats = await page.evaluate(async () => (await window.__sendContentMessage({ action: "get_page_stats" })).stats);
+  assert.strictEqual(stats.translated, 0);
+  assert.strictEqual(stats.failed, 0);
   await page.close();
 }
 
