@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.4.26";
+  const CONTENT_SCRIPT_VERSION = "0.5.0";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -212,7 +212,7 @@
     injectStyles();
     startViewportTracking();
 
-    const elements = scanViewport(document);
+    const elements = scanViewport(document, { immediate: true, deferFullScan: true });
     startDynamicObserver();
     if (options.auto) {
       setAutoStartStatus("started");
@@ -311,6 +311,7 @@
     state.queuedIds.clear();
     state.pendingScanRoots.clear();
     state.lastViewportSnapshot = null;
+    clearPendingLoadingPlaceholders();
     stopViewportTracking();
   }
 
@@ -327,11 +328,15 @@
     });
   }
 
-  function collectCandidateElements(root = document) {
+  function collectCandidateElements(root = document, options = {}) {
     const costSettings = LLMTranslatorShared.normalizeCostSettings(state.settings);
     const scanRoot = getScanRoot(root);
     if (!scanRoot) return [];
 
+    const maxResults = Math.max(1, Math.min(
+      Number(options.maxResults) || costSettings.maxElementsPerScan,
+      costSettings.maxElementsPerScan
+    ));
     const candidates = new Map();
     const seenTexts = new Set();
     const walker = document.createTreeWalker(
@@ -348,15 +353,25 @@
     while (textNode) {
       const block = findReadableBlock(textNode.parentElement, costSettings);
       if (block && !candidates.has(block)) {
+        if (options.immediateViewportOnly && !isElementInActiveViewport(block)) {
+          textNode = walker.nextNode();
+          continue;
+        }
+
         const text = getCleanText(block);
         const textKey = text.toLowerCase();
         if (!seenTexts.has(textKey) && isCandidateElement(block, costSettings, text)) {
           seenTexts.add(textKey);
           candidates.set(block, text);
+          if (options.stopWhenEnough && candidates.size >= maxResults) break;
         }
       }
 
       textNode = walker.nextNode();
+    }
+
+    if (options.skipPrioritySort) {
+      return Array.from(candidates.keys()).slice(0, maxResults);
     }
 
     return Array.from(candidates.entries())
@@ -368,7 +383,153 @@
       .filter((candidate) => !costSettings.viewportOnly || isElementNearActiveViewport(candidate.element))
       .sort(compareCandidatePriority)
       .map((candidate) => candidate.element)
-      .slice(0, costSettings.maxElementsPerScan);
+      .slice(0, maxResults);
+  }
+
+  function collectImmediateViewportCandidateElements(root = document) {
+    const costSettings = LLMTranslatorShared.normalizeCostSettings(state.settings);
+    const scanRoot = getScanRoot(root);
+    if (!scanRoot) return [];
+
+    const maxResults = Math.max(1, Math.min(4, costSettings.maxElementsPerScan));
+    const candidates = new Map();
+    const seenTexts = new Set();
+
+    if (typeof document.elementsFromPoint === "function") {
+      for (const point of getViewportSamplePoints()) {
+        for (const element of document.elementsFromPoint(point.x, point.y)) {
+          if (scanRoot !== element && !scanRoot.contains(element)) continue;
+          addImmediateViewportCandidate(element, candidates, seenTexts, costSettings);
+        }
+      }
+    }
+
+    addImmediateReadableBlockCandidates(scanRoot, candidates, seenTexts, costSettings, maxResults);
+
+    if (candidates.size > 0) {
+      return Array.from(candidates.entries())
+        .map(([element, text]) => ({
+          element,
+          text,
+          score: getCandidatePriorityScore(element, text)
+        }))
+        .sort(compareCandidatePriority)
+        .map((candidate) => candidate.element)
+        .slice(0, maxResults);
+    }
+
+    return collectCandidateElements(root, {
+      immediateViewportOnly: true,
+      maxResults,
+      skipPrioritySort: true,
+      stopWhenEnough: true
+    });
+  }
+
+  function addImmediateReadableBlockCandidates(scanRoot, candidates, seenTexts, costSettings, maxResults) {
+    const elements = scanRoot.querySelectorAll?.(getImmediateReadableBlockSelector()) || [];
+    let inspected = 0;
+    const maxInspected = Math.max(40, maxResults * 30);
+
+    for (const element of elements) {
+      if (inspected >= maxInspected && candidates.size >= maxResults) break;
+      inspected += 1;
+      if (!isElementInActiveViewport(element)) continue;
+      addImmediateViewportCandidate(element, candidates, seenTexts, costSettings);
+    }
+  }
+
+  function getImmediateReadableBlockSelector() {
+    return [
+      LLMTranslatorShared.getCandidateSelector(),
+      "[data-testid=\"tweetText\"]",
+      "shreddit-post-text-body",
+      "[property=\"schema:articleBody\"][id$=\"-post-rtjson-content\"]",
+      ".feed-card-text-preview",
+      "tr.athing td.title .titleline a[href]"
+    ].join(",");
+  }
+
+  function hasMultipleImmediateReadableDescendants(element) {
+    return (element.querySelectorAll?.(getImmediateReadableBlockSelector()).length || 0) > 1;
+  }
+
+  function getViewportSamplePoints() {
+    const width = window.innerWidth || document.documentElement.clientWidth || 1000;
+    const height = window.innerHeight || document.documentElement.clientHeight || 800;
+    const xRatios = [0.5, 0.28, 0.72];
+    const yRatios = [0.22, 0.38, 0.54, 0.7, 0.86];
+    const points = [];
+
+    for (const yRatio of yRatios) {
+      for (const xRatio of xRatios) {
+        points.push({
+          x: Math.max(1, Math.min(width - 1, Math.round(width * xRatio))),
+          y: Math.max(1, Math.min(height - 1, Math.round(height * yRatio)))
+        });
+      }
+    }
+
+    return points;
+  }
+
+  function addImmediateViewportCandidate(element, candidates, seenTexts, costSettings) {
+    if (!element || element.nodeType !== Node.ELEMENT_NODE) return;
+
+    const block = findImmediateReadableBlock(element, costSettings);
+    if (!block || candidates.has(block) || !isElementInActiveViewport(block)) return;
+
+    const text = getCleanText(block);
+    const textKey = text.toLowerCase();
+    if (seenTexts.has(textKey) || !isCandidateElement(block, costSettings, text)) return;
+
+    seenTexts.add(textKey);
+    candidates.set(block, text);
+  }
+
+  function findImmediateReadableBlock(element, costSettings) {
+    if (!element) return null;
+
+    let current = element;
+    let inlineFallback = null;
+    let genericFallback = null;
+
+    while (current && current !== document.body && current !== document.documentElement) {
+      if (current.closest?.(".llm-bilingual-translation")) return null;
+      if (hasBlockedAncestor(current)) return null;
+
+      const siteSpecificBlock = findSiteSpecificReadableBlock(current);
+      if (siteSpecificBlock) {
+        return siteSpecificBlock;
+      }
+
+      const tagName = current.tagName;
+      if (isSemanticBlockTag(tagName)) {
+        if ((tagName === "TD" || tagName === "TH") && inlineFallback) {
+          return inlineFallback;
+        }
+        return current;
+      }
+
+      if (!inlineFallback && isInlineFallbackTag(tagName)) {
+        const text = getCleanText(current);
+        if (isUsefulInlineBlock(current, text, costSettings)) {
+          inlineFallback = current;
+        }
+      }
+
+      // 即时反馈只检查小容器，避免首帧前读取 ARTICLE/MAIN/SECTION 的整篇文本。
+      if (!genericFallback && tagName === "DIV") {
+        const text = getCleanText(current);
+        if (isUsefulGenericBlock(current, text, costSettings) && !hasMultipleImmediateReadableDescendants(current)) {
+          genericFallback = current;
+        }
+      }
+
+      current = current.parentElement;
+    }
+
+    return inlineFallback || genericFallback;
   }
 
   function cleanupExistingTranslatorState(existingState) {
@@ -549,6 +710,7 @@
 
     const text = knownText === null ? getCleanText(element) : knownText;
     if (text.length < getMinimumCandidateTextLength(element) || text.length > costSettings.maxTextLength) return false;
+    if (isShortLowInformationLinkCandidate(element, text)) return false;
     if (shouldSkipCandidateByContent(text, element)) return false;
     if (shouldSkipShortBrandLabel(text, element)) return false;
     if (shouldSkipCandidateByLanguage(text)) return false;
@@ -613,6 +775,12 @@
       && countCjkChars(clean) < 8
       && countKanaChars(clean) < 6
       && countHangulChars(clean) < 8;
+  }
+
+  function isShortLowInformationLinkCandidate(element, text) {
+    if (!isShortLowInformationLinkText(text)) return false;
+    if (isHackerNewsStoryTitleCandidate(element)) return false;
+    return !!element.closest?.("a[href]") || !!element.querySelector?.("a[href]");
   }
 
   function getMinimumTextNodeLength() {
@@ -736,6 +904,10 @@
 
     const tableCell = element.closest?.("td,th");
     if (tableCell?.closest("table,[role=\"table\"],[role=\"grid\"]")) {
+      return true;
+    }
+
+    if (element.closest?.("[role=\"gridcell\"]")?.closest("[role=\"row\"]")) {
       return true;
     }
 
@@ -871,6 +1043,12 @@
       .forEach(resetPendingElement);
   }
 
+  function clearPendingLoadingPlaceholders() {
+    document
+      .querySelectorAll('[data-llm-translator-status="queued"], [data-llm-translator-status="loading"]')
+      .forEach(resetPendingElement);
+  }
+
   function resetPendingElement(element, options = {}) {
     const status = element.dataset.llmTranslatorStatus;
     if (status !== "queued" && status !== "loading") return;
@@ -928,11 +1106,20 @@
     observeElements(deferred);
   }
 
-  function scanViewport(root = document) {
+  function scanViewport(root = document, options = {}) {
     const superseded = prepareViewportScan();
-    const elements = collectCandidateElements(root);
+    const elements = options.immediate
+      ? collectImmediateViewportCandidateElements(root)
+      : collectCandidateElements(root, { maxResults: options.maxResults });
     state.stats.scanned += elements.length;
     processCandidateElements(elements);
+    if (options.deferFullScan) {
+      const costSettings = LLMTranslatorShared.normalizeCostSettings(state.settings);
+      const remainingResults = costSettings.maxElementsPerScan - elements.length;
+      if (remainingResults > 0) {
+        scheduleDeferredViewportScan(root, remainingResults);
+      }
+    }
     if (superseded && state.queue.length > 0) {
       flushQueue();
     }
@@ -947,7 +1134,7 @@
     state.settings = await chrome.runtime.sendMessage({ action: "get_settings" });
     refreshPageLanguageContext(state.settings);
     setTranslationVisibility(true);
-    const elements = scanViewport(document);
+    const elements = scanViewport(document, { immediate: true, deferFullScan: true });
     return { ok: true, count: elements.length, stats: state.stats };
   }
 
@@ -990,6 +1177,23 @@
       if (!state.active) return;
       scanViewport(root);
     }, LLMTranslatorShared.getViewportScanDebounceMs());
+  }
+
+  function scheduleDeferredViewportScan(root = document, maxResults = null) {
+    const runAfterPaint = () => {
+      clearTimeout(state.viewportScanTimer);
+      state.viewportScanTimer = setTimeout(() => {
+        if (!state.active) return;
+        scanViewport(root, { maxResults });
+      }, 0);
+    };
+
+    if (typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(() => window.requestAnimationFrame(runAfterPaint));
+      return;
+    }
+
+    runAfterPaint();
   }
 
   function startDynamicObserver() {
@@ -1050,7 +1254,7 @@
 
     state.queuedIds.add(id);
     state.queue.push(element);
-    setElementStatus(element, "queued");
+    setLoading(element);
     state.stats.queued += 1;
 
     if (shouldFlushQueueNow()) {
@@ -1133,8 +1337,6 @@
       id: ensureElementId(element),
       text: getCleanText(element)
     }));
-
-    elements.forEach((element) => setLoading(element));
 
     try {
       const response = await chrome.runtime.sendMessage({

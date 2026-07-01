@@ -57,6 +57,8 @@ async function main() {
     await testAutoTranslationStartsEnglishContentWithTargetLocale(browser);
     await testDisabledAutoTranslationDoesNotWakeBackgroundForSettings(browser);
     await testVisibleElementsDoNotWaitForIntersectionObserver(browser);
+    await testManualTranslationShowsLoadingPlaceholderImmediately(browser);
+    await testStoppingTranslationClearsImmediateLoadingPlaceholder(browser);
     await testDeclarativeAutoTranslationStartsOnLoad(browser);
     await testDeclarativeAutoTranslationSkipMarksBackgroundInactive(browser);
     await testAutoTranslationWaitsForDynamicEnglishContentWithTargetLocale(browser);
@@ -867,6 +869,64 @@ async function testVisibleElementsDoNotWaitForIntersectionObserver(browser) {
   assert.strictEqual(result.requestCount, 1);
   assert.match(result.requestedTexts[0], /visible article paragraph/);
   assert.strictEqual(result.translationCount, 1);
+
+  await page.close();
+}
+
+async function testManualTranslationShowsLoadingPlaceholderImmediately(browser) {
+  const page = await createHarnessPage(browser, {
+    batchSize: 4,
+    translateDelayMs: 1200,
+    html: `
+      <main>
+        <article>
+          <p>Users should see a loading placeholder immediately after manually starting translation.</p>
+        </article>
+      </main>
+    `
+  });
+
+  const stateAfterStart = await page.evaluate(async () => {
+    const response = await window.__sendContentMessage({ action: "scan_current_area" });
+    return {
+      count: response.count,
+      loadingCount: document.querySelectorAll(".llm-bilingual-translation.is-loading").length,
+      requestCount: window.__mockItems.length
+    };
+  });
+
+  assert.strictEqual(stateAfterStart.count, 1);
+  assert.strictEqual(stateAfterStart.loadingCount, 1, "Manual start should render loading feedback before the batch request flushes.");
+  assert.strictEqual(stateAfterStart.requestCount, 0, "The placeholder should not wait for the backend request.");
+
+  await page.close();
+}
+
+async function testStoppingTranslationClearsImmediateLoadingPlaceholder(browser) {
+  const page = await createHarnessPage(browser, {
+    batchSize: 4,
+    translateDelayMs: 1200,
+    html: `
+      <main>
+        <article>
+          <p id="pending">Stopping quickly should remove the immediate loading placeholder.</p>
+        </article>
+      </main>
+    `
+  });
+
+  await page.evaluate(async () => {
+    await window.__sendContentMessage({ action: "scan_current_area" });
+    await window.__sendContentMessage({ action: "stop_translation" });
+  });
+
+  const stoppedState = await page.evaluate(() => ({
+    loadingCount: document.querySelectorAll(".llm-bilingual-translation.is-loading").length,
+    status: document.getElementById("pending").dataset.llmTranslatorStatus || ""
+  }));
+
+  assert.strictEqual(stoppedState.loadingCount, 0);
+  assert.strictEqual(stoppedState.status, "");
 
   await page.close();
 }

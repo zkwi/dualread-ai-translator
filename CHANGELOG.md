@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+- Synced Alt+T toggles with the content script's real active state before choosing start or stop, fixing stale service-worker state after restarts.
+- Made translation cache write failures non-fatal so successful API translations still render when local storage quota is exceeded.
+- Rendered manual translation loading placeholders immediately with a lightweight viewport-first scan while preserving dense-row and short-link filters.
+- Bumped the content script version so already-injected 0.4.26 scripts can clearly request a page refresh.
+
 ## 0.4.26
 
 - Skipped embedded video-player DRM/browser error overlays so they do not consume page translation budget.

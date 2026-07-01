@@ -14,6 +14,7 @@ async function main() {
   await testTranslateBatchRetriesOneServerError();
   await testTranslateBatchUsesJsonArrayAndMapsById();
   await testTranslateBatchCachesMergedTextBySegment();
+  await testTranslateBatchReturnsResultsWhenCacheWriteFails();
   await testTranslateBatchPrunesOldCacheEntries();
   await testTranslateBatchThrottlesCachePruning();
   await testTranslateBatchUsesCustomPrompt();
@@ -35,6 +36,7 @@ async function main() {
   await testAutoTranslateStartsActiveTabsWhenApiKeySaved();
   await testAutoTranslateTabRuntimeMessageStartsCurrentTab();
   await testContentAutoStartMarkActiveMakesFirstToggleStop();
+  await testCommandToggleSyncsContentStateAfterWorkerRestart();
   await testContentAutoSkipMarkActiveStoresNotice();
   await testGetPageStatsSyncsActiveTabCache();
   await testAutoTranslateReportsUnconfiguredNotice();
@@ -219,6 +221,30 @@ async function testTranslateBatchCachesMergedTextBySegment() {
   assert.strictEqual(secondResponse.meta.requested, 0);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(secondResponse.results)), [
     { id: "block-2", text: "第二段译文。" }
+  ]);
+}
+
+async function testTranslateBatchReturnsResultsWhenCacheWriteFails() {
+  const context = createBackgroundContext({
+    console: { ...console, warn() {} },
+    failStorageSet: true,
+    fetch: async () => createJsonResponse([
+      { id: "block-1", text: "缓存失败时仍应返回译文。" }
+    ])
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [
+      { id: "block-1", text: "Successful translations should still render when cache storage is full." }
+    ]
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(response.results)), [
+    { id: "block-1", text: "缓存失败时仍应返回译文。" }
   ]);
 }
 
@@ -800,6 +826,9 @@ async function testContentAutoStartMarkActiveMakesFirstToggleStop() {
   const context = createBackgroundContext({
     sendMessage: async (tabId, message) => {
       tabMessages.push({ tabId, message });
+      if (message.action === "get_page_stats") {
+        return { ok: true, active: true, stats: { translated: 1, translationVisible: true } };
+      }
       if (message.action === "start_translation") {
         throw new Error("First toggle after content auto-start should stop, not start again.");
       }
@@ -824,8 +853,39 @@ async function testContentAutoStartMarkActiveMakesFirstToggleStop() {
 
   assert.strictEqual(response.ok, true);
   assert.strictEqual(response.active, false);
-  assert.strictEqual(tabMessages.length, 1);
-  assert.strictEqual(tabMessages[0].message.action, "stop_translation");
+  assert.deepStrictEqual(tabMessages.map((entry) => entry.message.action), [
+    "get_page_stats",
+    "stop_translation"
+  ]);
+}
+
+async function testCommandToggleSyncsContentStateAfterWorkerRestart() {
+  const tabMessages = [];
+  const context = createBackgroundContext({
+    queryTabs: [{ id: 45, url: "https://www.bbc.com/" }],
+    sendMessage: async (tabId, message) => {
+      tabMessages.push({ tabId, message });
+      if (message.action === "get_page_stats") {
+        return { ok: true, active: true, stats: { translated: 1, translationVisible: true } };
+      }
+      if (message.action === "start_translation") {
+        throw new Error("Shortcut should stop the active content script after a worker restart.");
+      }
+      return { ok: true };
+    }
+  });
+
+  loadBackground(context);
+
+  assert.ok(context.commandListener, "background should register a command listener");
+  await context.commandListener("toggle_translation");
+
+  assert.deepStrictEqual(tabMessages.map((entry) => entry.message.action), [
+    "get_page_stats",
+    "stop_translation"
+  ]);
+  const state = await sendRuntimeMessage(context, { action: "get_tab_state", tabId: 45 });
+  assert.strictEqual(state.active, false);
 }
 
 async function testContentAutoSkipMarkActiveStoresNotice() {
@@ -921,7 +981,8 @@ async function testManualTranslationReportsMissingApiKeyBeforeInjecting() {
 
   assert.strictEqual(response.ok, false);
   assert.match(response.error, /API Key/);
-  assert.strictEqual(tabMessages.length, 0);
+  assert.deepStrictEqual(tabMessages.map((entry) => entry.message.action), ["get_page_stats"]);
+  assert.strictEqual(context.scriptingCalls.length, 0);
 }
 
 async function testManualTranslationPropagatesContentStartFailure() {
@@ -1495,7 +1556,7 @@ function createBackgroundContext(options = {}) {
   const tabsById = options.tabsById || {};
 
   const context = {
-    console,
+    console: options.console || console,
     setTimeout,
     clearTimeout,
     AbortController,
@@ -1560,7 +1621,13 @@ function createBackgroundContext(options = {}) {
           }
         }
       },
-      commands: { onCommand: { addListener() {} } },
+      commands: {
+        onCommand: {
+          addListener(listener) {
+            context.commandListener = listener;
+          }
+        }
+      },
       tabs: {
         onRemoved: { addListener() {} },
         onActivated: {
@@ -1606,6 +1673,9 @@ function createBackgroundContext(options = {}) {
             return { [keysOrDefaults]: storage[keysOrDefaults] };
           },
           async set(updates) {
+            if (options.failStorageSet) {
+              throw new Error("Mock storage quota exceeded.");
+            }
             Object.assign(storage, updates);
           },
           async remove(keys) {

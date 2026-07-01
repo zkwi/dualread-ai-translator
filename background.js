@@ -386,7 +386,8 @@ async function toggleTranslation(tab) {
     return { ok: false, error: t("errorUnsupportedTabTest", [], "当前页面不支持注入脚本，请换一个普通网页测试。") };
   }
 
-  const isActive = !!activeTabs.get(tab.id);
+  const pageState = await getPageStats(tab);
+  const isActive = !!pageState.active;
   if (!isActive) {
     const configured = await ensureTranslationConfigured(tab);
     if (!configured.ok) return configured;
@@ -691,7 +692,11 @@ async function translateBatch(items) {
     : [];
 
   if (freshResults.length > 0) {
-    await saveResultsToCache(settings, missingSegments, freshResults);
+    try {
+      await saveResultsToCache(settings, missingSegments, freshResults);
+    } catch (error) {
+      console.warn("Failed to save translation cache:", error);
+    }
   }
 
   const segmentResults = new Map(cachedResults);
