@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1
+
+- Optimized viewport-only scans on long Reddit-style threads so translation startup does not walk every comment text node.
+- Reused viewport readable-block sampling for page-language checks, reducing main-thread work before the first loading placeholder.
+- Added a long Reddit thread regression fixture to guard against full-page TreeWalker scans returning.
+- Bumped the content script version so already-injected 0.5.0 scripts can clearly request a page refresh.
+
 ## 0.5.0
 
 - Synced Alt+T toggles with the content script's real active state before choosing start or stop, fixing stale service-worker state after restarts.

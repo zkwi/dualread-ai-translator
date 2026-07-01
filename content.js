@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.5.0";
+  const CONTENT_SCRIPT_VERSION = "0.5.1";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -337,6 +337,11 @@
       Number(options.maxResults) || costSettings.maxElementsPerScan,
       costSettings.maxElementsPerScan
     ));
+    if (costSettings.viewportOnly && !options.immediateViewportOnly) {
+      const viewportCandidates = collectViewportCandidateElements(scanRoot, costSettings, maxResults);
+      if (viewportCandidates.length > 0) return viewportCandidates;
+    }
+
     const candidates = new Map();
     const seenTexts = new Set();
     const walker = document.createTreeWalker(
@@ -381,6 +386,36 @@
         score: getCandidatePriorityScore(element, text)
       }))
       .filter((candidate) => !costSettings.viewportOnly || isElementNearActiveViewport(candidate.element))
+      .sort(compareCandidatePriority)
+      .map((candidate) => candidate.element)
+      .slice(0, maxResults);
+  }
+
+  function collectViewportCandidateElements(scanRoot, costSettings, maxResults) {
+    const candidates = new Map();
+    const seenTexts = new Set();
+    const elements = scanRoot.querySelectorAll?.(getViewportReadableBlockSelector()) || [];
+
+    for (const element of elements) {
+      if (!isElementNearActiveViewport(element)) continue;
+
+      const block = findImmediateReadableBlock(element, costSettings);
+      if (!block || candidates.has(block) || !isElementNearActiveViewport(block)) continue;
+
+      const text = getCleanText(block);
+      const textKey = text.toLowerCase();
+      if (seenTexts.has(textKey) || !isCandidateElement(block, costSettings, text)) continue;
+
+      seenTexts.add(textKey);
+      candidates.set(block, text);
+    }
+
+    return Array.from(candidates.entries())
+      .map(([element, text]) => ({
+        element,
+        text,
+        score: getCandidatePriorityScore(element, text)
+      }))
       .sort(compareCandidatePriority)
       .map((candidate) => candidate.element)
       .slice(0, maxResults);
@@ -440,6 +475,10 @@
   }
 
   function getImmediateReadableBlockSelector() {
+    return getViewportReadableBlockSelector();
+  }
+
+  function getViewportReadableBlockSelector() {
     return [
       LLMTranslatorShared.getCandidateSelector(),
       "[data-testid=\"tweetText\"]",
@@ -2243,6 +2282,9 @@
     const root = document.body || document.documentElement;
     if (!root) return [];
 
+    const elementSegments = collectVisibleElementTextSegments(root, maxSegments, maxTotalLength);
+    if (elementSegments.length > 0) return elementSegments;
+
     const parts = [];
     let totalLength = 0;
     const walker = document.createTreeWalker(
@@ -2270,6 +2312,31 @@
       parts.push(text);
       totalLength += text.length;
       node = walker.nextNode();
+    }
+
+    return parts;
+  }
+
+  function collectVisibleElementTextSegments(root, maxSegments, maxTotalLength) {
+    const parts = [];
+    const seenTexts = new Set();
+    let totalLength = 0;
+    const elements = root.querySelectorAll?.(getViewportReadableBlockSelector()) || [];
+
+    for (const element of elements) {
+      if (parts.length >= maxSegments || totalLength >= maxTotalLength) break;
+      if (!isElementNearActiveViewport(element)) continue;
+      if (hasBlockedAncestor(element)) continue;
+      if (!isElementVisible(element)) continue;
+
+      const text = normalizeText(getCleanText(element));
+      if (text.length < 8 || LLMTranslatorShared.shouldSkipTextByContent(text)) continue;
+      const textKey = text.toLowerCase();
+      if (seenTexts.has(textKey)) continue;
+
+      seenTexts.add(textKey);
+      parts.push(text);
+      totalLength += text.length;
     }
 
     return parts;

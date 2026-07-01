@@ -35,6 +35,7 @@ async function main() {
     await testCnnHomepageLeadCardSurvivesUtilityFiltering(browser);
     await testEmbeddedPlayerErrorsDoNotStealNewsBudget(browser);
     await testRedditTextBodyUsesSafeTranslationAnchor(browser);
+    await testLongRedditThreadDoesNotFullWalkComments(browser);
     await testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser);
     await testGitHubFlexRepositoryRowsDoNotReceiveTranslations(browser);
     await testDenseTableRowsDoNotReceiveBlockTranslations(browser);
@@ -467,6 +468,55 @@ async function testRedditTextBodyUsesSafeTranslationAnchor(browser) {
   assert.strictEqual(layout.display, "block");
   assert.ok(layout.width <= layout.parentWidth + 1);
   assert.ok(layout.scrollWidth <= layout.clientWidth + 1);
+  await page.close();
+}
+
+async function testLongRedditThreadDoesNotFullWalkComments(browser) {
+  const comments = Array.from({ length: 450 }, (_, index) => `
+    <shreddit-comment depth="0" thingid="t1_${index + 1}">
+      <div slot="comment" class="md">
+        <p>Comment ${index + 1} explains how the Codex plan behaved during a long coding session with many files and repeated updates.</p>
+        <p>The author describes waiting for results, reviewing code changes, and comparing performance across several days of usage.</p>
+      </div>
+    </shreddit-comment>
+  `).join("");
+
+  const page = await createHarnessPage(browser, {
+    batchSize: 100,
+    countTreeWalker: true,
+    html: `
+      <style>
+        shreddit-post, shreddit-post-text-body, shreddit-comment { display: block; }
+        shreddit-comment { padding: 12px 0; border-bottom: 1px solid #ddd; }
+      </style>
+      <main>
+        <shreddit-post post-type="text" post-language="en">
+          <a slot="title" href="/r/codex/comments/example">This is what a long Codex plan looked like after many days of usage</a>
+          <shreddit-post-text-body slot="text-body">
+            <div property="schema:articleBody">
+              <p>The original post includes a detailed report about long-running Codex usage, costs, and observed delays while translating dense pages.</p>
+            </div>
+          </shreddit-post-text-body>
+        </shreddit-post>
+        <section id="comments">${comments}</section>
+      </main>
+    `
+  });
+
+  const result = await page.evaluate(async () => {
+    const response = await window.__sendContentMessage({ action: "scan_current_area" });
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return {
+      count: response.count,
+      loadingCount: document.querySelectorAll(".llm-bilingual-translation.is-loading").length,
+      treeWalkerNextCalls: window.__treeWalkerNextCalls
+    };
+  });
+
+  assert.ok(result.count > 0);
+  assert.ok(result.loadingCount > 0);
+  assert.ok(result.treeWalkerNextCalls < 120, "Viewport scans should not walk every Reddit comment text node.");
+
   await page.close();
 }
 
@@ -1602,6 +1652,24 @@ async function createHarnessPage(browser, options = {}) {
 
         unobserve() {}
         disconnect() {}
+      };
+    });
+  }
+
+  if (options.countTreeWalker) {
+    await page.evaluate(() => {
+      window.__treeWalkerCalls = 0;
+      window.__treeWalkerNextCalls = 0;
+      const originalCreateTreeWalker = document.createTreeWalker.bind(document);
+      document.createTreeWalker = (...args) => {
+        window.__treeWalkerCalls += 1;
+        const walker = originalCreateTreeWalker(...args);
+        const originalNextNode = walker.nextNode.bind(walker);
+        walker.nextNode = () => {
+          window.__treeWalkerNextCalls += 1;
+          return originalNextNode();
+        };
+        return walker;
       };
     });
   }
