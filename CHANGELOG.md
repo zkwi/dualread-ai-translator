@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.2
+
+- Cached viewport hit-test samples so language checks, immediate scans, deferred scans, and scroll scans do not repeatedly call `elementsFromPoint` on long Reddit-style threads.
+- Reduced viewport sampling layout reads so scan cost stays bounded by the viewport instead of growing with the total number of loaded comments.
+- Extended the long Reddit regression fixture to guard both full TreeWalker scans and full-page layout measurement from returning.
+- Bumped the content script version so already-injected 0.5.1 scripts can clearly request a page refresh.
+
 ## 0.5.1
 
 - Optimized viewport-only scans on long Reddit-style threads so translation startup does not walk every comment text node.

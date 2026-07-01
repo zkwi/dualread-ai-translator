@@ -472,7 +472,7 @@ async function testRedditTextBodyUsesSafeTranslationAnchor(browser) {
 }
 
 async function testLongRedditThreadDoesNotFullWalkComments(browser) {
-  const comments = Array.from({ length: 450 }, (_, index) => `
+  const comments = Array.from({ length: 1200 }, (_, index) => `
     <shreddit-comment depth="0" thingid="t1_${index + 1}">
       <div slot="comment" class="md">
         <p>Comment ${index + 1} explains how the Codex plan behaved during a long coding session with many files and repeated updates.</p>
@@ -483,6 +483,7 @@ async function testLongRedditThreadDoesNotFullWalkComments(browser) {
 
   const page = await createHarnessPage(browser, {
     batchSize: 100,
+    countLayoutReads: true,
     countTreeWalker: true,
     html: `
       <style>
@@ -509,12 +510,14 @@ async function testLongRedditThreadDoesNotFullWalkComments(browser) {
     return {
       count: response.count,
       loadingCount: document.querySelectorAll(".llm-bilingual-translation.is-loading").length,
+      rectCalls: window.__rectCalls,
       treeWalkerNextCalls: window.__treeWalkerNextCalls
     };
   });
 
   assert.ok(result.count > 0);
   assert.ok(result.loadingCount > 0);
+  assert.ok(result.rectCalls < 900, "Viewport scans should not measure every Reddit comment paragraph.");
   assert.ok(result.treeWalkerNextCalls < 120, "Viewport scans should not walk every Reddit comment text node.");
 
   await page.close();
@@ -1670,6 +1673,17 @@ async function createHarnessPage(browser, options = {}) {
           return originalNextNode();
         };
         return walker;
+      };
+    });
+  }
+
+  if (options.countLayoutReads) {
+    await page.evaluate(() => {
+      window.__rectCalls = 0;
+      const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = function (...args) {
+        window.__rectCalls += 1;
+        return originalGetBoundingClientRect.apply(this, args);
       };
     });
   }

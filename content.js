@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.5.1";
+  const CONTENT_SCRIPT_VERSION = "0.5.2";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -34,6 +34,7 @@
     mutationScanTimer: null,
     pendingScanRoots: new Set(),
     viewportScanTimer: null,
+    viewportSampleCache: null,
     lastMouseY: null,
     lastViewportSnapshot: null,
     handleScrollOrResize: null,
@@ -311,6 +312,7 @@
     state.queuedIds.clear();
     state.pendingScanRoots.clear();
     state.lastViewportSnapshot = null;
+    state.viewportSampleCache = null;
     clearPendingLoadingPlaceholders();
     stopViewportTracking();
   }
@@ -392,6 +394,56 @@
   }
 
   function collectViewportCandidateElements(scanRoot, costSettings, maxResults) {
+    const sampledCandidates = collectSampledViewportCandidateElements(scanRoot, costSettings, maxResults);
+    if (sampledCandidates.length > 0) return sampledCandidates;
+
+    return collectSelectorViewportCandidateElements(scanRoot, costSettings, maxResults);
+  }
+
+  function collectSampledViewportCandidateElements(scanRoot, costSettings, maxResults) {
+    const candidates = new Map();
+    const seenTexts = new Set();
+
+    if (typeof document.elementsFromPoint !== "function") return [];
+
+    for (const element of getViewportSampleElements(scanRoot)) {
+      addImmediateViewportCandidate(element, candidates, seenTexts, costSettings);
+      addLocalViewportCandidateElements(element, scanRoot, candidates, seenTexts, costSettings, maxResults);
+    }
+
+    return formatCandidateEntries(candidates, maxResults);
+  }
+
+  function addLocalViewportCandidateElements(element, scanRoot, candidates, seenTexts, costSettings, maxResults) {
+    if (candidates.size >= maxResults) return;
+
+    const localScope = getLocalReadableScope(element, scanRoot);
+    if (!localScope) return;
+
+    const elements = localScope.querySelectorAll?.(getViewportReadableBlockSelector()) || [];
+    for (const candidate of elements) {
+      if (candidates.size >= maxResults) break;
+      addImmediateViewportCandidate(candidate, candidates, seenTexts, costSettings);
+    }
+  }
+
+  function getLocalReadableScope(element, scanRoot) {
+    if (!element?.closest) return null;
+
+    const scope = element.closest([
+      "shreddit-comment",
+      "shreddit-post",
+      "article",
+      "[role=\"article\"]",
+      "li",
+      "blockquote"
+    ].join(","));
+
+    if (!scope || scope === scanRoot) return null;
+    return scanRoot.contains(scope) ? scope : null;
+  }
+
+  function collectSelectorViewportCandidateElements(scanRoot, costSettings, maxResults) {
     const candidates = new Map();
     const seenTexts = new Set();
     const elements = scanRoot.querySelectorAll?.(getViewportReadableBlockSelector()) || [];
@@ -410,6 +462,10 @@
       candidates.set(block, text);
     }
 
+    return formatCandidateEntries(candidates, maxResults);
+  }
+
+  function formatCandidateEntries(candidates, maxResults) {
     return Array.from(candidates.entries())
       .map(([element, text]) => ({
         element,
@@ -431,11 +487,8 @@
     const seenTexts = new Set();
 
     if (typeof document.elementsFromPoint === "function") {
-      for (const point of getViewportSamplePoints()) {
-        for (const element of document.elementsFromPoint(point.x, point.y)) {
-          if (scanRoot !== element && !scanRoot.contains(element)) continue;
-          addImmediateViewportCandidate(element, candidates, seenTexts, costSettings);
-        }
+      for (const element of getViewportSampleElements(scanRoot)) {
+        addImmediateViewportCandidate(element, candidates, seenTexts, costSettings);
       }
     }
 
@@ -496,20 +549,55 @@
   function getViewportSamplePoints() {
     const width = window.innerWidth || document.documentElement.clientWidth || 1000;
     const height = window.innerHeight || document.documentElement.clientHeight || 800;
-    const xRatios = [0.5, 0.28, 0.72];
-    const yRatios = [0.22, 0.38, 0.54, 0.7, 0.86];
-    const points = [];
+    return [
+      [0.5, 0.08],
+      [0.5, 0.16],
+      [0.5, 0.28],
+      [0.24, 0.28],
+      [0.76, 0.28],
+      [0.5, 0.42],
+      [0.5, 0.58],
+      [0.24, 0.58],
+      [0.76, 0.58],
+      [0.5, 0.74],
+      [0.5, 0.9],
+      [0.24, 0.9],
+      [0.76, 0.9]
+    ].map(([xRatio, yRatio]) => ({
+      x: Math.max(1, Math.min(width - 1, Math.round(width * xRatio))),
+      y: Math.max(1, Math.min(height - 1, Math.round(height * yRatio)))
+    }));
+  }
 
-    for (const yRatio of yRatios) {
-      for (const xRatio of xRatios) {
-        points.push({
-          x: Math.max(1, Math.min(width - 1, Math.round(width * xRatio))),
-          y: Math.max(1, Math.min(height - 1, Math.round(height * yRatio)))
-        });
+  function getViewportSampleElements(scanRoot) {
+    if (typeof document.elementsFromPoint !== "function") return [];
+
+    const snapshot = getViewportSnapshot();
+    const width = window.innerWidth || document.documentElement.clientWidth || 1000;
+    const cacheKey = [
+      Math.round(snapshot.top),
+      Math.round(snapshot.height),
+      width
+    ].join(":");
+
+    if (!state.viewportSampleCache || state.viewportSampleCache.key !== cacheKey) {
+      const seen = new Set();
+      const elements = [];
+
+      for (const point of getViewportSamplePoints()) {
+        for (const element of document.elementsFromPoint(point.x, point.y)) {
+          if (!element || seen.has(element)) continue;
+          seen.add(element);
+          elements.push(element);
+        }
       }
+
+      state.viewportSampleCache = { key: cacheKey, elements };
     }
 
-    return points;
+    return state.viewportSampleCache.elements.filter((element) => (
+      scanRoot === element || scanRoot.contains(element)
+    ));
   }
 
   function addImmediateViewportCandidate(element, candidates, seenTexts, costSettings) {
@@ -1071,6 +1159,7 @@
     state.queue = [];
     state.queuedIds.clear();
     state.pendingScanRoots.clear();
+    state.viewportSampleCache = null;
 
     if (state.observer) {
       state.observer.disconnect();
@@ -1262,6 +1351,7 @@
     if (!node || node.nodeType !== Node.ELEMENT_NODE) return;
     if (node.closest?.(".llm-bilingual-translation")) return;
     if (node.matches?.(".llm-bilingual-translation")) return;
+    state.viewportSampleCache = null;
     state.pendingScanRoots.add(node);
   }
 
@@ -2318,28 +2408,65 @@
   }
 
   function collectVisibleElementTextSegments(root, maxSegments, maxTotalLength) {
+    const sampledSegments = collectSampledVisibleElementTextSegments(root, maxSegments, maxTotalLength);
+    if (sampledSegments.length > 0) return sampledSegments;
+
+    return collectSelectorVisibleElementTextSegments(root, maxSegments, maxTotalLength);
+  }
+
+  function collectSampledVisibleElementTextSegments(root, maxSegments, maxTotalLength) {
     const parts = [];
     const seenTexts = new Set();
     let totalLength = 0;
-    const elements = root.querySelectorAll?.(getViewportReadableBlockSelector()) || [];
 
-    for (const element of elements) {
-      if (parts.length >= maxSegments || totalLength >= maxTotalLength) break;
-      if (!isElementNearActiveViewport(element)) continue;
-      if (hasBlockedAncestor(element)) continue;
-      if (!isElementVisible(element)) continue;
+    if (typeof document.elementsFromPoint !== "function") return [];
 
-      const text = normalizeText(getCleanText(element));
-      if (text.length < 8 || LLMTranslatorShared.shouldSkipTextByContent(text)) continue;
-      const textKey = text.toLowerCase();
-      if (seenTexts.has(textKey)) continue;
+    const costSettings = LLMTranslatorShared.normalizeCostSettings(state.settings);
+    for (const element of getViewportSampleElements(root)) {
+      const block = findImmediateReadableBlock(element, costSettings);
+      totalLength = addVisibleTextSegment(block, root, parts, seenTexts, totalLength, maxSegments, maxTotalLength);
+      if (parts.length >= maxSegments || totalLength >= maxTotalLength) return parts;
 
-      seenTexts.add(textKey);
-      parts.push(text);
-      totalLength += text.length;
+      const localScope = getLocalReadableScope(element, root);
+      const elements = localScope?.querySelectorAll?.(getViewportReadableBlockSelector()) || [];
+      for (const candidate of elements) {
+        totalLength = addVisibleTextSegment(candidate, root, parts, seenTexts, totalLength, maxSegments, maxTotalLength);
+        if (parts.length >= maxSegments || totalLength >= maxTotalLength) return parts;
+      }
     }
 
     return parts;
+  }
+
+  function collectSelectorVisibleElementTextSegments(root, maxSegments, maxTotalLength, elements = null) {
+    const parts = [];
+    const seenTexts = new Set();
+    let totalLength = 0;
+    const readableElements = elements || root.querySelectorAll?.(getViewportReadableBlockSelector()) || [];
+
+    for (const element of readableElements) {
+      if (parts.length >= maxSegments || totalLength >= maxTotalLength) break;
+      totalLength = addVisibleTextSegment(element, root, parts, seenTexts, totalLength, maxSegments, maxTotalLength);
+    }
+
+    return parts;
+  }
+
+  function addVisibleTextSegment(element, root, parts, seenTexts, totalLength, maxSegments, maxTotalLength) {
+    if (!element || parts.length >= maxSegments || totalLength >= maxTotalLength) return totalLength;
+    if (root !== element && !root.contains(element)) return totalLength;
+    if (!isElementNearActiveViewport(element)) return totalLength;
+    if (hasBlockedAncestor(element)) return totalLength;
+    if (!isElementVisible(element)) return totalLength;
+
+    const text = normalizeText(getCleanText(element));
+    if (text.length < 8 || LLMTranslatorShared.shouldSkipTextByContent(text)) return totalLength;
+    const textKey = text.toLowerCase();
+    if (seenTexts.has(textKey)) return totalLength;
+
+    seenTexts.add(textKey);
+    parts.push(text);
+    return totalLength + text.length;
   }
 
   function applyTranslationTheme() {
