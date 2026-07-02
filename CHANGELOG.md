@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.3
+
+- Repaired common malformed model JSON where adjacent result objects are returned without commas, preventing isolated Reddit comment batches from failing.
+- Wrapped unrecoverable model JSON parse failures with the extension's localized parse error instead of leaking raw `JSON.parse` exceptions into the page.
+- Added background regression coverage for malformed-but-recoverable translation JSON.
+- Bumped the content script version so already-injected 0.5.2 scripts can clearly request a page refresh.
+
 ## 0.5.2
 
 - Cached viewport hit-test samples so language checks, immediate scans, deferred scans, and scroll scans do not repeatedly call `elementsFromPoint` on long Reddit-style threads.

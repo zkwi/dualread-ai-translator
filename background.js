@@ -1144,17 +1144,44 @@ function parseTranslationJson(content) {
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
-
-  try {
-    return JSON.parse(cleaned);
-  } catch (error) {
-    const start = cleaned.indexOf("[");
-    const end = cleaned.lastIndexOf("]");
-    if (start >= 0 && end > start) {
-      return JSON.parse(cleaned.slice(start, end + 1));
-    }
-    throw new Error(t("errorParseJson", [error.message], `无法解析模型返回的 JSON：${error.message}`));
+  const candidates = [cleaned];
+  const start = cleaned.indexOf("[");
+  const end = cleaned.lastIndexOf("]");
+  if (start >= 0 && end > start) {
+    const arrayCandidate = cleaned.slice(start, end + 1);
+    if (arrayCandidate !== cleaned) candidates.push(arrayCandidate);
   }
+  const errors = [];
+
+  for (const candidate of candidates) {
+    const parsed = tryParseJson(candidate);
+    if (parsed.ok) return parsed.value;
+    errors.push(parsed.error);
+
+    const repaired = repairCommonTranslationJson(candidate);
+    if (repaired !== candidate) {
+      const repairedParsed = tryParseJson(repaired);
+      if (repairedParsed.ok) return repairedParsed.value;
+      errors.push(repairedParsed.error);
+    }
+  }
+
+  const message = errors[0]?.message || t("errorUnknown", [], "未知错误");
+  throw new Error(t("errorParseJson", [message], `无法解析模型返回的 JSON：${message}`));
+}
+
+function tryParseJson(value) {
+  try {
+    return { ok: true, value: JSON.parse(value) };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+function repairCommonTranslationJson(value) {
+  return String(value)
+    .replace(/}\s*(?={\s*"id"\s*:)/g, "},")
+    .replace(/,\s*([}\]])/g, "$1");
 }
 
 function normalizeResults(parsed, originalItems) {

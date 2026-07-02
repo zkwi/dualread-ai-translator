@@ -13,6 +13,8 @@ main().catch((error) => {
 async function main() {
   await testTranslateBatchRetriesOneServerError();
   await testTranslateBatchUsesJsonArrayAndMapsById();
+  await testTranslateBatchRepairsMissingCommaBetweenJsonObjects();
+  await testTranslateBatchWrapsUnrecoverableJsonParseError();
   await testTranslateBatchCachesMergedTextBySegment();
   await testTranslateBatchReturnsResultsWhenCacheWriteFails();
   await testTranslateBatchPrunesOldCacheEntries();
@@ -161,6 +163,76 @@ async function testTranslateBatchUsesJsonArrayAndMapsById() {
     { id: "block-1", text: "第一段译文。" },
     { id: "block-2", text: "第二段译文。" }
   ]);
+}
+
+async function testTranslateBatchRepairsMissingCommaBetweenJsonObjects() {
+  const context = createBackgroundContext({
+    fetch: async () => ({
+      ok: true,
+      async json() {
+        return {
+          choices: [
+            {
+              message: {
+                content: [
+                  "[",
+                  "{\"id\":\"block-1\",\"text\":\"第一段译文。\"}",
+                  "{\"id\":\"block-2\",\"text\":\"第二段译文。\"}",
+                  "]"
+                ].join("\n")
+              }
+            }
+          ]
+        };
+      }
+    })
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [
+      { id: "block-1", text: "First block text." },
+      { id: "block-2", text: "Second block text." }
+    ]
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(response.results)), [
+    { id: "block-1", text: "第一段译文。" },
+    { id: "block-2", text: "第二段译文。" }
+  ]);
+}
+
+async function testTranslateBatchWrapsUnrecoverableJsonParseError() {
+  const context = createBackgroundContext({
+    fetch: async () => ({
+      ok: true,
+      async json() {
+        return {
+          choices: [
+            {
+              message: {
+                content: "[{\"id\":\"block-1\",\"text\":\"unfinished\""
+              }
+            }
+          ]
+        };
+      }
+    })
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [{ id: "block-1", text: "First block text." }]
+  });
+
+  assert.strictEqual(response.ok, false);
+  assert.match(response.error, /Could not parse the model JSON response|无法解析模型返回的 JSON/);
+  assert.match(response.results[0].error, /Could not parse the model JSON response|无法解析模型返回的 JSON/);
 }
 
 async function testTranslateBatchCachesMergedTextBySegment() {
