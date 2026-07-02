@@ -15,6 +15,8 @@ async function main() {
   await testTranslateBatchUsesJsonArrayAndMapsById();
   await testTranslateBatchRepairsMissingCommaBetweenJsonObjects();
   await testTranslateBatchWrapsUnrecoverableJsonParseError();
+  await testTranslateBatchSalvagesMalformedObjectAndRetriesMissing();
+  await testTranslateBatchRetriesMissingSegmentsOnlyOnce();
   await testTranslateBatchCachesMergedTextBySegment();
   await testTranslateBatchReturnsResultsWhenCacheWriteFails();
   await testTranslateBatchPrunesOldCacheEntries();
@@ -236,6 +238,76 @@ async function testTranslateBatchWrapsUnrecoverableJsonParseError() {
   assert.strictEqual(response.ok, false);
   assert.match(response.error, /Could not parse the model JSON response|无法解析模型返回的 JSON/);
   assert.match(response.results[0].error, /Could not parse the model JSON response|无法解析模型返回的 JSON/);
+}
+
+async function testTranslateBatchSalvagesMalformedObjectAndRetriesMissing() {
+  const fetchCalls = [];
+  const context = createBackgroundContext({
+    fetch: async (url, options) => {
+      fetchCalls.push({ url, options });
+      if (fetchCalls.length === 1) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              choices: [{ message: { content:
+                '[{"id":"seg-a","text":"甲译文"},{"id":"seg-b","text":"乙"坏"},{"id":"seg-c","text":"丙译文"}]'
+              } }]
+            };
+          }
+        };
+      }
+      return createJsonResponse([{ id: "seg-b", text: "乙译文" }]);
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [
+      { id: "seg-a", text: "First paragraph." },
+      { id: "seg-b", text: "Second paragraph." },
+      { id: "seg-c", text: "Third paragraph." }
+    ]
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.strictEqual(fetchCalls.length, 2, "缺失段落应恰好补发一次请求");
+  const retryPrompt = JSON.parse(fetchCalls[1].options.body).messages[1].content;
+  assert.match(retryPrompt, /Second paragraph/);
+  assert.doesNotMatch(retryPrompt, /First paragraph/, "重试请求只应包含缺失的段落");
+
+  const byId = Object.fromEntries(response.results.map((result) => [result.id, result]));
+  assert.strictEqual(byId["seg-a"].text, "甲译文");
+  assert.strictEqual(byId["seg-b"].text, "乙译文");
+  assert.strictEqual(byId["seg-c"].text, "丙译文");
+}
+
+async function testTranslateBatchRetriesMissingSegmentsOnlyOnce() {
+  const fetchCalls = [];
+  const context = createBackgroundContext({
+    fetch: async (url, options) => {
+      fetchCalls.push({ url, options });
+      return createJsonResponse([{ id: "seg-a", text: "甲译文" }]);
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [
+      { id: "seg-a", text: "First paragraph." },
+      { id: "seg-b", text: "Second paragraph." }
+    ]
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.strictEqual(fetchCalls.length, 2, "缺失子集只允许重试一次");
+  const byId = Object.fromEntries(response.results.map((result) => [result.id, result]));
+  assert.strictEqual(byId["seg-a"].text, "甲译文");
+  assert.ok(byId["seg-b"].error, "重试后仍缺失的段落保持错误状态");
 }
 
 async function testTranslateBatchCachesMergedTextBySegment() {
@@ -666,7 +738,10 @@ async function testTranslateBatchRetriesWithoutUnsupportedThinkingParameter() {
           }
         };
       }
-      return createJsonResponse([{ id: "item-1", text: "译文。" }]);
+      const userMessage = body.messages.find((message) => message.role === "user");
+      const inputJson = userMessage.content.slice(userMessage.content.indexOf("["));
+      const [{ id }] = JSON.parse(inputJson);
+      return createJsonResponse([{ id, text: "译文。" }]);
     }
   });
 

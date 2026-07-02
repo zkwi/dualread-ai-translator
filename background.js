@@ -704,9 +704,12 @@ async function translateBatch(items) {
 
   const cachedResults = await getCachedResults(settings, segmentPlan.segments);
   const missingSegments = segmentPlan.segments.filter((segment) => !cachedResults.has(segment.id));
-  const freshResults = missingSegments.length > 0
+  let freshResults = missingSegments.length > 0
     ? await requestTranslations(settings, missingSegments)
     : [];
+  if (freshResults.some((result) => result?.error)) {
+    freshResults = await retryMissingSegmentsOnce(settings, missingSegments, freshResults);
+  }
 
   if (freshResults.length > 0) {
     try {
@@ -731,6 +734,31 @@ async function translateBatch(items) {
       requested: missingSegments.length
     }
   };
+}
+
+async function retryMissingSegmentsOnce(settings, segments, results) {
+  const okIds = new Set(
+    results.filter((result) => result?.text && !result.error).map((result) => String(result.id))
+  );
+  const failedSegments = segments.filter((segment) => !okIds.has(String(segment.id)));
+  if (failedSegments.length === 0) return results;
+
+  let retried = [];
+  try {
+    retried = await requestTranslations(settings, failedSegments);
+  } catch (error) {
+    return results;
+  }
+
+  const retriedById = new Map(
+    retried
+      .filter((result) => result?.text && !result.error)
+      .map((result) => [String(result.id), result])
+  );
+
+  return results
+    .filter((result) => okIds.has(String(result.id)) || !retriedById.has(String(result.id)))
+    .concat(Array.from(retriedById.values()));
 }
 
 function createSegmentCachePlan(items) {
@@ -1183,6 +1211,9 @@ function parseTranslationJson(content) {
     }
   }
 
+  const salvaged = extractTranslationObjects(cleaned);
+  if (salvaged.length > 0) return salvaged;
+
   const message = errors[0]?.message || t("errorUnknown", [], "未知错误");
   throw new Error(t("errorParseJson", [message], `无法解析模型返回的 JSON：${message}`));
 }
@@ -1199,6 +1230,61 @@ function repairCommonTranslationJson(value) {
   return String(value)
     .replace(/}\s*(?={\s*"id"\s*:)/g, "},")
     .replace(/,\s*([}\]])/g, "$1");
+}
+
+function extractTranslationObjects(content) {
+  const text = String(content || "");
+  const results = [];
+  const seenIds = new Set();
+  let index = 0;
+
+  while (index < text.length) {
+    const start = text.indexOf("{", index);
+    if (start < 0) break;
+
+    const end = findBalancedObjectEnd(text, start);
+    const parsed = end > start ? tryParseJson(text.slice(start, end + 1)) : { ok: false };
+    const value = parsed.ok ? parsed.value : null;
+
+    if (value
+      && typeof value === "object"
+      && value.id !== undefined
+      && typeof value.text === "string"
+      && !seenIds.has(String(value.id))) {
+      seenIds.add(String(value.id));
+      results.push({ id: value.id, text: value.text });
+      index = end + 1;
+    } else {
+      index = start + 1;
+    }
+  }
+
+  return results;
+}
+
+function findBalancedObjectEnd(text, start) {
+  let inString = false;
+  let escaped = false;
+  let depth = 0;
+
+  for (let i = start; i < text.length; i += 1) {
+    const char = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === "\"") inString = false;
+      continue;
+    }
+
+    if (char === "\"") inString = true;
+    else if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+
+  return -1;
 }
 
 function normalizeResults(parsed, originalItems) {
