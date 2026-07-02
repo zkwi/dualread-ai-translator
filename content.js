@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.5.4";
+  const CONTENT_SCRIPT_VERSION = "0.5.5";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -540,6 +540,7 @@
       "[role=\"article\"] a[class*=\"headline\" i][href]",
       "[role=\"article\"] a[class*=\"title\" i][href]",
       "shreddit-post a[slot=\"title\"][href]",
+      "shreddit-post [slot=\"title\"][id^=\"post-title-\"]",
       "shreddit-post [id^=\"post-title-\"][href]",
       "shreddit-post-text-body",
       "[property=\"schema:articleBody\"][id$=\"-post-rtjson-content\"]",
@@ -819,6 +820,7 @@
 
     return element.closest([
       "a[slot=\"title\"][href]",
+      "[slot=\"title\"][id^=\"post-title-\"]",
       "[id^=\"post-title-\"][href]"
     ].join(","));
   }
@@ -1844,6 +1846,7 @@
     return !!element.closest("shreddit-post")
       && element.matches([
         "a[slot=\"title\"][href]",
+        "[slot=\"title\"][id^=\"post-title-\"]",
         "[id^=\"post-title-\"][href]"
       ].join(","));
   }

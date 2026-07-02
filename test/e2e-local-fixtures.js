@@ -36,6 +36,7 @@ async function main() {
     await testArticleHeadlineLinkWithoutHeadingIsTranslated(browser);
     await testEmbeddedPlayerErrorsDoNotStealNewsBudget(browser);
     await testRedditPostTitleIsTranslatedWithoutMetadata(browser);
+    await testRedditDetailTitleTranslationKeepsTitleSlotOrder(browser);
     await testRedditTextBodyUsesSafeTranslationAnchor(browser);
     await testLongRedditThreadDoesNotFullWalkComments(browser);
     await testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser);
@@ -484,6 +485,70 @@ async function testRedditPostTitleIsTranslatedWithoutMetadata(browser) {
   assert.doesNotMatch(requested, /^r\/codex\s+Performance Tracker\s+8 hr\. ago$/m);
   assert.strictEqual(await hasTranslationNear(page, "#post-title-t3_reset"), true);
   assert.strictEqual(await page.locator("#post-title-t3_reset + .llm-bilingual-translation").getAttribute("slot"), "title");
+
+  await page.close();
+}
+
+async function testRedditDetailTitleTranslationKeepsTitleSlotOrder(browser) {
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 3,
+    html: `
+      <script>
+        customElements.define("shreddit-post", class extends HTMLElement {
+          connectedCallback() {
+            if (this.shadowRoot) return;
+            this.attachShadow({ mode: "open" }).innerHTML = \`
+              <slot name="title"></slot>
+              <slot name="post-flair"></slot>
+              <slot name="text-body"></slot>
+              <slot></slot>
+            \`;
+          }
+        });
+      </script>
+      <style>
+        shreddit-post, shreddit-post-text-body { display: block; }
+        #post-title-t3_detail { display: block; font-size: 32px; font-weight: 700; margin: 0 0 12px; }
+        shreddit-post-text-body { display: block; margin-top: 12px; }
+      </style>
+      <main>
+        <shreddit-post post-type="text" post-language="en">
+          <h1 id="post-title-t3_detail" slot="title">
+            Suckerberg panic bought the entire AI chip supply and now he has no idea what to do with it
+          </h1>
+          <div slot="post-flair">Discussion</div>
+          <shreddit-post-text-body slot="text-body">
+            <div property="schema:articleBody">
+              <p>So let me get this straight. Suckerberg spends tens of billions panic buying AI chips.</p>
+              <p>But then again, the market normally inverses logic. So, Meta calls?</p>
+            </div>
+          </shreddit-post-text-body>
+        </shreddit-post>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.match(requested, /entire AI chip supply/);
+  assert.match(requested, /market normally inverses logic/);
+  const layout = await page.evaluate(() => {
+    const title = document.querySelector("#post-title-t3_detail");
+    const titleTranslation = title?.nextElementSibling;
+    const bodyTranslation = document.querySelector("shreddit-post-text-body + .llm-bilingual-translation");
+    return {
+      titleSlot: titleTranslation?.getAttribute("slot"),
+      titleTranslationTop: Math.round(titleTranslation?.getBoundingClientRect().top || 0),
+      bodyTranslationTop: Math.round(bodyTranslation?.getBoundingClientRect().top || 0)
+    };
+  });
+
+  assert.strictEqual(layout.titleSlot, "title");
+  assert.ok(
+    layout.titleTranslationTop < layout.bodyTranslationTop,
+    `title translation should render before body translation, got ${JSON.stringify(layout)}`
+  );
 
   await page.close();
 }

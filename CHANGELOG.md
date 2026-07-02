@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.5
+
+- Fixed Reddit detail-page post title translations rendering after the body by recognizing `h1[slot="title"]` title nodes and assigning their translation back to the title slot.
+- Added a regression fixture that simulates Reddit's shadow DOM slot order so unslotted title translations cannot slip below text-body content again.
+
 ## 0.5.4
 
 - Translated Reddit post titles on feed/detail pages by recognizing `shreddit-post` title links and placing their translations back into the title slot.
