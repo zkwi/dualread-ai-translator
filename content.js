@@ -42,6 +42,7 @@
     budget: createEmptyBudget(),
     translationVisible: true,
     displayMode: "bilingual",
+    fastFlushUntil: 0,
     stats: createEmptyStats()
   };
 
@@ -217,6 +218,7 @@
     state.stats = createEmptyStats();
     state.budget = createEmptyBudget();
     state.active = true;
+    state.fastFlushUntil = Date.now() + 3000;
     setDisplayMode(state.settings?.displayMode);
     setTranslationVisibility(true);
     injectStyles();
@@ -1357,6 +1359,7 @@
 
     state.settings = options.settings || await chrome.runtime.sendMessage({ action: "get_settings" });
     refreshPageLanguageContext(state.settings);
+    state.fastFlushUntil = Date.now() + 3000;
     setTranslationVisibility(true);
     const elements = scanViewport(document, { immediate: true, deferFullScan: true });
     return { ok: true, count: elements.length, stats: state.stats };
@@ -1494,7 +1497,7 @@
     }
 
     clearTimeout(state.flushTimer);
-    state.flushTimer = setTimeout(flushQueue, 700);
+    state.flushTimer = setTimeout(flushQueue, Date.now() < state.fastFlushUntil ? 120 : 700);
   }
 
   function shouldFlushQueueNow() {
@@ -2519,6 +2522,17 @@
   }
 
   function refreshPageLanguageContext(settings) {
+    const htmlKind = LLMTranslatorShared.normalizeTargetLanguageKind(document.documentElement.lang || "");
+    const targetKind = LLMTranslatorShared.normalizeTargetLanguageKind(settings?.targetLanguage);
+    if (htmlKind && targetKind && htmlKind !== targetKind) {
+      state.pageLanguageContext = {
+        isTargetLanguagePage: false,
+        checkedAt: Date.now(),
+        segmentCount: 0
+      };
+      return state.pageLanguageContext;
+    }
+
     const segments = collectVisibleTextSegments();
     const pageInfo = {
       htmlLang: document.documentElement.lang || "",

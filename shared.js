@@ -763,6 +763,7 @@
     getViewportMaxElementsPerScan,
     normalizeCostSettings,
     normalizeCacheSettings,
+    normalizeTargetLanguageKind,
     i18n,
     setUiLanguage,
     setI18nMessages,

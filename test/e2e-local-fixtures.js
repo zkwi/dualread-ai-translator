@@ -65,6 +65,8 @@ async function main() {
     await testVisibleElementsDoNotWaitForIntersectionObserver(browser);
     await testManualTranslationShowsLoadingPlaceholderImmediately(browser);
     await testManualCurrentAreaUsesProvidedSettingsForImmediatePlaceholder(browser);
+    await testManualTriggerFlushesFirstBatchQuickly(browser);
+    await testHtmlLangFastPathTrustsDeclaredForeignLanguage(browser);
     await testStoppingTranslationClearsImmediateLoadingPlaceholder(browser);
     await testDeclarativeAutoTranslationStartsOnLoad(browser);
     await testDeclarativeAutoTranslationSkipMarksBackgroundInactive(browser);
@@ -649,14 +651,14 @@ async function testLongRedditThreadDoesNotFullWalkComments(browser) {
     await new Promise((resolve) => setTimeout(resolve, 250));
     return {
       count: response.count,
-      loadingCount: document.querySelectorAll(".llm-bilingual-translation.is-loading").length,
+      feedbackCount: document.querySelectorAll(".llm-bilingual-translation.is-loading, .llm-bilingual-translation.is-done").length,
       rectCalls: window.__rectCalls,
       treeWalkerNextCalls: window.__treeWalkerNextCalls
     };
   });
 
   assert.ok(result.count > 0);
-  assert.ok(result.loadingCount > 0);
+  assert.ok(result.feedbackCount > 0);
   assert.ok(result.rectCalls < 900, "Viewport scans should not measure every Reddit comment paragraph.");
   assert.ok(result.treeWalkerNextCalls < 120, "Viewport scans should not walk every Reddit comment text node.");
 
@@ -1209,6 +1211,46 @@ async function testManualCurrentAreaUsesProvidedSettingsForImmediatePlaceholder(
   assert.strictEqual(stateAfterStart.loadingCount, 1, "Provided settings should allow current-area loading feedback without another settings round trip.");
   assert.strictEqual(stateAfterStart.getSettingsMessages, 0, "Current-area scan should reuse settings passed by the background script.");
   assert.strictEqual(stateAfterStart.requestCount, 0, "The placeholder should still appear before the backend request.");
+
+  await page.close();
+}
+
+async function testManualTriggerFlushesFirstBatchQuickly(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main>
+        <p>The first paragraph has enough English words to be translated by the extension.</p>
+        <p>The second paragraph also has enough English words to become a candidate.</p>
+      </main>
+    `
+  });
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(450);
+
+  const doneCount = await page.evaluate(
+    () => document.querySelectorAll(".llm-bilingual-translation.is-done").length
+  );
+  assert.ok(doneCount >= 1, `手动触发 450ms 内应已出现译文，实际 done=${doneCount}`);
+
+  await page.close();
+}
+
+async function testHtmlLangFastPathTrustsDeclaredForeignLanguage(browser) {
+  const page = await createHarnessPage(browser, {
+    htmlLang: "en-US",
+    html: `
+      <main>
+        <p>这是一段足够长的中文正文，用来验证语言检测的快速路径会优先信任页面声明的语言属性。</p>
+        <p>第二段中文正文继续增加目标语言字符数量，让旧版采样逻辑稳定地判定这是目标语言页面。</p>
+        <p>第三段中文正文保证目标语言片段数达到旧版判定阈值，从而让本测试在修复前必然失败。</p>
+      </main>
+    `
+  });
+
+  const response = await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  assert.strictEqual(response.ok, true);
+  assert.notStrictEqual(response.skipped, true, "lang=en 页面不应被判为目标语言页而跳过");
 
   await page.close();
 }
