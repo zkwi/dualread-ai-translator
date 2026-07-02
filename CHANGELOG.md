@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1
+
+- Split batched translation requests after retriable network fetch failures, so one Reddit `Failed to fetch` no longer marks every paragraph in the batch as failed.
+- Bumped the content script version so already-injected 0.6.0 scripts can clearly request a page refresh.
+
 ## 0.6.0
 
 - Removed full-page TreeWalker fallback from viewport scans and bounded retained scan paths, fixing repeated long-page scroll stalls after visible content has already been translated.

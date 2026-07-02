@@ -12,6 +12,8 @@ main().catch((error) => {
 
 async function main() {
   await testTranslateBatchRetriesOneServerError();
+  await testTranslateBatchSplitsNetworkFailedBatch();
+  await testTranslateBatchDoesNotSplitNonNetworkTypeError();
   await testTranslateBatchUsesJsonArrayAndMapsById();
   await testTranslateBatchRepairsMissingCommaBetweenJsonObjects();
   await testTranslateBatchWrapsUnrecoverableJsonParseError();
@@ -116,6 +118,69 @@ async function testTranslateBatchRetriesOneServerError() {
   assert.strictEqual(response.results[0].id, "item-1");
   assert.strictEqual(response.results[0].text, "你好，世界。");
   assert.strictEqual(response.meta.requested, 1);
+}
+
+async function testTranslateBatchSplitsNetworkFailedBatch() {
+  const fetchCalls = [];
+  const context = createBackgroundContext({
+    fetch: async (url, options) => {
+      fetchCalls.push({ url, options });
+      const body = JSON.parse(options.body);
+      const userMessage = body.messages.find((message) => message.role === "user");
+      const inputJson = userMessage.content.slice(userMessage.content.indexOf("["));
+      const requestedItems = JSON.parse(inputJson);
+
+      if (requestedItems.length > 1) {
+        throw new TypeError("Failed to fetch");
+      }
+
+      return createJsonResponse([{
+        id: requestedItems[0].id,
+        text: `译文：${requestedItems[0].text}`
+      }]);
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [
+      { id: "item-1", text: "First Reddit comment paragraph." },
+      { id: "item-2", text: "Second Reddit comment paragraph." }
+    ]
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(response.results)), [
+    { id: "item-1", text: "译文：First Reddit comment paragraph." },
+    { id: "item-2", text: "译文：Second Reddit comment paragraph." }
+  ]);
+  assert.strictEqual(fetchCalls.length, 4, "整批网络失败后应重试原批次一次，再拆成单段请求。");
+}
+
+async function testTranslateBatchDoesNotSplitNonNetworkTypeError() {
+  const fetchCalls = [];
+  const context = createBackgroundContext({
+    fetch: async () => {
+      fetchCalls.push(true);
+      throw new TypeError("Cannot read properties of undefined (reading 'foo')");
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [
+      { id: "item-1", text: "First Reddit comment paragraph." },
+      { id: "item-2", text: "Second Reddit comment paragraph." }
+    ]
+  });
+
+  assert.strictEqual(response.ok, false);
+  assert.match(response.error, /Cannot read properties of undefined/);
+  assert.strictEqual(fetchCalls.length, 2, "非网络 TypeError 只保留原始重试，不应拆批掩盖。");
 }
 
 async function testTranslateBatchUsesJsonArrayAndMapsById() {

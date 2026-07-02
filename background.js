@@ -705,7 +705,7 @@ async function translateBatch(items) {
   const cachedResults = await getCachedResults(settings, segmentPlan.segments);
   const missingSegments = segmentPlan.segments.filter((segment) => !cachedResults.has(segment.id));
   let freshResults = missingSegments.length > 0
-    ? await requestTranslations(settings, missingSegments)
+    ? await requestTranslationsWithNetworkFallback(settings, missingSegments)
     : [];
   if (freshResults.some((result) => result?.error)) {
     freshResults = await retryMissingSegmentsOnce(settings, missingSegments, freshResults);
@@ -745,7 +745,7 @@ async function retryMissingSegmentsOnce(settings, segments, results) {
 
   let retried = [];
   try {
-    retried = await requestTranslations(settings, failedSegments);
+    retried = await requestTranslationsWithNetworkFallback(settings, failedSegments);
   } catch (error) {
     return results;
   }
@@ -759,6 +759,54 @@ async function retryMissingSegmentsOnce(settings, segments, results) {
   return results
     .filter((result) => okIds.has(String(result.id)) || !retriedById.has(String(result.id)))
     .concat(Array.from(retriedById.values()));
+}
+
+async function requestTranslationsWithNetworkFallback(settings, items) {
+  try {
+    return await requestTranslations(settings, items);
+  } catch (error) {
+    if (!isRetriableNetworkFetchError(error) || items.length <= 1) {
+      throw error;
+    }
+
+    return requestTranslationsSplitOnNetworkFailure(settings, items);
+  }
+}
+
+async function requestTranslationsSplitOnNetworkFailure(settings, items) {
+  if (items.length <= 1) {
+    try {
+      return await requestTranslations(settings, items);
+    } catch (error) {
+      if (!isRetriableNetworkFetchError(error)) throw error;
+      return [{ id: items[0].id, error: error.message || String(error) }];
+    }
+  }
+
+  const midpoint = Math.ceil(items.length / 2);
+  const chunks = [
+    items.slice(0, midpoint),
+    items.slice(midpoint)
+  ].filter((chunk) => chunk.length > 0);
+  const results = [];
+
+  for (const chunk of chunks) {
+    try {
+      results.push(...await requestTranslations(settings, chunk));
+    } catch (error) {
+      if (!isRetriableNetworkFetchError(error)) throw error;
+      results.push(...await requestTranslationsSplitOnNetworkFailure(settings, chunk));
+    }
+  }
+
+  return results;
+}
+
+function isRetriableNetworkFetchError(error) {
+  if (isTimeoutError(error)) return false;
+
+  const message = String(error?.message || error || "");
+  return /failed to fetch|network\s*error|load failed|err_(?:connection|network|internet|timed|ssl|http2)/i.test(message);
 }
 
 function createSegmentCachePlan(items) {
