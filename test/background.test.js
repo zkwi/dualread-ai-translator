@@ -43,9 +43,11 @@ async function main() {
   await testGetPageStatsSyncsActiveTabCache();
   await testAutoTranslateReportsUnconfiguredNotice();
   await testManualTranslationReportsMissingApiKeyBeforeInjecting();
+  await testManualTranslationPassesSettingsToContentStart();
   await testManualTranslationPropagatesContentStartFailure();
   await testManualTranslationSkipKeepsTabInactive();
   await testScanCurrentAreaReportsMissingApiKeyBeforeInjecting();
+  await testScanCurrentAreaPassesSettingsToContent();
   await testScanCurrentAreaPropagatesContentFailure();
   await testScanCurrentAreaSkipKeepsTabInactive();
   await testFileUrlIsUnsupportedBeforeInjecting();
@@ -1057,6 +1059,34 @@ async function testManualTranslationReportsMissingApiKeyBeforeInjecting() {
   assert.strictEqual(context.scriptingCalls.length, 0);
 }
 
+async function testManualTranslationPassesSettingsToContentStart() {
+  const tabMessages = [];
+  const context = createBackgroundContext({
+    storage: { apiKey: "manual-key", model: "manual-model", targetLanguage: "繁體中文" },
+    sendMessage: async (tabId, message) => {
+      tabMessages.push({ tabId, message });
+      if (message.action === "get_page_stats") {
+        return { ok: true, active: false, stats: { translated: 0, translationVisible: true } };
+      }
+      return { ok: true, count: 1 };
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "toggle_translation",
+    tab: { id: 46, url: "https://www.bbc.com/" }
+  });
+
+  assert.strictEqual(response.ok, true);
+  const startMessage = tabMessages.find((entry) => entry.message.action === "start_translation")?.message;
+  assert.ok(startMessage?.settings, "Manual start should pass validated settings to the content script.");
+  assert.strictEqual(startMessage.settings.apiKey, "manual-key");
+  assert.strictEqual(startMessage.settings.model, "manual-model");
+  assert.strictEqual(startMessage.settings.targetLanguage, "繁體中文");
+}
+
 async function testManualTranslationPropagatesContentStartFailure() {
   const context = createBackgroundContext({
     sendMessage: async (tabId, message) => {
@@ -1135,6 +1165,31 @@ async function testScanCurrentAreaReportsMissingApiKeyBeforeInjecting() {
   assert.strictEqual(response.ok, false);
   assert.match(response.error, /API Key/);
   assert.strictEqual(tabMessages.length, 0);
+}
+
+async function testScanCurrentAreaPassesSettingsToContent() {
+  const tabMessages = [];
+  const context = createBackgroundContext({
+    storage: { apiKey: "scan-key", model: "scan-model", targetLanguage: "日本語" },
+    sendMessage: async (tabId, message) => {
+      tabMessages.push({ tabId, message });
+      return { ok: true, count: 1 };
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "scan_current_area",
+    tab: { id: 47, url: "https://www.bbc.com/" }
+  });
+
+  assert.strictEqual(response.ok, true);
+  const scanMessage = tabMessages.find((entry) => entry.message.action === "scan_current_area")?.message;
+  assert.ok(scanMessage?.settings, "Current-area scan should pass validated settings to the content script.");
+  assert.strictEqual(scanMessage.settings.apiKey, "scan-key");
+  assert.strictEqual(scanMessage.settings.model, "scan-model");
+  assert.strictEqual(scanMessage.settings.targetLanguage, "日本語");
 }
 
 async function testScanCurrentAreaPropagatesContentFailure() {

@@ -388,15 +388,18 @@ async function toggleTranslation(tab) {
 
   const pageState = await getPageStats(tab);
   const isActive = !!pageState.active;
+  let settings = null;
   if (!isActive) {
     const configured = await ensureTranslationConfigured(tab);
     if (!configured.ok) return configured;
+    settings = configured.settings;
   }
 
   await ensureContentScript(tab.id);
 
   const nextAction = isActive ? "stop_translation" : "start_translation";
-  const response = await chrome.tabs.sendMessage(tab.id, { action: nextAction });
+  const message = isActive ? { action: nextAction } : { action: nextAction, settings };
+  const response = await chrome.tabs.sendMessage(tab.id, message);
   if (!response?.ok) {
     activeTabs.set(tab.id, isActive);
     return createFailedContentActionResponse(response, isActive);
@@ -423,10 +426,15 @@ async function startTranslation(tab, options = {}) {
   if (!options.auto) {
     const configured = await ensureTranslationConfigured(tab);
     if (!configured.ok) return configured;
+    options.settings = configured.settings;
   }
 
   await ensureContentScript(tab.id);
-  const message = options.auto ? { action: "start_translation", auto: true } : { action: "start_translation" };
+  const message = {
+    action: "start_translation",
+    ...(options.auto ? { auto: true } : {}),
+    ...(options.settings ? { settings: options.settings } : {})
+  };
   const response = await chrome.tabs.sendMessage(tab.id, message);
   if (!response?.ok) {
     activeTabs.set(tab.id, false);
@@ -465,7 +473,7 @@ async function autoTranslateTab(tab) {
     return { ok: true, skipped: true, reason: "unconfigured" };
   }
 
-  return startTranslation(tab, { auto: true });
+  return startTranslation(tab, { auto: true, settings });
 }
 
 async function ensureTranslationConfigured(tab) {
@@ -486,7 +494,7 @@ async function ensureTranslationConfigured(tab) {
   if (tab?.id) {
     tabNotices.delete(tab.id);
   }
-  return { ok: true };
+  return { ok: true, settings };
 }
 
 async function autoTranslateActiveTabs() {
@@ -585,7 +593,10 @@ async function scanCurrentArea(tab) {
   if (!configured.ok) return configured;
 
   await ensureContentScript(tab.id);
-  const response = await chrome.tabs.sendMessage(tab.id, { action: "scan_current_area" });
+  const response = await chrome.tabs.sendMessage(tab.id, {
+    action: "scan_current_area",
+    settings: configured.settings
+  });
   if (!response?.ok) {
     return createFailedContentActionResponse(response, !!activeTabs.get(tab.id));
   }

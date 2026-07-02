@@ -62,6 +62,7 @@ async function main() {
     await testDisabledAutoTranslationDoesNotWakeBackgroundForSettings(browser);
     await testVisibleElementsDoNotWaitForIntersectionObserver(browser);
     await testManualTranslationShowsLoadingPlaceholderImmediately(browser);
+    await testManualCurrentAreaUsesProvidedSettingsForImmediatePlaceholder(browser);
     await testStoppingTranslationClearsImmediateLoadingPlaceholder(browser);
     await testDeclarativeAutoTranslationStartsOnLoad(browser);
     await testDeclarativeAutoTranslationSkipMarksBackgroundInactive(browser);
@@ -1092,6 +1093,43 @@ async function testManualTranslationShowsLoadingPlaceholderImmediately(browser) 
   await page.close();
 }
 
+async function testManualCurrentAreaUsesProvidedSettingsForImmediatePlaceholder(browser) {
+  const page = await createHarnessPage(browser, {
+    batchSize: 4,
+    settingsDelayMs: 900,
+    translateDelayMs: 1200,
+    html: `
+      <main>
+        <article>
+          <p>Users should not wait for a repeated settings lookup before seeing loading feedback.</p>
+        </article>
+      </main>
+    `
+  });
+
+  const stateAfterStart = await page.evaluate(async () => {
+    const responsePromise = window.__sendContentMessage({
+      action: "scan_current_area",
+      settings: window.__mockSettings
+    });
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    const interim = {
+      loadingCount: document.querySelectorAll(".llm-bilingual-translation.is-loading").length,
+      getSettingsMessages: window.__runtimeMessages.filter((message) => message.action === "get_settings").length,
+      requestCount: window.__mockItems.length
+    };
+    const response = await responsePromise;
+    return { ...interim, count: response.count };
+  });
+
+  assert.strictEqual(stateAfterStart.count, 1);
+  assert.strictEqual(stateAfterStart.loadingCount, 1, "Provided settings should allow current-area loading feedback without another settings round trip.");
+  assert.strictEqual(stateAfterStart.getSettingsMessages, 0, "Current-area scan should reuse settings passed by the background script.");
+  assert.strictEqual(stateAfterStart.requestCount, 0, "The placeholder should still appear before the backend request.");
+
+  await page.close();
+}
+
 async function testStoppingTranslationClearsImmediateLoadingPlaceholder(browser) {
   const page = await createHarnessPage(browser, {
     batchSize: 4,
@@ -1825,9 +1863,10 @@ async function createHarnessPage(browser, options = {}) {
     });
   }
 
-  await page.evaluate(({ settings, translateDelayMs, failFirstTranslate }) => {
+  await page.evaluate(({ settings, settingsDelayMs, translateDelayMs, failFirstTranslate }) => {
     const listeners = [];
 
+    window.__mockSettings = settings;
     window.__mockItems = [];
     window.__runtimeMessages = [];
     window.__storageGetCalls = [];
@@ -1861,6 +1900,9 @@ async function createHarnessPage(browser, options = {}) {
             return { ok: true, active: request.active !== false };
           }
           if (request.action === "get_settings") {
+            if (settingsDelayMs > 0) {
+              await new Promise((resolve) => setTimeout(resolve, settingsDelayMs));
+            }
             if (window.__failGetSettings) throw new Error("Mock settings failure");
             return settings;
           }
@@ -1940,6 +1982,7 @@ async function createHarnessPage(browser, options = {}) {
       displayMode: options.displayMode || "bilingual",
       viewportOnly: true
     },
+    settingsDelayMs: options.settingsDelayMs || 0,
     translateDelayMs: options.translateDelayMs || 0,
     failFirstTranslate: options.failFirstTranslate === true
   });

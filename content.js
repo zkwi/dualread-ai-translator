@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.5.5";
+  const CONTENT_SCRIPT_VERSION = "0.5.6";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -130,7 +130,7 @@
     }
 
     if (request.action === "scan_current_area") {
-      return respondAsync(scanCurrentArea(), sendResponse);
+      return respondAsync(scanCurrentArea(request), sendResponse);
     }
 
     if (request.action === "get_page_stats") {
@@ -1302,12 +1302,12 @@
     return elements;
   }
 
-  async function scanCurrentArea() {
+  async function scanCurrentArea(options = {}) {
     if (!state.active) {
-      return startTranslation();
+      return startTranslation(options);
     }
 
-    state.settings = await chrome.runtime.sendMessage({ action: "get_settings" });
+    state.settings = options.settings || await chrome.runtime.sendMessage({ action: "get_settings" });
     refreshPageLanguageContext(state.settings);
     setTranslationVisibility(true);
     const elements = scanViewport(document, { immediate: true, deferFullScan: true });

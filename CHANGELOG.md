@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.6
+
+- Reduced manual-start latency by passing the already validated settings from the background script into `start_translation` and `scan_current_area`, avoiding a second content-to-background `get_settings` round trip before loading placeholders can render.
+- Added regressions for slow settings lookup so manual current-area translation must show loading feedback immediately when settings are already supplied.
+
 ## 0.5.5
 
 - Fixed Reddit detail-page post title translations rendering after the body by recognizing `h1[slot="title"]` title nodes and assigning their translation back to the title slot.
