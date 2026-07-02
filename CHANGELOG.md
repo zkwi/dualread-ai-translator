@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.4
+
+- Translated Reddit post titles on feed/detail pages by recognizing `shreddit-post` title links and placing their translations back into the title slot.
+- Skipped Reddit community, flair, and timestamp metadata so those labels no longer consume viewport translation budget ahead of real content.
+- Added conservative support for standalone article headline/title links inside `article`/`role=article` cards, covering common feed-card headline structures beyond Reddit.
+- Added local regression coverage for Reddit titles, Reddit metadata filtering, and standalone article headline links.
+- Bumped the content script version so already-injected 0.5.3 scripts can clearly request a page refresh.
+
 ## 0.5.3
 
 - Repaired common malformed model JSON where adjacent result objects are returned without commas, preventing isolated Reddit comment batches from failing.

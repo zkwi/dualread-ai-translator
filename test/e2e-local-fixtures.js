@@ -33,7 +33,9 @@ async function main() {
     await testNewsCardSkipsCreditsAndHiddenMetadata(browser);
     await testNewsCardKeepsHeadlineWhenUtilityLabelIsPresent(browser);
     await testCnnHomepageLeadCardSurvivesUtilityFiltering(browser);
+    await testArticleHeadlineLinkWithoutHeadingIsTranslated(browser);
     await testEmbeddedPlayerErrorsDoNotStealNewsBudget(browser);
+    await testRedditPostTitleIsTranslatedWithoutMetadata(browser);
     await testRedditTextBodyUsesSafeTranslationAnchor(browser);
     await testLongRedditThreadDoesNotFullWalkComments(browser);
     await testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser);
@@ -384,6 +386,31 @@ async function testCnnHomepageLeadCardSurvivesUtilityFiltering(browser) {
   await page.close();
 }
 
+async function testArticleHeadlineLinkWithoutHeadingIsTranslated(browser) {
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 2,
+    html: `
+      <main>
+        <article class="story-card">
+          <a id="standalone-headline" class="headline-link" href="/story">
+            Researchers reveal a practical way to audit complex agent coding sessions
+          </a>
+          <p>The report explains how teams can compare plans, implementation slices, and review notes.</p>
+        </article>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.match(requested, /practical way to audit complex agent coding sessions/);
+  assert.match(requested, /compare plans, implementation slices/);
+  assert.strictEqual(await hasTranslationNear(page, "#standalone-headline"), true);
+
+  await page.close();
+}
+
 async function testEmbeddedPlayerErrorsDoNotStealNewsBudget(browser) {
   const page = await createHarnessPage(browser, {
     maxElementsPerScan: 3,
@@ -418,9 +445,52 @@ async function testEmbeddedPlayerErrorsDoNotStealNewsBudget(browser) {
   await page.close();
 }
 
+async function testRedditPostTitleIsTranslatedWithoutMetadata(browser) {
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 4,
+    html: `
+      <style>
+        article, shreddit-post, shreddit-post-text-body { display: block; }
+        .post-meta { display: block; margin-bottom: 12px; }
+        #post-title-t3_reset { display: block; font-size: 32px; font-weight: 700; margin: 16px 0; }
+      </style>
+      <main>
+        <article>
+          <shreddit-post post-type="text" post-language="en">
+            <div class="post-meta">
+              <span>r/codex</span>
+              <span>Performance Tracker</span>
+              <time>8 hr. ago</time>
+            </div>
+            <a id="post-title-t3_reset" slot="title" href="/r/codex/comments/example">
+              How can I tell when my codex resets expire?
+            </a>
+            <shreddit-post-text-body slot="text-body">
+              <div property="schema:articleBody">
+                <p>This might be a dumb question but is there a way to check when your available resets expire?</p>
+              </div>
+            </shreddit-post-text-body>
+          </shreddit-post>
+        </article>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
+
+  assert.match(requested, /How can I tell when my codex resets expire/);
+  assert.match(requested, /available resets expire/);
+  assert.doesNotMatch(requested, /^r\/codex\s+Performance Tracker\s+8 hr\. ago$/m);
+  assert.strictEqual(await hasTranslationNear(page, "#post-title-t3_reset"), true);
+  assert.strictEqual(await page.locator("#post-title-t3_reset + .llm-bilingual-translation").getAttribute("slot"), "title");
+
+  await page.close();
+}
+
 async function testRedditTextBodyUsesSafeTranslationAnchor(browser) {
   const page = await createHarnessPage(browser, {
-    maxElementsPerScan: 1,
+    maxElementsPerScan: 2,
     html: `
       <style>
         article, shreddit-post, shreddit-post-text-body { display: block; }
@@ -448,9 +518,11 @@ async function testRedditTextBodyUsesSafeTranslationAnchor(browser) {
   });
 
   const result = await runTranslation(page);
+  const requested = result.requestedTexts.join("\n");
 
-  assert.strictEqual(result.requestCount, 1);
-  assert.match(result.requestedTexts[0], /Codex appreciation post/);
+  assert.strictEqual(result.requestCount, 2);
+  assert.match(requested, /17\.5-day run/);
+  assert.match(requested, /Codex appreciation post/);
   assert.strictEqual(await page.locator("#t3_redditlayout-post-rtjson-content .llm-bilingual-translation").count(), 0);
   assert.strictEqual(await page.locator("a[slot='text-body'] .llm-bilingual-translation").count(), 0);
   assert.strictEqual(await page.locator("shreddit-post-text-body > .llm-bilingual-translation").count(), 1);

@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.5.3";
+  const CONTENT_SCRIPT_VERSION = "0.5.4";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -535,6 +535,12 @@
     return [
       LLMTranslatorShared.getCandidateSelector(),
       "[data-testid=\"tweetText\"]",
+      "article a[class*=\"headline\" i][href]",
+      "article a[class*=\"title\" i][href]",
+      "[role=\"article\"] a[class*=\"headline\" i][href]",
+      "[role=\"article\"] a[class*=\"title\" i][href]",
+      "shreddit-post a[slot=\"title\"][href]",
+      "shreddit-post [id^=\"post-title-\"][href]",
       "shreddit-post-text-body",
       "[property=\"schema:articleBody\"][id$=\"-post-rtjson-content\"]",
       ".feed-card-text-preview",
@@ -791,13 +797,46 @@
   }
 
   function findSiteSpecificReadableBlock(element) {
+    const redditTitle = findRedditPostTitleElement(element);
+    if (redditTitle) return redditTitle;
+
     const redditTextBody = findRedditTextBodyElement(element);
     if (redditTextBody) return redditTextBody;
+
+    const articleHeadlineLink = findArticleHeadlineLinkElement(element);
+    if (articleHeadlineLink) return articleHeadlineLink;
 
     const hackerNewsTitleCell = findHackerNewsStoryTitleCell(element);
     if (hackerNewsTitleCell) return hackerNewsTitleCell;
 
     return null;
+  }
+
+  function findRedditPostTitleElement(element) {
+    if (!element?.closest) return null;
+    const post = element.closest("shreddit-post");
+    if (!post) return null;
+
+    return element.closest([
+      "a[slot=\"title\"][href]",
+      "[id^=\"post-title-\"][href]"
+    ].join(","));
+  }
+
+  function findArticleHeadlineLinkElement(element) {
+    if (!element?.closest) return null;
+    const article = element.closest("article,[role=\"article\"]");
+    if (!article) return null;
+
+    const link = element.closest([
+      "a[class*=\"headline\" i][href]",
+      "a[class*=\"title\" i][href]",
+      "a[data-testid*=\"headline\" i][href]",
+      "a[data-testid*=\"title\" i][href]"
+    ].join(","));
+    if (!link || !article.contains(link)) return null;
+
+    return link;
   }
 
   function findRedditTextBodyElement(element) {
@@ -837,6 +876,7 @@
 
     const text = knownText === null ? getCleanText(element) : knownText;
     if (text.length < getMinimumCandidateTextLength(element) || text.length > costSettings.maxTextLength) return false;
+    if (isSiteMetadataCandidate(element, text)) return false;
     if (isShortLowInformationLinkCandidate(element, text)) return false;
     if (shouldSkipCandidateByContent(text, element)) return false;
     if (shouldSkipShortBrandLabel(text, element)) return false;
@@ -906,6 +946,8 @@
 
   function isShortLowInformationLinkCandidate(element, text) {
     if (!isShortLowInformationLinkText(text)) return false;
+    if (isRedditPostTitleElement(element)) return false;
+    if (isArticleHeadlineLinkElement(element)) return false;
     if (isHackerNewsStoryTitleCandidate(element)) return false;
     return !!element.closest?.("a[href]") || !!element.querySelector?.("a[href]");
   }
@@ -984,6 +1026,7 @@
 
   function isUsefulInlineBlock(element, text, costSettings) {
     if (text.length < getMinimumInlineTextLength() || text.length > costSettings.maxTextLength) return false;
+    if (isSiteMetadataCandidate(element, text)) return false;
     if (element.closest("a[href],button,[role=\"button\"]")) return false;
     if (shouldSkipCandidateByContent(text, element)) return false;
     if (shouldSkipShortBrandLabel(text, element)) return false;
@@ -999,6 +1042,7 @@
 
   function isUsefulGenericBlock(element, text, costSettings) {
     if (text.length < getMinimumGenericTextLength() || text.length > costSettings.maxTextLength) return false;
+    if (isSiteMetadataCandidate(element, text)) return false;
     if (shouldSkipCandidateByContent(text, element)) return false;
     if (shouldSkipShortBrandLabel(text, element)) return false;
     if (shouldSkipCandidateByLanguage(text)) return false;
@@ -1085,8 +1129,10 @@
     const tagName = element.tagName;
     const clean = normalizeText(text);
 
+    if (isRedditPostTitleElement(element)) score += 95;
     if (element.closest("[data-testid=\"tweetText\"]")) score += 90;
     if (isRedditTextBodyElement(element)) score += 85;
+    if (isArticleHeadlineLinkElement(element)) score += 75;
     if (element.closest("[data-testid=\"primaryColumn\"]")) score += 70;
     if (element.closest("article,[role=\"article\"]")) score += 60;
     if (element.closest("main,[role=\"main\"]")) score += 25;
@@ -1755,6 +1801,9 @@
   }
 
   function getTranslationInsertionTarget(element, placement) {
+    const redditTitleTarget = findRedditPostTitleElement(element);
+    if (redditTitleTarget) return redditTitleTarget;
+
     const redditTarget = findRedditTextBodyInsertionTarget(element);
     if (redditTarget) return redditTarget;
 
@@ -1790,7 +1839,62 @@
       ].join(","));
   }
 
+  function isRedditPostTitleElement(element) {
+    if (!element?.matches) return false;
+    return !!element.closest("shreddit-post")
+      && element.matches([
+        "a[slot=\"title\"][href]",
+        "[id^=\"post-title-\"][href]"
+      ].join(","));
+  }
+
+  function isArticleHeadlineLinkElement(element) {
+    if (!element?.matches) return false;
+    return !!element.closest("article,[role=\"article\"]")
+      && element.matches([
+        "a[class*=\"headline\" i][href]",
+        "a[class*=\"title\" i][href]",
+        "a[data-testid*=\"headline\" i][href]",
+        "a[data-testid*=\"title\" i][href]"
+      ].join(","));
+  }
+
+  function isSiteMetadataCandidate(element, text) {
+    return isRedditMetadataCandidate(element, text);
+  }
+
+  function isRedditMetadataCandidate(element, text) {
+    if (!element?.closest) return false;
+    const post = element.closest("shreddit-post");
+    if (!post) return false;
+    if (isRedditPostTitleElement(element) || isRedditTextBodyElement(element)) return false;
+
+    const clean = normalizeText(text);
+    if (!clean || clean.length > 120) return false;
+
+    const metadataContainer = element.closest?.([
+      "[slot*=\"credit\" i]",
+      "[slot*=\"flair\" i]",
+      "[class*=\"meta\" i]",
+      "[class*=\"flair\" i]",
+      "[data-testid*=\"post_author\" i]",
+      "[data-testid*=\"timestamp\" i]",
+      "time",
+      "faceplate-timeago"
+    ].join(","));
+    const hasCommunity = /\br\/[A-Za-z0-9_][\w-]*\b/.test(clean);
+    const hasRelativeTime = /\b\d+\s*(?:s|sec|m|min|h|hr|d|day|mo|mon|y|yr)\.?\s*ago\b/i.test(clean);
+
+    if (hasCommunity || hasRelativeTime) return true;
+    return !!metadataContainer && clean.length <= 80;
+  }
+
   function syncTranslationSlot(node, insertionTarget) {
+    if (isRedditPostTitleElement(insertionTarget)) {
+      node.setAttribute("slot", "title");
+      return;
+    }
+
     if (insertionTarget?.closest?.("shreddit-post-text-body")) {
       node.setAttribute("slot", "text-body");
     } else {
