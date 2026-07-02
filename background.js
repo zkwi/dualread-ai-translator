@@ -7,6 +7,7 @@ const THINKING_STRATEGIES = LLMTranslatorShared.THINKING_STRATEGIES;
 const CONTEXT_MENU_TRANSLATE_PAGE = "llm_translate_page";
 const CONTEXT_MENU_TRANSLATE_SELECTION = "llm_translate_selection";
 const CACHE_PRUNE_INTERVAL_MS = 30000;
+const API_TEST_TIMEOUT_MS = 20000;
 const activeTabs = new Map();
 const tabNotices = new Map();
 const injectedTabs = new Set();
@@ -217,6 +218,12 @@ async function getSettings() {
   if (LEGACY_DEFAULT_API_TIMEOUT_MS.includes(Number(settings.apiTimeoutMs))) {
     settings.apiTimeoutMs = DEFAULT_SETTINGS.apiTimeoutMs;
     updates.apiTimeoutMs = settings.apiTimeoutMs;
+  }
+  if (LLMTranslatorShared.isLegacyDeepSeekPreset(settings)) {
+    settings.apiUrl = LLMTranslatorShared.DEEPSEEK_DEFAULT_API_URL;
+    settings.model = LLMTranslatorShared.DEEPSEEK_DEFAULT_MODEL;
+    updates.apiUrl = settings.apiUrl;
+    updates.model = settings.model;
   }
   if (Object.keys(updates).length > 0) {
     await chrome.storage.local.set(updates);
@@ -906,8 +913,12 @@ function getEmptyStats() {
 async function testApi(settings) {
   const mergedSettings = { ...DEFAULT_SETTINGS, ...(settings || {}) };
   validateSettings(mergedSettings);
+  const testSettings = {
+    ...mergedSettings,
+    apiTimeoutMs: Math.min(getApiTimeoutMs(mergedSettings), API_TEST_TIMEOUT_MS)
+  };
 
-  const results = await requestTranslations(mergedSettings, [
+  const results = await requestTranslations(testSettings, [
     { id: "test", text: "Hello world." }
   ]);
 

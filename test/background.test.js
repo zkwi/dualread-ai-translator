@@ -32,8 +32,10 @@ async function main() {
   await testTranslateBatchOmitsThinkingWhenStrategyOmit();
   await testTranslateBatchRetriesWithoutUnsupportedThinkingParameter();
   await testTranslateBatchTimesOutSlowApi();
+  await testApiUsesShortTimeoutForConnectionCheck();
   await testGetSettingsUpgradesLegacyDefaultPrompt();
   await testGetSettingsUpgradesLegacyDefaultTimeout();
+  await testGetSettingsUpgradesLegacyDeepSeekPreset();
   await testTabLoadingClearsTranslationState();
   await testAutoTranslateStartsWhenExistingTabActivated();
   await testAutoTranslateStartsActiveTabsOnStartup();
@@ -581,6 +583,23 @@ async function testGetSettingsUpgradesLegacyDefaultTimeout() {
   assert.strictEqual(old90sSettings.apiTimeoutMs, 120000);
 }
 
+async function testGetSettingsUpgradesLegacyDeepSeekPreset() {
+  const context = createBackgroundContext({
+    storage: {
+      provider: "deepseek",
+      apiUrl: "https://api.deepseek.com/v1/chat/completions",
+      model: "deepseek-chat"
+    }
+  });
+
+  loadBackground(context);
+
+  const settings = await sendRuntimeMessage(context, { action: "get_settings" });
+
+  assert.strictEqual(settings.apiUrl, "https://api.deepseek.com/chat/completions");
+  assert.strictEqual(settings.model, "deepseek-v4-flash");
+}
+
 async function testTranslateBatchUsesCustomPrompt() {
   const fetchCalls = [];
   const context = createBackgroundContext({
@@ -857,6 +876,47 @@ async function testTranslateBatchTimesOutSlowApi() {
 
   assert.strictEqual(response.ok, false);
   assert.match(response.error, /超时|timeout/i);
+}
+
+async function testApiUsesShortTimeoutForConnectionCheck() {
+  const scheduledTimeouts = [];
+  const context = createBackgroundContext({
+    fetch: async (url, options) => new Promise((resolve, reject) => {
+      if (!options?.signal) {
+        reject(new Error("fetch was called without AbortSignal"));
+        return;
+      }
+
+      options.signal.addEventListener("abort", () => {
+        const error = new Error("The operation was aborted.");
+        error.name = "AbortError";
+        reject(error);
+      });
+    })
+  });
+  context.setTimeout = (callback, ms) => {
+    scheduledTimeouts.push(ms);
+    return setTimeout(callback, 0);
+  };
+  context.clearTimeout = (id) => clearTimeout(id);
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "test_api",
+    settings: {
+      apiUrl: "https://api.deepseek.com/chat/completions",
+      apiKey: "test-key",
+      model: "deepseek-v4-flash",
+      apiTimeoutMs: 120000,
+      disableThinking: true,
+      thinkingStrategy: "auto"
+    }
+  });
+
+  assert.strictEqual(response.ok, false);
+  assert.match(response.error, /20 秒|20 seconds|timeout/i);
+  assert.strictEqual(scheduledTimeouts[0], 20000);
 }
 
 async function testTabLoadingClearsTranslationState() {

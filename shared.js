@@ -16,6 +16,13 @@
   const DEFAULT_MAX_CACHE_ENTRIES = 2000;
   const DEFAULT_VIEWPORT_ONLY = true;
   const DEFAULT_UI_LANGUAGE = "auto";
+  const DEEPSEEK_DEFAULT_API_URL = "https://api.deepseek.com/chat/completions";
+  const DEEPSEEK_DEFAULT_MODEL = "deepseek-v4-flash";
+  const LEGACY_DEEPSEEK_API_URLS = new Set([
+    "https://api.deepseek.com/v1",
+    "https://api.deepseek.com/v1/chat/completions"
+  ]);
+  const LEGACY_DEEPSEEK_MODELS = new Set(["deepseek-chat"]);
   const SUPPORTED_UI_LANGUAGES = new Set(["auto", "zh_CN", "zh_TW", "en", "ja"]);
   const THINKING_STRATEGIES = Object.freeze({
     AUTO: "auto",
@@ -259,6 +266,15 @@
   function isDeepSeekLikeModel(model) {
     const value = String(model || "").toLowerCase();
     return value.includes("deepseek") || value.includes("mimo");
+  }
+
+  function isLegacyDeepSeekPreset(settings = {}) {
+    const provider = String(settings.provider || "").trim().toLowerCase();
+    const apiUrl = String(settings.apiUrl || "").trim().replace(/\/+$/, "").toLowerCase();
+    const model = String(settings.model || "").trim().toLowerCase();
+    return provider === "deepseek"
+      && LEGACY_DEEPSEEK_API_URLS.has(apiUrl)
+      && LEGACY_DEEPSEEK_MODELS.has(model);
   }
 
   function isQwenLikeModel(model) {
@@ -744,10 +760,13 @@
     CACHE_PREFIX,
     DEFAULT_TRANSLATION_PROMPT,
     DEFAULT_SETTINGS,
+    DEEPSEEK_DEFAULT_API_URL,
+    DEEPSEEK_DEFAULT_MODEL,
     COST_PROFILES,
     THINKING_STRATEGIES,
     LEGACY_DEFAULT_API_TIMEOUT_MS,
     isLegacyDefaultTranslationPrompt,
+    isLegacyDeepSeekPreset,
     normalizeChatCompletionsUrl,
     normalizeThinkingStrategy,
     getEffectiveThinkingStrategy,

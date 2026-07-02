@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2
+
+- Capped the options-page API connection test at 20 seconds so a slow or unreachable provider no longer leaves the UI appearing stuck for the full translation timeout.
+- Updated the DeepSeek preset to the current `deepseek-v4-flash` model and official Chat Completions endpoint, with migration for the old `deepseek-chat` preset.
+- Bumped the content script version so already-injected 0.6.1 scripts can clearly request a page refresh.
+
 ## 0.6.1
 
 - Split batched translation requests after retriable network fetch failures, so one Reddit `Failed to fetch` no longer marks every paragraph in the batch as failed.

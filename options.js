@@ -12,8 +12,8 @@ const PROVIDER_PRESETS = {
     model: "gpt-4o-mini"
   },
   deepseek: {
-    apiUrl: "https://api.deepseek.com/v1/chat/completions",
-    model: "deepseek-chat"
+    apiUrl: globalThis.LLMTranslatorShared.DEEPSEEK_DEFAULT_API_URL,
+    model: globalThis.LLMTranslatorShared.DEEPSEEK_DEFAULT_MODEL
   },
   dashscope: {
     apiUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
@@ -172,6 +172,12 @@ async function loadSettings() {
   if (LEGACY_DEFAULT_API_TIMEOUT_MS.includes(Number(settings.apiTimeoutMs))) {
     settings.apiTimeoutMs = DEFAULT_SETTINGS.apiTimeoutMs;
     updates.apiTimeoutMs = settings.apiTimeoutMs;
+  }
+  if (globalThis.LLMTranslatorShared.isLegacyDeepSeekPreset(settings)) {
+    settings.apiUrl = globalThis.LLMTranslatorShared.DEEPSEEK_DEFAULT_API_URL;
+    settings.model = globalThis.LLMTranslatorShared.DEEPSEEK_DEFAULT_MODEL;
+    updates.apiUrl = settings.apiUrl;
+    updates.model = settings.model;
   }
   if (Object.keys(updates).length > 0) {
     await chrome.storage.local.set(updates);
