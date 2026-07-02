@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.5.6";
+  const CONTENT_SCRIPT_VERSION = "0.6.0";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -336,6 +336,7 @@
     clearTimeout(state.mutationScanTimer);
     clearTimeout(state.viewportScanTimer);
     state.flushRunId = null;
+    state.mutationScanTimer = null;
     state.queue = [];
     state.queuedIds.clear();
     state.pendingScanRoots.clear();
@@ -1438,7 +1439,7 @@
             if (queueDynamicScanRoot(node)) shouldInvalidateTextCache = true;
           });
         } else if (mutation.type === "attributes") {
-          if (queueDynamicScanRoot(mutation.target)) shouldInvalidateTextCache = true;
+          if (queueDynamicScanRoot(mutation.target, { attributeOnly: true })) shouldInvalidateTextCache = true;
         }
       }
 
@@ -1452,18 +1453,63 @@
     );
   }
 
-  function queueDynamicScanRoot(node) {
+  function queueDynamicScanRoot(node, options = {}) {
     if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
     if (node.closest?.(".llm-bilingual-translation")) return false;
     if (node.matches?.(".llm-bilingual-translation")) return false;
+    if (options.attributeOnly && !isDynamicAttributeScanTarget(node)) return false;
+
+    const root = getNormalizedDynamicScanRoot(node);
+    if (!root) return false;
+
     state.viewportSampleCache = null;
-    state.pendingScanRoots.add(node);
+    return addPendingScanRoot(root);
+  }
+
+  function isDynamicAttributeScanTarget(element) {
+    if (element === document.body || element === document.documentElement) return false;
+    if (!element.closest) return false;
+
+    const readableSelector = getViewportReadableBlockSelector();
+    if (element.matches?.(readableSelector) || element.closest(readableSelector)) return true;
+
+    return element.matches?.([
+      "shreddit-comment",
+      "shreddit-post",
+      "article",
+      "[role=\"article\"]",
+      "li",
+      "blockquote",
+      "section"
+    ].join(","))
+      && !!element.querySelector?.(readableSelector);
+  }
+
+  function getNormalizedDynamicScanRoot(element) {
+    const scanRoot = getScanRoot(document);
+    if (!scanRoot || !scanRoot.contains(element)) return null;
+
+    const localScope = getLocalReadableScope(element, scanRoot);
+    if (localScope) return localScope;
+
+    return element;
+  }
+
+  function addPendingScanRoot(root) {
+    for (const existingRoot of Array.from(state.pendingScanRoots)) {
+      if (existingRoot === root || existingRoot.contains(root)) return false;
+      if (root.contains(existingRoot)) state.pendingScanRoots.delete(existingRoot);
+    }
+
+    state.pendingScanRoots.add(root);
     return true;
   }
 
   function scheduleDynamicScan() {
-    clearTimeout(state.mutationScanTimer);
+    if (state.mutationScanTimer) return;
+
     state.mutationScanTimer = setTimeout(() => {
+      state.mutationScanTimer = null;
       if (!state.active || state.pendingScanRoots.size === 0) return;
 
       const elements = [];

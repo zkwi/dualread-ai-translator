@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0
+
+- Removed full-page TreeWalker fallback from viewport scans and bounded retained scan paths, fixing repeated long-page scroll stalls after visible content has already been translated.
+- Cached expensive per-element text extraction until real page content changes, reducing repeated style/layout reads during scanning, batching, and request creation.
+- Reduced manual-start latency with a fast first-batch flush window and an `html[lang]` fast path that skips expensive language sampling when the declared page language is clearly different from the target language.
+- Avoided repeated content script reinjection for the same tab within a service-worker lifetime, while resetting injection state on navigation/removal.
+- Generalized slotted translation placement so injected translations inherit the insertion target's `slot`, and deduplicated Reddit/article selector definitions.
+- Salvaged valid translation objects from malformed model JSON and retried missing segments once, so one bad object no longer fails an entire batch.
+- Kept dynamic scans firing during continuously mutating Reddit-style pages and filtered noisy attribute mutations, reducing delayed translation starts and bursty scan stalls after content loads.
+
 ## 0.5.6
 
 - Reduced manual-start latency by passing the already validated settings from the background script into `start_translation` and `scan_current_area`, avoiding a second content-to-background `get_settings` round trip before loading placeholders can render.

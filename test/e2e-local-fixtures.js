@@ -72,6 +72,7 @@ async function main() {
     await testDeclarativeAutoTranslationStartsOnLoad(browser);
     await testDeclarativeAutoTranslationSkipMarksBackgroundInactive(browser);
     await testAutoTranslationWaitsForDynamicEnglishContentWithTargetLocale(browser);
+    await testDynamicContentTranslatesDuringContinuousMutations(browser);
     await testAutoTranslationSkipsTargetLanguagePage(browser);
     await testAutoTranslationSkipsTargetLanguageDominantPage(browser);
     await testAutoTranslationUsesCurrentViewportLanguageSample(browser);
@@ -1101,6 +1102,53 @@ async function testAutoTranslationWaitsForDynamicEnglishContentWithTargetLocale(
   assert.strictEqual(stats.active, true);
   assert.strictEqual(await page.evaluate(() => window.__mockItems.length), 1);
   assert.strictEqual(await page.evaluate(() => document.documentElement.dataset.llmTranslatorAuto), "started");
+
+  await page.close();
+}
+
+async function testDynamicContentTranslatesDuringContinuousMutations(browser) {
+  const page = await createHarnessPage(browser, {
+    translateDelayMs: 1200,
+    html: `
+      <main>
+        <article id="feed"></article>
+        <div id="noisy-state"></div>
+      </main>
+    `
+  });
+
+  await page.evaluate(async () => {
+    await window.__sendContentMessage({
+      action: "start_translation",
+      settings: window.__mockSettings
+    });
+  });
+
+  await page.waitForTimeout(120);
+
+  await page.evaluate(() => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "A dynamically loaded Reddit comment should start translating while the page keeps updating nearby UI state.";
+    document.querySelector("#feed").appendChild(paragraph);
+
+    const noisy = document.querySelector("#noisy-state");
+    window.__dynamicMutationInterval = window.setInterval(() => {
+      noisy.className = `state-${Date.now()}`;
+    }, 80);
+  });
+
+  await page.waitForTimeout(720);
+  const result = await page.evaluate(() => ({
+    feedbackCount: document.querySelectorAll(".llm-bilingual-translation.is-loading, .llm-bilingual-translation.is-done").length,
+    requestCount: window.__mockItems.length
+  }));
+
+  await page.evaluate(() => window.clearInterval(window.__dynamicMutationInterval));
+
+  assert.ok(
+    result.feedbackCount >= 1,
+    `连续 DOM 变化时动态内容仍应及时出现翻译反馈，实际 feedback=${result.feedbackCount}, requests=${result.requestCount}`
+  );
 
   await page.close();
 }
