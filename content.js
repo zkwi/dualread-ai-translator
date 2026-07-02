@@ -340,8 +340,14 @@
       costSettings.maxElementsPerScan
     ));
     if (costSettings.viewportOnly && !options.immediateViewportOnly) {
-      const viewportCandidates = collectViewportCandidateElements(scanRoot, costSettings, maxResults);
-      if (viewportCandidates.length > 0) return viewportCandidates;
+      // 视口模式两条候选路径都为空时说明视口内没有新内容，
+      // 不再回退全页 TreeWalker，避免已翻译长页面滚动时反复长任务。
+      return collectViewportCandidateElements(
+        scanRoot,
+        costSettings,
+        maxResults,
+        { allowSelectorFallbackWhenSampled: options.allowSelectorFallbackWhenSampled === true }
+      );
     }
 
     const candidates = new Map();
@@ -356,8 +362,13 @@
       }
     );
 
+    const maxWalkedTextNodes = 1500;
+    let walkedTextNodes = 0;
     let textNode = walker.nextNode();
     while (textNode) {
+      walkedTextNodes += 1;
+      if (walkedTextNodes > maxWalkedTextNodes) break;
+
       const block = findReadableBlock(textNode.parentElement, costSettings);
       if (block && !candidates.has(block)) {
         if (options.immediateViewportOnly && !isElementInActiveViewport(block)) {
@@ -393,9 +404,13 @@
       .slice(0, maxResults);
   }
 
-  function collectViewportCandidateElements(scanRoot, costSettings, maxResults) {
-    const sampledCandidates = collectSampledViewportCandidateElements(scanRoot, costSettings, maxResults);
-    if (sampledCandidates.length > 0) return sampledCandidates;
+  function collectViewportCandidateElements(scanRoot, costSettings, maxResults, options = {}) {
+    const sampled = collectSampledViewportCandidateElements(scanRoot, costSettings, maxResults);
+    if (sampled.candidates.length > 0) return sampled.candidates;
+
+    // 采样已经命中可读块但全被翻译/过滤时，视口内没有新内容；
+    // 跳过全页选择器兜底，避免长页面逐块测量布局。
+    if (sampled.sawReadableBlock && !options.allowSelectorFallbackWhenSampled) return [];
 
     return collectSelectorViewportCandidateElements(scanRoot, costSettings, maxResults);
   }
@@ -403,28 +418,40 @@
   function collectSampledViewportCandidateElements(scanRoot, costSettings, maxResults) {
     const candidates = new Map();
     const seenTexts = new Set();
+    let sawReadableBlock = false;
 
-    if (typeof document.elementsFromPoint !== "function") return [];
-
-    for (const element of getViewportSampleElements(scanRoot)) {
-      addImmediateViewportCandidate(element, candidates, seenTexts, costSettings);
-      addLocalViewportCandidateElements(element, scanRoot, candidates, seenTexts, costSettings, maxResults);
+    if (typeof document.elementsFromPoint !== "function") {
+      return { candidates: [], sawReadableBlock };
     }
 
-    return formatCandidateEntries(candidates, maxResults);
+    for (const element of getViewportSampleElements(scanRoot)) {
+      if (addImmediateViewportCandidate(element, candidates, seenTexts, costSettings)) {
+        sawReadableBlock = true;
+      }
+      if (addLocalViewportCandidateElements(element, scanRoot, candidates, seenTexts, costSettings, maxResults)) {
+        sawReadableBlock = true;
+      }
+    }
+
+    return { candidates: formatCandidateEntries(candidates, maxResults), sawReadableBlock };
   }
 
   function addLocalViewportCandidateElements(element, scanRoot, candidates, seenTexts, costSettings, maxResults) {
-    if (candidates.size >= maxResults) return;
+    if (candidates.size >= maxResults) return false;
 
     const localScope = getLocalReadableScope(element, scanRoot);
-    if (!localScope) return;
+    if (!localScope) return false;
 
+    let sawReadableBlock = false;
     const elements = localScope.querySelectorAll?.(getViewportReadableBlockSelector()) || [];
     for (const candidate of elements) {
       if (candidates.size >= maxResults) break;
-      addImmediateViewportCandidate(candidate, candidates, seenTexts, costSettings);
+      if (addImmediateViewportCandidate(candidate, candidates, seenTexts, costSettings)) {
+        sawReadableBlock = true;
+      }
     }
+
+    return sawReadableBlock;
   }
 
   function getLocalReadableScope(element, scanRoot) {
@@ -447,8 +474,13 @@
     const candidates = new Map();
     const seenTexts = new Set();
     const elements = scanRoot.querySelectorAll?.(getViewportReadableBlockSelector()) || [];
+    let inspected = 0;
+    const maxInspected = Math.max(200, maxResults * 30);
 
     for (const element of elements) {
+      if (inspected >= maxInspected) break;
+      if (element.dataset.llmTranslatorStatus) continue;
+      inspected += 1;
       if (!isElementNearActiveViewport(element)) continue;
 
       const block = findImmediateReadableBlock(element, costSettings);
@@ -608,17 +640,20 @@
   }
 
   function addImmediateViewportCandidate(element, candidates, seenTexts, costSettings) {
-    if (!element || element.nodeType !== Node.ELEMENT_NODE) return;
+    if (!element || element.nodeType !== Node.ELEMENT_NODE) return false;
 
     const block = findImmediateReadableBlock(element, costSettings);
-    if (!block || candidates.has(block) || !isElementInActiveViewport(block)) return;
+    if (!block) return false;
+    if (candidates.has(block) || block.dataset.llmTranslatorStatus) return true;
+    if (!isElementInActiveViewport(block)) return true;
 
     const text = getCleanText(block);
     const textKey = text.toLowerCase();
-    if (seenTexts.has(textKey) || !isCandidateElement(block, costSettings, text)) return;
+    if (seenTexts.has(textKey) || !isCandidateElement(block, costSettings, text)) return true;
 
     seenTexts.add(textKey);
     candidates.set(block, text);
+    return true;
   }
 
   function findImmediateReadableBlock(element, costSettings) {
@@ -769,7 +804,6 @@
       if (hasBlockedAncestor(current)) return null;
 
       const tagName = current.tagName;
-      const text = getCleanText(current);
       const siteSpecificBlock = findSiteSpecificReadableBlock(current);
 
       if (siteSpecificBlock) {
@@ -783,11 +817,13 @@
         return current;
       }
 
-      if (!inlineFallback && isInlineFallbackTag(tagName) && isUsefulInlineBlock(current, text, costSettings)) {
+      if (!inlineFallback && isInlineFallbackTag(tagName)
+        && isUsefulInlineBlock(current, getCleanText(current), costSettings)) {
         inlineFallback = current;
       }
 
-      if (!genericFallback && isGenericBlockTag(tagName) && isUsefulGenericBlock(current, text, costSettings)) {
+      if (!genericFallback && isGenericBlockTag(tagName)
+        && isUsefulGenericBlock(current, getCleanText(current), costSettings)) {
         genericFallback = current;
       }
 
@@ -1286,7 +1322,10 @@
     const superseded = prepareViewportScan();
     const elements = options.immediate
       ? collectImmediateViewportCandidateElements(root)
-      : collectCandidateElements(root, { maxResults: options.maxResults });
+      : collectCandidateElements(root, {
+        maxResults: options.maxResults,
+        allowSelectorFallbackWhenSampled: options.allowSelectorFallbackWhenSampled === true
+      });
     state.stats.scanned += elements.length;
     processCandidateElements(elements);
     if (options.deferFullScan) {
@@ -1360,7 +1399,7 @@
       clearTimeout(state.viewportScanTimer);
       state.viewportScanTimer = setTimeout(() => {
         if (!state.active) return;
-        scanViewport(root, { maxResults });
+        scanViewport(root, { maxResults, allowSelectorFallbackWhenSampled: true });
       }, 0);
     };
 

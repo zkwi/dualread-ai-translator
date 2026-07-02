@@ -39,6 +39,7 @@ async function main() {
     await testRedditDetailTitleTranslationKeepsTitleSlotOrder(browser);
     await testRedditTextBodyUsesSafeTranslationAnchor(browser);
     await testLongRedditThreadDoesNotFullWalkComments(browser);
+    await testTranslatedViewportScrollScanDoesNotFullWalk(browser);
     await testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser);
     await testGitHubFlexRepositoryRowsDoNotReceiveTranslations(browser);
     await testDenseTableRowsDoNotReceiveBlockTranslations(browser);
@@ -657,6 +658,62 @@ async function testLongRedditThreadDoesNotFullWalkComments(browser) {
   assert.ok(result.loadingCount > 0);
   assert.ok(result.rectCalls < 900, "Viewport scans should not measure every Reddit comment paragraph.");
   assert.ok(result.treeWalkerNextCalls < 120, "Viewport scans should not walk every Reddit comment text node.");
+
+  await page.close();
+}
+
+async function testTranslatedViewportScrollScanDoesNotFullWalk(browser) {
+  const comments = Array.from({ length: 800 }, (_, index) => `
+    <shreddit-comment depth="0" thingid="t1_${index + 1}">
+      <div slot="comment" class="md">
+        <p>Comment ${index + 1} explains how the Codex plan behaved during a long coding session with many files.</p>
+      </div>
+    </shreddit-comment>
+  `).join("");
+
+  const page = await createHarnessPage(browser, {
+    batchSize: 100,
+    countLayoutReads: true,
+    countTreeWalker: true,
+    html: `
+      <style>
+        shreddit-post, shreddit-post-text-body, shreddit-comment { display: block; }
+        shreddit-comment { padding: 12px 0; border-bottom: 1px solid #ddd; }
+      </style>
+      <main>
+        <shreddit-post post-type="text" post-language="en">
+          <a slot="title" href="/r/codex/comments/example">This is what a long Codex plan looked like after many days of usage</a>
+          <shreddit-post-text-body slot="text-body">
+            <div property="schema:articleBody">
+              <p>The original post includes a detailed report about long-running Codex usage and observed delays.</p>
+            </div>
+          </shreddit-post-text-body>
+        </shreddit-post>
+        <section id="comments">${comments}</section>
+      </main>
+    `
+  });
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(1500);
+
+  const result = await page.evaluate(async () => {
+    window.__treeWalkerNextCalls = 0;
+    window.__rectCalls = 0;
+    window.scrollBy(0, 40);
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    return {
+      treeWalkerNextCalls: window.__treeWalkerNextCalls,
+      rectCalls: window.__rectCalls
+    };
+  });
+
+  assert.strictEqual(
+    result.treeWalkerNextCalls,
+    0,
+    `已翻译视口的滚动扫描不允许回退到全页 TreeWalker，实际 ${result.treeWalkerNextCalls} 次`
+  );
+  assert.ok(result.rectCalls < 400, `滚动扫描布局读取应有界，实际 ${result.rectCalls} 次`);
 
   await page.close();
 }
