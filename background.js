@@ -9,6 +9,7 @@ const CONTEXT_MENU_TRANSLATE_SELECTION = "llm_translate_selection";
 const CACHE_PRUNE_INTERVAL_MS = 30000;
 const activeTabs = new Map();
 const tabNotices = new Map();
+const injectedTabs = new Set();
 let lastCachePruneAt = 0;
 let cachePrunePromise = null;
 let contextMenuSetupPromise = Promise.resolve();
@@ -187,6 +188,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   activeTabs.delete(tabId);
   tabNotices.delete(tabId);
+  injectedTabs.delete(tabId);
 });
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
@@ -201,6 +203,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "loading") {
     activeTabs.delete(tabId);
     tabNotices.delete(tabId);
+    injectedTabs.delete(tabId);
   }
 });
 
@@ -251,10 +254,13 @@ function shouldRecheckAutoTranslate(changes) {
 }
 
 async function ensureContentScript(tabId) {
+  if (injectedTabs.has(tabId)) return;
+
   await chrome.scripting.executeScript({
     target: { tabId },
     files: ["shared.js", "content.js"]
   });
+  injectedTabs.add(tabId);
 }
 
 function queueSetupContextMenus() {

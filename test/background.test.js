@@ -50,6 +50,7 @@ async function main() {
   await testScanCurrentAreaPassesSettingsToContent();
   await testScanCurrentAreaPropagatesContentFailure();
   await testScanCurrentAreaSkipKeepsTabInactive();
+  await testEnsureContentScriptInjectsOncePerTabLifetime();
   await testFileUrlIsUnsupportedBeforeInjecting();
   await testSetDisplayModeForwardsToContentScript();
   await testDisplayModePropagatesContentFailure();
@@ -1245,6 +1246,22 @@ async function testScanCurrentAreaSkipKeepsTabInactive() {
     tab: { id: 45, url: "https://example.com/zh" }
   });
   assert.strictEqual(stats.notice.reason, "target-language");
+}
+
+async function testEnsureContentScriptInjectsOncePerTabLifetime() {
+  const context = createBackgroundContext({
+    sendMessage: async () => ({ ok: true, count: 0, stats: {} })
+  });
+  loadBackground(context);
+
+  const tab = { id: 71, url: "https://example.com/page" };
+  await sendRuntimeMessage(context, { action: "scan_current_area", tab });
+  await sendRuntimeMessage(context, { action: "scan_current_area", tab });
+  assert.strictEqual(context.scriptingCalls.length, 1, "同一标签页重复动作不应重复注入 content script");
+
+  context.tabsOnUpdatedListener(71, { status: "loading" }, tab);
+  await sendRuntimeMessage(context, { action: "scan_current_area", tab });
+  assert.strictEqual(context.scriptingCalls.length, 2, "页面重新加载后应重新注入");
 }
 
 async function testFileUrlIsUnsupportedBeforeInjecting() {
