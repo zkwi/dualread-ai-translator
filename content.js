@@ -48,6 +48,15 @@
   window.__llmBilingualTranslator = state;
   setAutoStartStatus("loaded");
 
+  // getCleanText 很贵（递归子树 + 逐元素读样式），同一元素在一次扫描里会被多处调用；
+  // 缓存到下一次页面内容变更为止，MutationObserver 里统一失效。
+  const cleanTextCache = new WeakMap();
+  let cleanTextEpoch = 0;
+
+  function invalidateCleanTextCache() {
+    cleanTextEpoch += 1;
+  }
+
   const SITE_HEURISTICS = {
     // X / social sidebars and recommendation rails.
     lowPriorityContainers: [
@@ -1417,14 +1426,19 @@
     state.mutationObserver = new MutationObserver((mutations) => {
       if (!state.active) return;
 
+      let shouldInvalidateTextCache = false;
+
       for (const mutation of mutations) {
         if (mutation.type === "childList") {
-          mutation.addedNodes.forEach(queueDynamicScanRoot);
+          mutation.addedNodes.forEach((node) => {
+            if (queueDynamicScanRoot(node)) shouldInvalidateTextCache = true;
+          });
         } else if (mutation.type === "attributes") {
-          queueDynamicScanRoot(mutation.target);
+          if (queueDynamicScanRoot(mutation.target)) shouldInvalidateTextCache = true;
         }
       }
 
+      if (shouldInvalidateTextCache) invalidateCleanTextCache();
       scheduleDynamicScan();
     });
 
@@ -1435,11 +1449,12 @@
   }
 
   function queueDynamicScanRoot(node) {
-    if (!node || node.nodeType !== Node.ELEMENT_NODE) return;
-    if (node.closest?.(".llm-bilingual-translation")) return;
-    if (node.matches?.(".llm-bilingual-translation")) return;
+    if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
+    if (node.closest?.(".llm-bilingual-translation")) return false;
+    if (node.matches?.(".llm-bilingual-translation")) return false;
     state.viewportSampleCache = null;
     state.pendingScanRoots.add(node);
+    return true;
   }
 
   function scheduleDynamicScan() {
@@ -1591,6 +1606,15 @@
   }
 
   function getCleanText(element) {
+    const cached = cleanTextCache.get(element);
+    if (cached && cached.epoch === cleanTextEpoch) return cached.text;
+
+    const text = computeCleanText(element);
+    cleanTextCache.set(element, { epoch: cleanTextEpoch, text });
+    return text;
+  }
+
+  function computeCleanText(element) {
     const lines = normalizeTextWithLineBreaks(extractReadableText(element))
       .split("\n")
       .map(cleanTextLine)

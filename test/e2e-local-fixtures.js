@@ -40,6 +40,7 @@ async function main() {
     await testRedditTextBodyUsesSafeTranslationAnchor(browser);
     await testLongRedditThreadDoesNotFullWalkComments(browser);
     await testTranslatedViewportScrollScanDoesNotFullWalk(browser);
+    await testScanExtractsEachCandidateTextOnce(browser);
     await testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser);
     await testGitHubFlexRepositoryRowsDoNotReceiveTranslations(browser);
     await testDenseTableRowsDoNotReceiveBlockTranslations(browser);
@@ -714,6 +715,31 @@ async function testTranslatedViewportScrollScanDoesNotFullWalk(browser) {
     `已翻译视口的滚动扫描不允许回退到全页 TreeWalker，实际 ${result.treeWalkerNextCalls} 次`
   );
   assert.ok(result.rectCalls < 400, `滚动扫描布局读取应有界，实际 ${result.rectCalls} 次`);
+
+  await page.close();
+}
+
+async function testScanExtractsEachCandidateTextOnce(browser) {
+  const paragraphs = Array.from({ length: 24 }, (_, index) => `
+    <p>
+      <span>Paragraph ${index + 1}</span>
+      <span>contains enough English words</span>
+      <span>to qualify as a translation candidate</span>
+      <span>for the scan and batching pipeline.</span>
+    </p>
+  `).join("");
+
+  const page = await createHarnessPage(browser, {
+    countStyleReads: true,
+    maxElementsPerScan: 24,
+    html: `<main><article>${paragraphs}</article></main>`
+  });
+
+  const styleCalls = await page.evaluate(async () => {
+    await window.__sendContentMessage({ action: "scan_current_area" });
+    return window.__styleCalls;
+  });
+  assert.ok(styleCalls < 2200, `一次扫描的样式读取应有界（文本提取去重后），实际 ${styleCalls} 次`);
 
   await page.close();
 }
@@ -1916,6 +1942,17 @@ async function createHarnessPage(browser, options = {}) {
       Element.prototype.getBoundingClientRect = function (...args) {
         window.__rectCalls += 1;
         return originalGetBoundingClientRect.apply(this, args);
+      };
+    });
+  }
+
+  if (options.countStyleReads) {
+    await page.evaluate(() => {
+      window.__styleCalls = 0;
+      const originalGetComputedStyle = window.getComputedStyle.bind(window);
+      window.getComputedStyle = (...args) => {
+        window.__styleCalls += 1;
+        return originalGetComputedStyle(...args);
       };
     });
   }
