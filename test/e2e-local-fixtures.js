@@ -37,6 +37,7 @@ async function main() {
     await testEmbeddedPlayerErrorsDoNotStealNewsBudget(browser);
     await testRedditPostTitleIsTranslatedWithoutMetadata(browser);
     await testRedditDetailTitleTranslationKeepsTitleSlotOrder(browser);
+    await testTranslationInheritsInsertionTargetSlot(browser);
     await testRedditTextBodyUsesSafeTranslationAnchor(browser);
     await testLongRedditThreadDoesNotFullWalkComments(browser);
     await testTranslatedViewportScrollScanDoesNotFullWalk(browser);
@@ -554,6 +555,31 @@ async function testRedditDetailTitleTranslationKeepsTitleSlotOrder(browser) {
     layout.titleTranslationTop < layout.bodyTranslationTop,
     `title translation should render before body translation, got ${JSON.stringify(layout)}`
   );
+
+  await page.close();
+}
+
+async function testTranslationInheritsInsertionTargetSlot(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <style>custom-card { display: block; }</style>
+      <main>
+        <custom-card>
+          <p slot="body">This slotted paragraph has enough English words to be picked as a candidate.</p>
+        </custom-card>
+      </main>
+    `
+  });
+
+  await runTranslation(page);
+
+  const slot = await page.evaluate(() => {
+    const target = document.querySelector("custom-card p[slot='body']");
+    return target?.nextElementSibling?.classList.contains("llm-bilingual-translation")
+      ? target.nextElementSibling.getAttribute("slot")
+      : null;
+  });
+  assert.strictEqual(slot, "body", "译文节点应继承插入目标的 slot 属性");
 
   await page.close();
 }

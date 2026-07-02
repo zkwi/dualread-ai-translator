@@ -122,6 +122,23 @@
     ]
   };
 
+  const REDDIT_TITLE_SELECTORS = [
+    "a[slot=\"title\"][href]",
+    "[slot=\"title\"][id^=\"post-title-\"]",
+    "[id^=\"post-title-\"][href]"
+  ];
+  const REDDIT_TEXT_BODY_SELECTORS = [
+    "shreddit-post-text-body",
+    "[property=\"schema:articleBody\"][id$=\"-post-rtjson-content\"]",
+    ".feed-card-text-preview"
+  ];
+  const ARTICLE_HEADLINE_LINK_SELECTORS = [
+    "a[class*=\"headline\" i][href]",
+    "a[class*=\"title\" i][href]",
+    "a[data-testid*=\"headline\" i][href]",
+    "a[data-testid*=\"title\" i][href]"
+  ];
+
   const runtimeMessageListener = (request, sender, sendResponse) => {
     if (request.action === "start_translation") {
       return respondAsync(startTranslation(request), sendResponse);
@@ -578,16 +595,12 @@
     return [
       LLMTranslatorShared.getCandidateSelector(),
       "[data-testid=\"tweetText\"]",
-      "article a[class*=\"headline\" i][href]",
-      "article a[class*=\"title\" i][href]",
-      "[role=\"article\"] a[class*=\"headline\" i][href]",
-      "[role=\"article\"] a[class*=\"title\" i][href]",
-      "shreddit-post a[slot=\"title\"][href]",
-      "shreddit-post [slot=\"title\"][id^=\"post-title-\"]",
-      "shreddit-post [id^=\"post-title-\"][href]",
-      "shreddit-post-text-body",
-      "[property=\"schema:articleBody\"][id$=\"-post-rtjson-content\"]",
-      ".feed-card-text-preview",
+      ...ARTICLE_HEADLINE_LINK_SELECTORS.flatMap((selector) => [
+        `article ${selector}`,
+        `[role="article"] ${selector}`
+      ]),
+      ...REDDIT_TITLE_SELECTORS.map((selector) => `shreddit-post ${selector}`),
+      ...REDDIT_TEXT_BODY_SELECTORS,
       "tr.athing td.title .titleline a[href]"
     ].join(",");
   }
@@ -865,11 +878,7 @@
     const post = element.closest("shreddit-post");
     if (!post) return null;
 
-    return element.closest([
-      "a[slot=\"title\"][href]",
-      "[slot=\"title\"][id^=\"post-title-\"]",
-      "[id^=\"post-title-\"][href]"
-    ].join(","));
+    return element.closest(REDDIT_TITLE_SELECTORS.join(","));
   }
 
   function findArticleHeadlineLinkElement(element) {
@@ -877,12 +886,7 @@
     const article = element.closest("article,[role=\"article\"]");
     if (!article) return null;
 
-    const link = element.closest([
-      "a[class*=\"headline\" i][href]",
-      "a[class*=\"title\" i][href]",
-      "a[data-testid*=\"headline\" i][href]",
-      "a[data-testid*=\"title\" i][href]"
-    ].join(","));
+    const link = element.closest(ARTICLE_HEADLINE_LINK_SELECTORS.join(","));
     if (!link || !article.contains(link)) return null;
 
     return link;
@@ -893,11 +897,8 @@
     const post = element.closest("shreddit-post");
     if (!post) return null;
 
-    return element.closest("shreddit-post-text-body")
-      || element.closest([
-        "[property=\"schema:articleBody\"][id$=\"-post-rtjson-content\"]",
-        ".feed-card-text-preview"
-      ].join(","));
+    return element.closest(REDDIT_TEXT_BODY_SELECTORS[0])
+      || element.closest(REDDIT_TEXT_BODY_SELECTORS.slice(1).join(","));
   }
 
   function isHackerNewsStoryTitleCandidate(element) {
@@ -1900,32 +1901,19 @@
   function isRedditTextBodyElement(element) {
     if (!element?.matches) return false;
     return !!element.closest("shreddit-post")
-      && element.matches([
-        "shreddit-post-text-body",
-        "[property=\"schema:articleBody\"][id$=\"-post-rtjson-content\"]",
-        ".feed-card-text-preview"
-      ].join(","));
+      && element.matches(REDDIT_TEXT_BODY_SELECTORS.join(","));
   }
 
   function isRedditPostTitleElement(element) {
     if (!element?.matches) return false;
     return !!element.closest("shreddit-post")
-      && element.matches([
-        "a[slot=\"title\"][href]",
-        "[slot=\"title\"][id^=\"post-title-\"]",
-        "[id^=\"post-title-\"][href]"
-      ].join(","));
+      && element.matches(REDDIT_TITLE_SELECTORS.join(","));
   }
 
   function isArticleHeadlineLinkElement(element) {
     if (!element?.matches) return false;
     return !!element.closest("article,[role=\"article\"]")
-      && element.matches([
-        "a[class*=\"headline\" i][href]",
-        "a[class*=\"title\" i][href]",
-        "a[data-testid*=\"headline\" i][href]",
-        "a[data-testid*=\"title\" i][href]"
-      ].join(","));
+      && element.matches(ARTICLE_HEADLINE_LINK_SELECTORS.join(","));
   }
 
   function isSiteMetadataCandidate(element, text) {
@@ -1959,13 +1947,9 @@
   }
 
   function syncTranslationSlot(node, insertionTarget) {
-    if (isRedditPostTitleElement(insertionTarget)) {
-      node.setAttribute("slot", "title");
-      return;
-    }
-
-    if (insertionTarget?.closest?.("shreddit-post-text-body")) {
-      node.setAttribute("slot", "text-body");
+    const slot = insertionTarget?.getAttribute?.("slot");
+    if (slot) {
+      node.setAttribute("slot", slot);
     } else {
       node.removeAttribute("slot");
     }
