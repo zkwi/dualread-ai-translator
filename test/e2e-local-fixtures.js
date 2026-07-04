@@ -39,8 +39,10 @@ async function main() {
     await testRedditDetailTitleTranslationKeepsTitleSlotOrder(browser);
     await testTranslationInheritsInsertionTargetSlot(browser);
     await testRedditTextBodyUsesSafeTranslationAnchor(browser);
+    await testLongRedditTextBodyFallsBackToParagraphs(browser);
     await testLongRedditThreadDoesNotFullWalkComments(browser);
     await testTranslatedViewportScrollScanDoesNotFullWalk(browser);
+    await testProcessedSampledBlockDoesNotBlockViewportFallback(browser);
     await testScanExtractsEachCandidateTextOnce(browser);
     await testGitHubRepositoryFileListDoesNotStealTranslationBudget(browser);
     await testGitHubFlexRepositoryRowsDoNotReceiveTranslations(browser);
@@ -640,6 +642,54 @@ async function testRedditTextBodyUsesSafeTranslationAnchor(browser) {
   await page.close();
 }
 
+async function testLongRedditTextBodyFallsBackToParagraphs(browser) {
+  const paragraphs = Array.from({ length: 12 }, (_, index) => `
+    <p id="long-post-paragraph-${index + 1}">
+      Paragraph ${index + 1} describes an expensive local language model workstation with many GPUs,
+      unusual cooling decisions, power supply changes, and enough English prose to be a useful
+      translation candidate on its own without translating the entire Reddit post body at once.
+    </p>
+  `).join("");
+
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 8,
+    bodyStyle: "font:18px Arial;padding:24px",
+    html: `
+      <style>
+        shreddit-post, shreddit-post-text-body { display: block; }
+        shreddit-post-text-body p { margin: 0 0 12px; }
+      </style>
+      <main>
+        <shreddit-post post-type="text" post-language="en">
+          <a slot="title" href="/r/LocalLLaMA/comments/example">GLM5.2 on 5x Pro 6000s and a 5090, an expensive journey</a>
+          <shreddit-post-text-body slot="text-body">
+            <div property="schema:articleBody">${paragraphs}</div>
+          </shreddit-post-text-body>
+        </shreddit-post>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const layout = await page.evaluate(() => {
+    const textBody = document.querySelector("shreddit-post-text-body");
+    return {
+      textBodyStatus: textBody?.dataset.llmTranslatorStatus || "",
+      paragraphStatuses: Array.from(textBody.querySelectorAll("p"))
+        .map((paragraph) => paragraph.dataset.llmTranslatorStatus || ""),
+      translationCountInsideTextBody: textBody.querySelectorAll(".llm-bilingual-translation.is-done").length
+    };
+  });
+
+  assert.strictEqual(layout.textBodyStatus, "", "Oversized Reddit post body should not be translated as one block.");
+  assert.ok(layout.paragraphStatuses.filter((status) => status === "done").length >= 2);
+  assert.ok(layout.translationCountInsideTextBody >= 2);
+  assert.ok(result.requestedTexts.every((text) => text.length < 1600));
+  assert.ok(result.requestedTexts.some((text) => /Paragraph 1 describes/.test(text)));
+
+  await page.close();
+}
+
 async function testLongRedditThreadDoesNotFullWalkComments(browser) {
   const comments = Array.from({ length: 1200 }, (_, index) => `
     <shreddit-comment depth="0" thingid="t1_${index + 1}">
@@ -744,6 +794,46 @@ async function testTranslatedViewportScrollScanDoesNotFullWalk(browser) {
     `已翻译视口的滚动扫描不允许回退到全页 TreeWalker，实际 ${result.treeWalkerNextCalls} 次`
   );
   assert.ok(result.rectCalls < 400, `滚动扫描布局读取应有界，实际 ${result.rectCalls} 次`);
+
+  await page.close();
+}
+
+async function testProcessedSampledBlockDoesNotBlockViewportFallback(browser) {
+  const page = await createHarnessPage(browser, {
+    deferIntersectionObserver: true,
+    maxElementsPerScan: 1,
+    bodyStyle: "font:20px Arial;margin:0",
+    html: `
+      <main style="position:relative;width:1000px;height:1500px">
+        <p id="sampled-done" style="box-sizing:border-box;width:640px;min-height:1300px;margin:0 auto;padding-top:24px">
+          This wide paragraph is translated first and still covers the viewport sample points after a small scroll.
+        </p>
+        <p id="missed-current" style="position:absolute;left:12px;top:850px;width:150px;margin:0">
+          This narrow visible paragraph sits away from the sample columns and still needs translation after scrolling.
+        </p>
+      </main>
+    `
+  });
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForFunction(() => document.querySelector("#sampled-done[data-llm-translator-status='done']"));
+
+  await page.evaluate(() => window.scrollTo(0, 220));
+  await page.waitForTimeout(700);
+
+  const result = await page.evaluate(() => ({
+    sampledStatus: document.getElementById("sampled-done")?.dataset.llmTranslatorStatus || "",
+    missedStatus: document.getElementById("missed-current")?.dataset.llmTranslatorStatus || "",
+    requestedTexts: window.__mockItems
+  }));
+
+  assert.strictEqual(result.sampledStatus, "done");
+  assert.strictEqual(
+    result.missedStatus,
+    "done",
+    "A processed sampled block should not prevent selector fallback from finding an unsampled visible paragraph."
+  );
+  assert.ok(result.requestedTexts.some((text) => /narrow visible paragraph/.test(text)));
 
   await page.close();
 }

@@ -1,6 +1,6 @@
 {
   "name": "dualread-ai-translator",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Open-source Chrome MV3 extension for AI bilingual webpage translation with OpenAI-compatible providers.",
   "license": "MIT",
   "private": true,

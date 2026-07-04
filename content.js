@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.6.2";
+  const CONTENT_SCRIPT_VERSION = "0.6.3";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -669,8 +669,9 @@
 
     const block = findImmediateReadableBlock(element, costSettings);
     if (!block) return false;
-    if (candidates.has(block) || block.dataset.llmTranslatorStatus) return true;
-    if (!isElementInActiveViewport(block)) return true;
+    if (candidates.has(block)) return true;
+    if (block.dataset.llmTranslatorStatus) return false;
+    if (!isElementInActiveViewport(block)) return false;
 
     const text = getCleanText(block);
     const textKey = text.toLowerCase();
@@ -692,7 +693,7 @@
       if (current.closest?.(".llm-bilingual-translation")) return null;
       if (hasBlockedAncestor(current)) return null;
 
-      const siteSpecificBlock = findSiteSpecificReadableBlock(current);
+      const siteSpecificBlock = findSiteSpecificReadableBlock(current, costSettings);
       if (siteSpecificBlock) {
         return siteSpecificBlock;
       }
@@ -829,7 +830,7 @@
       if (hasBlockedAncestor(current)) return null;
 
       const tagName = current.tagName;
-      const siteSpecificBlock = findSiteSpecificReadableBlock(current);
+      const siteSpecificBlock = findSiteSpecificReadableBlock(current, costSettings);
 
       if (siteSpecificBlock) {
         return siteSpecificBlock;
@@ -858,12 +859,12 @@
     return inlineFallback || genericFallback;
   }
 
-  function findSiteSpecificReadableBlock(element) {
+  function findSiteSpecificReadableBlock(element, costSettings = LLMTranslatorShared.normalizeCostSettings(state.settings)) {
     const redditTitle = findRedditPostTitleElement(element);
     if (redditTitle) return redditTitle;
 
     const redditTextBody = findRedditTextBodyElement(element);
-    if (redditTextBody) return redditTextBody;
+    if (redditTextBody && !isOversizedRedditTextBody(redditTextBody, costSettings)) return redditTextBody;
 
     const articleHeadlineLink = findArticleHeadlineLinkElement(element);
     if (articleHeadlineLink) return articleHeadlineLink;
@@ -900,6 +901,11 @@
 
     return element.closest(REDDIT_TEXT_BODY_SELECTORS[0])
       || element.closest(REDDIT_TEXT_BODY_SELECTORS.slice(1).join(","));
+  }
+
+  function isOversizedRedditTextBody(textBody, costSettings = LLMTranslatorShared.normalizeCostSettings(state.settings)) {
+    return isRedditTextBodyElement(textBody)
+      && getCleanText(textBody).length > costSettings.maxTextLength;
   }
 
   function isHackerNewsStoryTitleCandidate(element) {
@@ -1940,6 +1946,7 @@
       ? element
       : findRedditTextBodyElement(element);
     if (!textBody) return null;
+    if (textBody !== element && isOversizedRedditTextBody(textBody)) return null;
 
     return textBody.querySelector?.(":scope > a[slot=\"text-body\"]") || textBody;
   }

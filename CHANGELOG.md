@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3
+
+- Translated oversized Reddit text posts by falling back from the full `shreddit-post-text-body` container to its internal paragraphs when the body exceeds the per-segment length limit.
+- Kept viewport selector fallback available when sampled blocks have already been translated, so scrolling past retained translations can still discover newly visible text.
+- Bumped the content script version so already-injected 0.6.2 scripts can clearly request a page refresh.
+
 ## 0.6.2
 
 - Capped the options-page API connection test at 20 seconds so a slow or unreachable provider no longer leaves the UI appearing stuck for the full translation timeout.
