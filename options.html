@@ -99,7 +99,7 @@
                 <option value="qwen_chat_template_kwargs" data-i18n="thinkingStrategyQwenTemplate">Qwen chat_template_kwargs</option>
                 <option value="omit" data-i18n="thinkingStrategyOmit">不发送思考参数</option>
               </select>
-              <small id="thinkingHint" class="field-help" data-i18n="thinkingHintAuto">强烈建议保持开启；自动根据 API 地址和模型名选择关闭思考参数。</small>
+              <small id="thinkingHint" class="field-help" data-i18n="thinkingHintAuto">强烈建议保持开启；测试 API 时会自动探测可用的关闭思考参数。</small>
             </label>
           </div>
         </div>
@@ -256,18 +256,6 @@
       <p class="help">
         <span data-i18n="optionsPromptHelp">支持 {{sourceLanguage}} 和 {{targetLanguage}} 占位符。网页正文会逐段以纯文本流式翻译。</span>
       </p>
-
-      <div class="grid legacy-batch-settings" hidden aria-hidden="true">
-        <label>
-          <span data-i18n="optionsBatchSize">每批段落数</span>
-          <input id="batchSize" type="number" min="1" max="20" step="1">
-        </label>
-
-        <label>
-          <span data-i18n="optionsMaxCharsPerBatch">每批最大字符数</span>
-          <input id="maxCharsPerBatch" type="number" min="500" max="20000" step="500">
-        </label>
-      </div>
 
       <div class="grid">
         <label>

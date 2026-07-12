@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.7.0";
+  const CONTENT_SCRIPT_VERSION = "0.8.0";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -193,6 +193,7 @@
 
   maybeAutoStartTranslation();
 
+  // 生命周期：开始、停止、清理和自动启动。
   function respondAsync(promise, sendResponse) {
     Promise.resolve(promise)
       .then(sendResponse)
@@ -362,6 +363,7 @@
     });
   }
 
+  // 候选发现：视口采样、有界补扫和通用可读块判断。
   function collectCandidateElements(root = document, options = {}) {
     const costSettings = LLMTranslatorShared.normalizeCostSettings(state.settings);
     const scanRoot = getScanRoot(root);
@@ -1240,6 +1242,7 @@
     return Math.max(0, rect.top - window.innerHeight);
   }
 
+  // 视口与动态页面调度。
   function prepareViewportScan() {
     const nextSnapshot = getViewportSnapshot();
     const previousSnapshot = state.lastViewportSnapshot;
@@ -1549,6 +1552,7 @@
     }, LLMTranslatorShared.getDynamicScanDebounceMs());
   }
 
+  // 翻译队列：持续补位的逐段流式并发，不使用批次屏障。
   function enqueueElement(element) {
     const id = ensureElementId(element);
     if (state.queuedIds.has(id)) return;
@@ -1715,6 +1719,7 @@
     return element.dataset.llmTranslatorId;
   }
 
+  // 原文抽取与轻量语言判断。
   function getCleanText(element) {
     const cached = cleanTextCache.get(element);
     if (cached && cached.epoch === cleanTextEpoch) return cached.text;
@@ -2019,6 +2024,7 @@
     return (String(text || "").match(/[\uac00-\ud7af]/g) || []).length;
   }
 
+  // 译文插入和结构感知布局。
   function ensureTranslationNode(element) {
     const placement = LLMTranslatorShared.getTranslationPlacement(element.tagName);
     const context = getTranslationContext(element, placement);
@@ -2313,6 +2319,7 @@
     }
   }
 
+  // 扩展 UI：译文样式、页面提示和选中文本浮层。
   function injectStyles() {
     applyTranslationTheme();
 

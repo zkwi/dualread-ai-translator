@@ -49,6 +49,7 @@ async function main() {
     await testOptionsSetupStatusShowsApiFailure(browser);
     await testOptionsEnterRunsApiTestWhenReady(browser);
     await testOptionsTestApiSavesSettingsBeforeRequest(browser);
+    await testOptionsPersistsDetectedThinkingStrategy(browser);
     await testOptionsApiExceptionShowsFailureState(browser);
     await testOptionsUnknownApiExceptionShowsReadableMessage(browser);
     await testOptionsApiSuccessMessageIsCompact(browser);
@@ -145,7 +146,9 @@ async function testPopupShowsThinkingStrategySummary(browser) {
       apiUrl: "https://opencode.example/v1/chat/completions",
       model: "deepseek-v4-flash",
       disableThinking: true,
-      thinkingStrategy: "auto"
+      thinkingStrategy: "auto",
+      detectedThinkingStrategy: "thinking_disabled",
+      thinkingStrategyDetectionKey: "https://opencode.example/v1/chat/completions\ndeepseek-v4-flash"
     },
     pageStats: {
       ok: true,
@@ -696,6 +699,25 @@ async function testOptionsTestApiSavesSettingsBeforeRequest(browser) {
   await page.close();
 }
 
+async function testOptionsPersistsDetectedThinkingStrategy(browser) {
+  const page = await createOptionsPage(browser);
+
+  await page.fill("#apiKey", "thinking-detection-key");
+  await page.click("#test");
+  await page.evaluate(() => window.__resolveTestApi({
+    ok: true,
+    text: "你好",
+    detectedThinkingStrategy: "thinking_disabled",
+    thinkingStrategyDetectionKey: "https://api.example.com/v1/chat/completions\ntest-model"
+  }));
+
+  await page.waitForFunction(() => window.__setCalls?.some((call) => (
+    call.detectedThinkingStrategy === "thinking_disabled" &&
+    call.thinkingStrategyDetectionKey === "https://api.example.com/v1/chat/completions\ntest-model"
+  )));
+  await page.close();
+}
+
 async function testOptionsApiExceptionShowsFailureState(browser) {
   const page = await createOptionsPage(browser, {
     runtimeErrorAction: "test_api",
@@ -815,7 +837,7 @@ async function testOptionsProviderThinkingHints(browser) {
   assert.strictEqual(await page.locator(".thinking-settings").evaluate((node) => node.classList.contains("is-warning")), false);
 
   await page.selectOption("#provider", "dashscope");
-  await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("enable_thinking"));
+  await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("测试 API"));
   assert.strictEqual(await page.locator("#disableThinking").isChecked(), true);
   assert.strictEqual(await page.locator("#disableThinking").isDisabled(), false);
 
@@ -842,7 +864,7 @@ async function testOptionsProviderThinkingHints(browser) {
   });
 
   await savedDeepSeekPage.waitForFunction(() => document.getElementById("provider").value === "custom");
-  await savedDeepSeekPage.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("thinking"));
+  await savedDeepSeekPage.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("测试 API"));
   assert.strictEqual(await savedDeepSeekPage.locator("#disableThinking").isChecked(), true);
   assert.strictEqual(await savedDeepSeekPage.locator("#disableThinking").isDisabled(), false);
   await savedDeepSeekPage.close();
@@ -1042,8 +1064,8 @@ async function testOptionsLayoutDoesNotOverflow(browser) {
 async function testOptionsCostProfileUpdatesAdvancedDefaults(browser) {
   const page = await createOptionsPage(browser);
 
-  assert.strictEqual(await page.locator("#batchSize").isVisible(), false);
-  assert.strictEqual(await page.locator("#maxCharsPerBatch").isVisible(), false);
+  assert.strictEqual(await page.locator("#batchSize").count(), 0);
+  assert.strictEqual(await page.locator("#maxCharsPerBatch").count(), 0);
   assert.match(
     await page.locator("#maxConcurrentBatches").locator("xpath=ancestor::label").innerText(),
     /同时翻译段落数/

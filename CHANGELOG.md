@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0
+
+- Replaced provider/URL/model hard-coding for automatic Thinking controls with capability probing during **Test API**, and persisted the successful strategy for the matching endpoint and model.
+- Stopped capability probing immediately on authentication, rate-limit, model, network, timeout, and server errors; only explicit unsupported-field responses advance to the next small test request.
+- Fixed plain-text translation requests whose system message still incorrectly asked the model for JSON, reducing conflicting output instructions.
+- Removed obsolete hidden batch controls from the settings page and documented `translate_batch` as a legacy compatibility boundary rather than the webpage translation path.
+- Added a current architecture guide, documentation index, API/Thinking decision record, and clearer code responsibility sections while retaining historical plans for traceability.
+- Bumped the content script version so pages with 0.7.0 already injected request a clear reload.
+
 ## 0.7.0
 
 - Replaced batch JSON webpage translation with independent plain-text SSE streams, so each visible segment can update as soon as its first translated fragment arrives.

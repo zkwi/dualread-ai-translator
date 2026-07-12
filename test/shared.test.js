@@ -260,16 +260,50 @@ assert.strictEqual(
     model: "doubao-seed-2.0-mini",
     thinkingStrategy: "auto"
   }),
-  shared.THINKING_STRATEGIES.THINKING_DISABLED
+  shared.THINKING_STRATEGIES.OMIT
+);
+
+const thinkingDetectionKey = shared.createThinkingStrategyDetectionKey({
+  apiUrl: "https://ark.cn-beijing.volces.com/api/plan/v3/",
+  model: " Doubao-Seed-2.0-Mini "
+});
+assert.strictEqual(
+  thinkingDetectionKey,
+  shared.createThinkingStrategyDetectionKey({
+    apiUrl: "https://ark.cn-beijing.volces.com/api/plan/v3",
+    model: "doubao-seed-2.0-mini"
+  })
 );
 assert.strictEqual(
   shared.getEffectiveThinkingStrategy({
     provider: "custom",
-    apiUrl: "https://example.com/v1",
+    apiUrl: "https://ark.cn-beijing.volces.com/api/plan/v3",
     model: "doubao-seed-2.0-mini",
-    thinkingStrategy: "auto"
+    thinkingStrategy: "auto",
+    detectedThinkingStrategy: "thinking_disabled",
+    thinkingStrategyDetectionKey: thinkingDetectionKey
   }),
   shared.THINKING_STRATEGIES.THINKING_DISABLED
+);
+assert.strictEqual(
+  shared.getEffectiveThinkingStrategy({
+    apiUrl: "https://example.com/v1",
+    model: "doubao-seed-2.0-mini",
+    thinkingStrategy: "auto",
+    detectedThinkingStrategy: "thinking_disabled",
+    thinkingStrategyDetectionKey: thinkingDetectionKey
+  }),
+  shared.THINKING_STRATEGIES.OMIT
+);
+assert.strictEqual(
+  shared.getEffectiveThinkingStrategy({
+    apiUrl: "https://example.com/v1",
+    model: "any-model",
+    thinkingStrategy: "dashscope_enable_thinking",
+    detectedThinkingStrategy: "thinking_disabled",
+    thinkingStrategyDetectionKey: "stale"
+  }),
+  shared.THINKING_STRATEGIES.DASHSCOPE_ENABLE_THINKING
 );
 
 const cacheKeyA = shared.createTranslationCacheKey({

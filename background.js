@@ -8,6 +8,14 @@ const CONTEXT_MENU_TRANSLATE_PAGE = "llm_translate_page";
 const CONTEXT_MENU_TRANSLATE_SELECTION = "llm_translate_selection";
 const CACHE_PRUNE_INTERVAL_MS = 30000;
 const API_TEST_TIMEOUT_MS = 20000;
+const THINKING_DETECTION_CANDIDATES = Object.freeze([
+  THINKING_STRATEGIES.THINKING_DISABLED,
+  THINKING_STRATEGIES.DASHSCOPE_ENABLE_THINKING,
+  THINKING_STRATEGIES.QWEN_CHAT_TEMPLATE_KWARGS,
+  THINKING_STRATEGIES.OPENROUTER_REASONING_MINIMAL,
+  THINKING_STRATEGIES.OPENROUTER_REASONING_LOW,
+  THINKING_STRATEGIES.OMIT
+]);
 const activeTabs = new Map();
 const tabNotices = new Map();
 const injectedTabs = new Set();
@@ -17,6 +25,7 @@ let contextMenuSetupPromise = Promise.resolve();
 const unsupportedThinkingControlKeys = new Set();
 const unsupportedStreamingKeys = new Set();
 
+// Chrome 生命周期与消息入口。
 chrome.runtime.onInstalled.addListener(async () => {
   const existing = await chrome.storage.local.get(Object.keys(DEFAULT_SETTINGS));
   const missing = {};
@@ -198,6 +207,7 @@ chrome.runtime.onConnect.addListener((port) => {
   });
 });
 
+// 网页正文主路径：每段一个纯文本请求，通过 Port 持续回传 SSE 增量。
 async function streamTranslationToPort(port, message, controller, isConnected) {
   const requestId = String(message.requestId || "");
   const runId = Number(message.runId) || 0;
@@ -784,6 +794,7 @@ async function getPageStats(tab) {
   }
 }
 
+// 旧版本消息兼容层：保留批量 JSON 协议，网页正文不再调用这里。
 async function translateBatch(items) {
   if (!items.length) {
     return { ok: true, results: [], meta: { cacheHits: 0, requested: 0 } };
@@ -1011,13 +1022,55 @@ async function testApi(settings) {
     apiTimeoutMs: Math.min(getApiTimeoutMs(mergedSettings), API_TEST_TIMEOUT_MS)
   };
 
-  const result = await requestPlainTranslation(testSettings, "Hello world.", { stream: true });
+  const configuredStrategy = LLMTranslatorShared.normalizeThinkingStrategy(testSettings.thinkingStrategy);
+  if (testSettings.disableThinking !== true || configuredStrategy !== THINKING_STRATEGIES.AUTO) {
+    const result = await requestPlainTranslation(testSettings, "Hello world.", { stream: true });
+    return createApiTestResult(result);
+  }
+
+  const detectionKey = LLMTranslatorShared.createThinkingStrategyDetectionKey(testSettings);
+  for (const strategy of THINKING_DETECTION_CANDIDATES) {
+    try {
+      const result = await requestPlainTranslation({
+        ...testSettings,
+        thinkingStrategy: strategy,
+        detectedThinkingStrategy: "",
+        thinkingStrategyDetectionKey: ""
+      }, "Hello world.", { stream: true });
+      const detectedResult = {
+        ...createApiTestResult(result),
+        detectedThinkingStrategy: strategy,
+        thinkingStrategyDetectionKey: detectionKey
+      };
+      await chrome.storage.local.set({
+        detectedThinkingStrategy: strategy,
+        thinkingStrategyDetectionKey: detectionKey
+      });
+      return detectedResult;
+    } catch (error) {
+      if (!isUnsupportedThinkingControlError(error)) throw error;
+    }
+  }
+
+  throw new Error(t("errorApiRequestGeneric", [], "API 请求失败。"));
+}
+
+function createApiTestResult(result) {
   return {
     ok: true,
     text: result.text,
     streamed: result.streamed === true,
     fallback: result.fallback === true
   };
+}
+
+function isUnsupportedThinkingControlError(error) {
+  if (error?.status !== 400 && error?.status !== 422) return false;
+  const text = String(error?.responseText || error?.message || "").toLowerCase();
+  const mentionsUnsupported = /(unknown|unrecognized|unsupported|unexpected|invalid|extra|additional|not support)/.test(text);
+  const mentionsThinking = /(enable_thinking|thinking|reasoning_effort|reasoning|chat_template_kwargs)/.test(text);
+  const mandatoryThinking = /(must be true|required|mandatory|cannot be disabled|restricted to true)/.test(text);
+  return mentionsUnsupported && mentionsThinking && !mandatoryThinking;
 }
 
 function validateSettings(settings) {
@@ -1126,6 +1179,7 @@ async function clearTranslationCache() {
   return { ok: true, count: cacheKeys.length };
 }
 
+// 当前翻译协议：单段纯文本，优先 SSE，端点不支持时降级为非流式。
 async function requestPlainTranslation(settings, text, options = {}) {
   const url = LLMTranslatorShared.normalizeChatCompletionsUrl(settings.apiUrl);
   const streamingKey = `${url}\n${String(settings.model || "").trim().toLowerCase()}`;
@@ -1133,7 +1187,7 @@ async function requestPlainTranslation(settings, text, options = {}) {
     return requestPlainTranslation(settings, text, { ...options, stream: false, fallback: true });
   }
   const prompt = buildPlainTranslationPrompt(settings, text);
-  const body = buildChatCompletionBody(settings, prompt);
+  const body = buildChatCompletionBody(settings, prompt, { plainText: true });
   body.stream = options.stream !== false;
 
   if (!body.stream) {
@@ -1209,6 +1263,8 @@ async function throwForPlainTranslationHttpError(response) {
     [String(response.status), errorText.slice(0, 240)],
     `API 请求失败：${response.status} ${errorText.slice(0, 240)}`
   ));
+  error.status = response.status;
+  error.responseText = errorText;
   error.streamUnsupported = (response.status === 400 || response.status === 422)
     && /stream|streaming|sse/i.test(errorText)
     && /unsupported|not support|unknown|invalid|unexpected/i.test(errorText);
@@ -1286,6 +1342,7 @@ function buildPlainTranslationPrompt(settings, text) {
   ].filter((part, index) => part || index > 0).join("\n");
 }
 
+// 批量 JSON 实现只服务上面的旧消息兼容入口。
 async function requestTranslations(settings, items) {
   const url = LLMTranslatorShared.normalizeChatCompletionsUrl(settings.apiUrl);
   const prompt = buildTranslationPrompt(settings, items);
@@ -1346,7 +1403,9 @@ function buildChatCompletionBody(settings, prompt, options = {}) {
     messages: [
       {
         role: "system",
-        content: "You are a precise webpage translation engine. Keep meaning, tone, names, numbers, URLs, and code unchanged. Output only valid JSON."
+        content: options.plainText
+          ? "You are a precise webpage translation engine. Keep meaning, tone, names, numbers, URLs, and code unchanged. Output only the translated plain text."
+          : "You are a precise webpage translation engine. Keep meaning, tone, names, numbers, URLs, and code unchanged. Output only valid JSON."
       },
       {
         role: "user",

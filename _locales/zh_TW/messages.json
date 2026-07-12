@@ -276,7 +276,7 @@
     "message": "Chat Completions API 位址"
   },
   "optionsApiUrlHelp": {
-    "message": "相容 OpenAI 格式的代理或本機服务也可以填寫這裡。"
+    "message": "相容 OpenAI 格式的代理或本機服務也可以填寫這裡。"
   },
   "optionsAutoSave": {
     "message": "自動儲存"
@@ -289,9 +289,6 @@
   },
   "optionsAutoTranslateLabel": {
     "message": "存取外文網頁時自動開始翻譯"
-  },
-  "optionsBatchSize": {
-    "message": "每批段落数"
   },
   "optionsCacheMaintenance": {
     "message": "快取與維護"
@@ -328,9 +325,6 @@
   },
   "optionsMaxCacheEntries": {
     "message": "最多快取筆数"
-  },
-  "optionsMaxCharsPerBatch": {
-    "message": "每批最大字元数"
   },
   "optionsMaxCharsPerPage": {
     "message": "本頁最多請求字元数"
@@ -666,28 +660,28 @@
     "message": "自訂"
   },
   "providerHintCustom": {
-    "message": "用于自訂 OpenAI-compatible 服务；會根据 API 位址和模型名判断是否支援關閉思考。"
+    "message": "用於自訂 OpenAI-compatible 服務；測試 API 時會探測可用的 Thinking 控制參數。"
   },
   "providerHintDashscope": {
-    "message": "使用阿裡云 DashScope 相容模式；可通過 enable_thinking 關閉 Qwen 思考。"
+    "message": "使用阿裡云 DashScope 相容模式；Thinking 能力以測試 API 的結果為准。"
   },
   "providerHintDeepseek": {
-    "message": "使用 DeepSeek 官方 OpenAI-compatible 介面；DeepSeek 推理通常由模型名区分。"
+    "message": "使用 DeepSeek 官方 OpenAI-compatible 介面；Thinking 能力以測試 API 的結果為准。"
   },
   "providerHintLocal": {
-    "message": "適合本機代理、vLLM、SGLang 等相容服务；Qwen 模型可通過 chat_template_kwargs 關閉思考。"
+    "message": "適合本機代理、vLLM、SGLang 等相容服務；Thinking 能力以測試 API 的結果為准。"
   },
   "providerHintOpenai": {
-    "message": "使用 OpenAI 官方 Chat Completions 介面，不添加非标准思考參數。"
+    "message": "使用 OpenAI 官方 Chat Completions 介面；Thinking 能力以測試 API 的結果為准。"
   },
   "providerHintOpenaiShort": {
     "message": "使用 OpenAI 官方 Chat Completions 介面。"
   },
   "providerLocal": {
-    "message": "本機相容服务"
+    "message": "本機相容服務"
   },
   "providerLocalShort": {
-    "message": "本機服务"
+    "message": "本機服務"
   },
   "saveStateMaintenance": {
     "message": "維護中"
@@ -768,7 +762,7 @@
     "message": "还差 $1"
   },
   "setupReadyText": {
-    "message": "按 Enter 或點擊“測試 API”，確認服务可用。"
+    "message": "按 Enter 或點擊“測試 API”，確認服務可用。"
   },
   "setupReadyTitle": {
     "message": "配置看起来完整"
@@ -837,7 +831,10 @@
     "message": "必要配置"
   },
   "thinkingHintAuto": {
-    "message": "强烈建议保持開启；自動根据 API 位址和模型名選擇關閉思考參數。"
+    "message": "强烈建议保持開启；測試 API 時會自動探測可用的關閉思考參數。"
+  },
+  "thinkingHintAutoPending": {
+    "message": "自動模式會在測試 API 時探測可用參數；測試前不會加入額外思考參數。"
   },
   "thinkingHintAutoResolved": {
     "message": "推荐保持開启：$1"
@@ -846,13 +843,13 @@
     "message": "請求体會加入 enable_thinking: false。"
   },
   "thinkingHintDisabled": {
-    "message": "不推荐：不會添加關閉思考參數，推理模型可能明显变慢。"
+    "message": "不推荐：不會加入關閉思考參數，推理模型可能明显变慢。"
   },
   "thinkingHintDisabledObject": {
     "message": "請求体會加入 thinking: { type: \"disabled\" }。"
   },
   "thinkingHintNone": {
-    "message": "不會添加额外思考參數。"
+    "message": "不會加入額外思考參數。"
   },
   "thinkingHintOpenRouterLow": {
     "message": "請求体會加入 reasoning_effort: \"low\"。"
@@ -895,6 +892,9 @@
   },
   "thinkingSummaryOmit": {
     "message": "不發送參數"
+  },
+  "thinkingSummaryPending": {
+    "message": "自動：等待測試 API"
   },
   "tooltipAutoTranslate": {
     "message": "儲存為全局開关，打開外文網頁時自動開始翻譯。"

@@ -290,9 +290,6 @@
   "optionsAutoTranslateLabel": {
     "message": "外国語ページで自動的に翻訳を開始"
   },
-  "optionsBatchSize": {
-    "message": "1 バッチの段落数"
-  },
   "optionsCacheMaintenance": {
     "message": "キャッシュとメンテナンス"
   },
@@ -328,9 +325,6 @@
   },
   "optionsMaxCacheEntries": {
     "message": "最大キャッシュ件数"
-  },
-  "optionsMaxCharsPerBatch": {
-    "message": "1 バッチの最大文字数"
   },
   "optionsMaxCharsPerPage": {
     "message": "ページごとの最大リクエスト文字数"
@@ -666,19 +660,19 @@
     "message": "カスタム"
   },
   "providerHintCustom": {
-    "message": "カスタムの OpenAI 互換サービス向けです。API URL とモデルから思考制御を推定します。"
+    "message": "カスタムの OpenAI 互換サービス向けです。API テストで対応する Thinking 制御を検出します。"
   },
   "providerHintDashscope": {
-    "message": "DashScope 互換 Qwen エンドポイントです。モデル名は手動で変更できます。"
+    "message": "DashScope 互換エンドポイントです。Thinking 対応は API テスト結果に従います。"
   },
   "providerHintDeepseek": {
-    "message": "DeepSeek 公式 Chat Completions エンドポイントです。"
+    "message": "DeepSeek 公式 Chat Completions エンドポイントです。Thinking 対応は API テスト結果に従います。"
   },
   "providerHintLocal": {
-    "message": "セルフホストまたはローカルの OpenAI 互換サービス向けです。"
+    "message": "セルフホストまたはローカルの OpenAI 互換サービス向けです。Thinking 対応は API テスト結果に従います。"
   },
   "providerHintOpenai": {
-    "message": "OpenAI 公式 Chat Completions エンドポイントです。"
+    "message": "OpenAI 公式 Chat Completions エンドポイントです。Thinking 対応は API テスト結果に従います。"
   },
   "providerHintOpenaiShort": {
     "message": "OpenAI 公式エンドポイントです。"
@@ -837,7 +831,10 @@
     "message": "必須項目が未入力です。"
   },
   "thinkingHintAuto": {
-    "message": "有効のままにすることを強く推奨します。API URL とモデル名から思考制御パラメータを自動選択します。"
+    "message": "有効のままにすることを強く推奨します。API テスト時に対応する思考制御パラメータを自動検出します。"
+  },
+  "thinkingHintAutoPending": {
+    "message": "自動モードは API テスト時に対応パラメータを検出します。テスト前は追加の思考パラメータを送信しません。"
   },
   "thinkingHintAutoResolved": {
     "message": "有効維持を推奨：$1"
@@ -895,6 +892,9 @@
   },
   "thinkingSummaryOmit": {
     "message": "パラメータなし"
+  },
+  "thinkingSummaryPending": {
+    "message": "自動：API テスト待ち"
   },
   "tooltipAutoTranslate": {
     "message": "グローバルスイッチとして保存します。外国語 Web ページを自動翻訳します。"

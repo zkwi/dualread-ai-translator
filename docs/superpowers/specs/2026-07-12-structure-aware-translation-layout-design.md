@@ -1,5 +1,7 @@
 # 结构感知的网页翻译适配设计
 
+> 历史设计记录：其中 Doubao/火山方舟的固定 Thinking 映射已由 0.8.0 的[能力探测设计](2026-07-12-thinking-capability-detection-and-maintenance-design.md)取代。
+
 ## 状态
 
 已确认，目标版本 `0.7.0`。

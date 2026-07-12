@@ -33,6 +33,9 @@ async function main() {
   await testTranslateBatchRetriesWithoutUnsupportedThinkingParameter();
   await testTranslateBatchTimesOutSlowApi();
   await testApiStreamsPlainTextAcrossSplitSseChunks();
+  await testApiAutoDetectsNextSupportedThinkingStrategy();
+  await testApiAutoDetectionStopsOnAuthenticationError();
+  await testApiManualThinkingStrategyDoesNotProbe();
   await testApiFallsBackToPlainNonStreamingWhenStreamUnsupported();
   await testApiAcceptsJsonWhenProxyIgnoresStreaming();
   await testStreamingPortEmitsDeltaBeforeDone();
@@ -653,7 +656,8 @@ async function testTranslateBatchDisablesDashScopeThinking() {
     storage: {
       apiUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
       model: "qwen-plus",
-      disableThinking: true
+      disableThinking: true,
+      thinkingStrategy: "dashscope_enable_thinking"
     },
     fetch: async (url, options) => {
       fetchCalls.push({ url, options });
@@ -679,7 +683,8 @@ async function testTranslateBatchDisablesDeepSeekThinking() {
       provider: "custom",
       apiUrl: "https://opencode.example/v1/chat/completions",
       model: "deepseek-v4-flash",
-      disableThinking: true
+      disableThinking: true,
+      thinkingStrategy: "thinking_disabled"
     },
     fetch: async (url, options) => {
       fetchCalls.push({ url, options });
@@ -705,7 +710,8 @@ async function testTranslateBatchDisablesOpenRouterThinking() {
       provider: "custom",
       apiUrl: "https://openrouter.ai/api/v1/chat/completions",
       model: "anthropic/claude-sonnet-4",
-      disableThinking: true
+      disableThinking: true,
+      thinkingStrategy: "openrouter_reasoning_minimal"
     },
     fetch: async (url, options) => {
       fetchCalls.push({ url, options });
@@ -730,7 +736,8 @@ async function testTranslateBatchDisablesQwenTemplateThinking() {
     storage: {
       apiUrl: "http://127.0.0.1:8000/v1/chat/completions",
       model: "Qwen/Qwen3-8B",
-      disableThinking: true
+      disableThinking: true,
+      thinkingStrategy: "qwen_chat_template_kwargs"
     },
     fetch: async (url, options) => {
       fetchCalls.push({ url, options });
@@ -812,7 +819,8 @@ async function testTranslateBatchRetriesWithoutUnsupportedThinkingParameter() {
       provider: "custom",
       apiUrl: "https://opencode.example/v1/chat/completions",
       model: "deepseek-v4-flash",
-      disableThinking: true
+      disableThinking: true,
+      thinkingStrategy: "thinking_disabled"
     },
     fetch: async (url, options) => {
       fetchCalls.push({ url, options });
@@ -931,7 +939,121 @@ async function testApiStreamsPlainTextAcrossSplitSseChunks() {
   assert.strictEqual(requestBodies.length, 1);
   assert.strictEqual(requestBodies[0].stream, true);
   assert.deepStrictEqual(requestBodies[0].thinking, { type: "disabled" });
+  assert.strictEqual(response.detectedThinkingStrategy, "thinking_disabled");
+  assert.strictEqual(
+    response.thinkingStrategyDetectionKey,
+    context.LLMTranslatorShared.createThinkingStrategyDetectionKey({
+      apiUrl: "https://ark.cn-beijing.volces.com/api/plan/v3",
+      model: "doubao-seed-2.0-mini"
+    })
+  );
+  assert.doesNotMatch(requestBodies[0].messages[0].content, /JSON/i);
   assert.doesNotMatch(requestBodies[0].messages[1].content, /JSON array/i);
+}
+
+async function testApiAutoDetectsNextSupportedThinkingStrategy() {
+  const requestBodies = [];
+  const context = createBackgroundContext({
+    fetch: async (url, options) => {
+      const body = JSON.parse(options.body);
+      requestBodies.push(body);
+      if (body.thinking) {
+        return {
+          ok: false,
+          status: 400,
+          async text() {
+            return "invalid request: unsupported field thinking";
+          }
+        };
+      }
+      return createSseResponse("你好");
+    }
+  });
+
+  loadBackground(context);
+  const response = await sendRuntimeMessage(context, {
+    action: "test_api",
+    settings: {
+      apiUrl: "https://api.example.com/v1",
+      apiKey: "test-key",
+      model: "test-model",
+      sourceLanguage: "English",
+      targetLanguage: "简体中文",
+      disableThinking: true,
+      thinkingStrategy: "auto"
+    }
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.strictEqual(response.detectedThinkingStrategy, "dashscope_enable_thinking");
+  assert.strictEqual(requestBodies.length, 2);
+  assert.deepStrictEqual(requestBodies[0].thinking, { type: "disabled" });
+  assert.strictEqual(requestBodies[1].enable_thinking, false);
+  const saved = await context.chrome.storage.local.get([
+    "detectedThinkingStrategy",
+    "thinkingStrategyDetectionKey"
+  ]);
+  assert.strictEqual(saved.detectedThinkingStrategy, "dashscope_enable_thinking");
+  assert.strictEqual(saved.thinkingStrategyDetectionKey, response.thinkingStrategyDetectionKey);
+}
+
+async function testApiAutoDetectionStopsOnAuthenticationError() {
+  const requestBodies = [];
+  const context = createBackgroundContext({
+    fetch: async (url, options) => {
+      requestBodies.push(JSON.parse(options.body));
+      return {
+        ok: false,
+        status: 401,
+        async text() {
+          return "Unauthorized";
+        }
+      };
+    }
+  });
+
+  loadBackground(context);
+  const response = await sendRuntimeMessage(context, {
+    action: "test_api",
+    settings: {
+      apiUrl: "https://api.example.com/v1",
+      apiKey: "bad-key",
+      model: "test-model",
+      disableThinking: true,
+      thinkingStrategy: "auto"
+    }
+  });
+
+  assert.strictEqual(response.ok, false);
+  assert.match(response.error, /401|Unauthorized/i);
+  assert.strictEqual(requestBodies.length, 1);
+}
+
+async function testApiManualThinkingStrategyDoesNotProbe() {
+  const requestBodies = [];
+  const context = createBackgroundContext({
+    fetch: async (url, options) => {
+      requestBodies.push(JSON.parse(options.body));
+      return createSseResponse("你好");
+    }
+  });
+
+  loadBackground(context);
+  const response = await sendRuntimeMessage(context, {
+    action: "test_api",
+    settings: {
+      apiUrl: "https://api.example.com/v1",
+      apiKey: "test-key",
+      model: "test-model",
+      disableThinking: true,
+      thinkingStrategy: "qwen_chat_template_kwargs"
+    }
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.strictEqual(response.detectedThinkingStrategy, undefined);
+  assert.strictEqual(requestBodies.length, 1);
+  assert.strictEqual(requestBodies[0].chat_template_kwargs.enable_thinking, false);
 }
 
 async function testApiFallsBackToPlainNonStreamingWhenStreamUnsupported() {
@@ -2048,6 +2170,21 @@ function createJsonResponse(results) {
         ]
       };
     }
+  };
+}
+
+function createSseResponse(text) {
+  const encoder = new TextEncoder();
+  return {
+    ok: true,
+    status: 200,
+    headers: { get: () => "text/event-stream" },
+    body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\ndata: [DONE]\n\n`));
+        controller.close();
+      }
+    })
   };
 }
 

@@ -92,6 +92,8 @@
     apiTimeoutMs: 120000,
     disableThinking: true,
     thinkingStrategy: THINKING_STRATEGIES.AUTO,
+    detectedThinkingStrategy: "",
+    thinkingStrategyDetectionKey: "",
     autoTranslate: false,
     displayMode: "bilingual",
     viewportOnly: COST_PROFILES.balanced.viewportOnly,
@@ -226,55 +228,21 @@
   function getEffectiveThinkingStrategy(settings = {}) {
     const configured = normalizeThinkingStrategy(settings.thinkingStrategy);
     if (configured !== THINKING_STRATEGIES.AUTO) return configured;
-    return getPreferredThinkingStrategy(settings);
-  }
-
-  function getPreferredThinkingStrategy(settings = {}) {
-    const provider = String(settings.provider || "").toLowerCase();
-    const apiUrl = String(settings.apiUrl || "").toLowerCase();
-    const model = String(settings.model || "").toLowerCase();
-
-    if (isOpenRouterEndpoint(apiUrl)) {
-      return model.includes("stepfun/")
-        ? THINKING_STRATEGIES.OPENROUTER_REASONING_LOW
-        : THINKING_STRATEGIES.OPENROUTER_REASONING_MINIMAL;
-    }
-
-    if (isQwenLikeModel(model) && (provider === "local" || isLocalOrTemplateServer(apiUrl))) {
-      return THINKING_STRATEGIES.QWEN_CHAT_TEMPLATE_KWARGS;
-    }
-
-    if (provider === "dashscope" || isDashScopeEndpoint(apiUrl)) {
-      return THINKING_STRATEGIES.DASHSCOPE_ENABLE_THINKING;
-    }
-
-    if (apiUrl.includes("volces.com") || model.includes("doubao")) {
-      return THINKING_STRATEGIES.THINKING_DISABLED;
-    }
-
-    if (provider === "deepseek" || isDeepSeekLikeModel(model)) {
-      return THINKING_STRATEGIES.THINKING_DISABLED;
-    }
-
-    if (provider === "openai" || apiUrl.includes("api.openai.com")) {
+    const detectionKey = createThinkingStrategyDetectionKey(settings);
+    if (!detectionKey || settings.thinkingStrategyDetectionKey !== detectionKey) {
       return THINKING_STRATEGIES.OMIT;
     }
 
-    return THINKING_STRATEGIES.OMIT;
+    const detected = normalizeThinkingStrategy(settings.detectedThinkingStrategy);
+    return detected === THINKING_STRATEGIES.AUTO ? THINKING_STRATEGIES.OMIT : detected;
   }
 
-  function isDashScopeEndpoint(apiUrl) {
-    const value = String(apiUrl || "").toLowerCase();
-    return value.includes("dashscope") || value.includes("aliyuncs.com");
-  }
-
-  function isOpenRouterEndpoint(apiUrl) {
-    return String(apiUrl || "").toLowerCase().includes("openrouter.ai");
-  }
-
-  function isDeepSeekLikeModel(model) {
-    const value = String(model || "").toLowerCase();
-    return value.includes("deepseek") || value.includes("mimo");
+  function createThinkingStrategyDetectionKey(settings = {}) {
+    const rawApiUrl = String(settings.apiUrl || "").trim();
+    const model = String(settings.model || "").trim().toLowerCase();
+    if (!rawApiUrl || !model) return "";
+    const apiUrl = normalizeChatCompletionsUrl(rawApiUrl).toLowerCase();
+    return `${apiUrl}\n${model}`;
   }
 
   function isLegacyDeepSeekPreset(settings = {}) {
@@ -284,20 +252,6 @@
     return provider === "deepseek"
       && LEGACY_DEEPSEEK_API_URLS.has(apiUrl)
       && LEGACY_DEEPSEEK_MODELS.has(model);
-  }
-
-  function isQwenLikeModel(model) {
-    return String(model || "").toLowerCase().includes("qwen");
-  }
-
-  function isLocalOrTemplateServer(apiUrl) {
-    const value = String(apiUrl || "").toLowerCase();
-    return (
-      value.includes("localhost") ||
-      value.includes("127.0.0.1") ||
-      value.includes("vllm") ||
-      value.includes("sglang")
-    );
   }
 
   function getTranslationPlacement(tagName) {
@@ -778,8 +732,8 @@
     isLegacyDeepSeekPreset,
     normalizeChatCompletionsUrl,
     normalizeThinkingStrategy,
+    createThinkingStrategyDetectionKey,
     getEffectiveThinkingStrategy,
-    getPreferredThinkingStrategy,
     getTranslationPlacement,
     getCandidateSelector,
     getDynamicScanObserverOptions,

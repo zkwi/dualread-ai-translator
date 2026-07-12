@@ -26,8 +26,6 @@ const PROVIDER_PRESETS = {
 };
 const COST_PROFILES = globalThis.LLMTranslatorShared.COST_PROFILES;
 const COST_PROFILE_FIELDS = new Set([
-  "batchSize",
-  "maxCharsPerBatch",
   "maxElementsPerScan",
   "maxTextLength",
   "maxRequestsPerPage",
@@ -46,12 +44,10 @@ const fields = {
   targetLanguage: document.getElementById("targetLanguage"),
   translationPrompt: document.getElementById("translationPrompt"),
   costProfile: document.getElementById("costProfile"),
-  batchSize: document.getElementById("batchSize"),
   maxElementsPerScan: document.getElementById("maxElementsPerScan"),
   maxTextLength: document.getElementById("maxTextLength"),
   maxRequestsPerPage: document.getElementById("maxRequestsPerPage"),
   maxCharsPerPage: document.getElementById("maxCharsPerPage"),
-  maxCharsPerBatch: document.getElementById("maxCharsPerBatch"),
   maxConcurrentBatches: document.getElementById("maxConcurrentBatches"),
   cacheTtlDays: document.getElementById("cacheTtlDays"),
   maxCacheEntries: document.getElementById("maxCacheEntries"),
@@ -86,6 +82,8 @@ let hasLoadedSettings = false;
 let apiTestPassed = false;
 let apiTestError = "";
 let apiTestRunning = false;
+let detectedThinkingStrategy = "";
+let thinkingStrategyDetectionKey = "";
 
 loadSettings().catch(handleLoadSettingsError);
 setupAutoSave();
@@ -204,6 +202,8 @@ function isLegacyDefaultTranslationPrompt(prompt) {
 }
 
 function fillForm(settings) {
+  detectedThinkingStrategy = settings.detectedThinkingStrategy || "";
+  thinkingStrategyDetectionKey = settings.thinkingStrategyDetectionKey || "";
   fields.provider.value = settings.provider || inferProvider(settings.apiUrl);
   setSelectValue(fields.uiLanguage, settings.uiLanguage || DEFAULT_SETTINGS.uiLanguage);
   fields.apiUrl.value = settings.apiUrl || DEFAULT_SETTINGS.apiUrl;
@@ -213,12 +213,10 @@ function fillForm(settings) {
   setSelectValue(fields.targetLanguage, settings.targetLanguage || DEFAULT_SETTINGS.targetLanguage);
   fields.translationPrompt.value = settings.translationPrompt || DEFAULT_SETTINGS.translationPrompt;
   fields.costProfile.value = settings.costProfile || inferCostProfile(settings);
-  fields.batchSize.value = settings.batchSize || DEFAULT_SETTINGS.batchSize;
   fields.maxElementsPerScan.value = settings.maxElementsPerScan || DEFAULT_SETTINGS.maxElementsPerScan;
   fields.maxTextLength.value = settings.maxTextLength || DEFAULT_SETTINGS.maxTextLength;
   fields.maxRequestsPerPage.value = settings.maxRequestsPerPage || DEFAULT_SETTINGS.maxRequestsPerPage;
   fields.maxCharsPerPage.value = settings.maxCharsPerPage || DEFAULT_SETTINGS.maxCharsPerPage;
-  fields.maxCharsPerBatch.value = settings.maxCharsPerBatch || DEFAULT_SETTINGS.maxCharsPerBatch;
   fields.maxConcurrentBatches.value = settings.maxConcurrentBatches || DEFAULT_SETTINGS.maxConcurrentBatches;
   fields.cacheTtlDays.value = settings.cacheTtlDays || DEFAULT_SETTINGS.cacheTtlDays;
   fields.maxCacheEntries.value = settings.maxCacheEntries || DEFAULT_SETTINGS.maxCacheEntries;
@@ -408,6 +406,16 @@ async function testApi() {
         return;
       }
 
+      if (response.detectedThinkingStrategy && response.thinkingStrategyDetectionKey) {
+        detectedThinkingStrategy = response.detectedThinkingStrategy;
+        thinkingStrategyDetectionKey = response.thinkingStrategyDetectionKey;
+        await chrome.storage.local.set({
+          detectedThinkingStrategy,
+          thinkingStrategyDetectionKey
+        });
+        updateHelperText();
+      }
+
       apiTestRunning = false;
       apiTestPassed = true;
       apiTestError = "";
@@ -451,12 +459,10 @@ function readFormSettings() {
     targetLanguage: fields.targetLanguage.value.trim() || DEFAULT_SETTINGS.targetLanguage,
     translationPrompt: fields.translationPrompt.value.trim() || DEFAULT_SETTINGS.translationPrompt,
     costProfile: fields.costProfile.value || DEFAULT_SETTINGS.costProfile,
-    batchSize: Math.max(1, Math.min(20, Number(fields.batchSize.value) || DEFAULT_SETTINGS.batchSize)),
     maxElementsPerScan: Math.max(1, Math.min(60, Number(fields.maxElementsPerScan.value) || DEFAULT_SETTINGS.maxElementsPerScan)),
     maxTextLength: Math.max(200, Math.min(4000, Number(fields.maxTextLength.value) || DEFAULT_SETTINGS.maxTextLength)),
     maxRequestsPerPage: Math.max(1, Math.min(300, Number(fields.maxRequestsPerPage.value) || DEFAULT_SETTINGS.maxRequestsPerPage)),
     maxCharsPerPage: Math.max(1000, Math.min(200000, Number(fields.maxCharsPerPage.value) || DEFAULT_SETTINGS.maxCharsPerPage)),
-    maxCharsPerBatch: Math.max(500, Math.min(20000, Number(fields.maxCharsPerBatch.value) || DEFAULT_SETTINGS.maxCharsPerBatch)),
     maxConcurrentBatches: Math.max(1, Math.min(3, Number(fields.maxConcurrentBatches.value) || DEFAULT_SETTINGS.maxConcurrentBatches)),
     cacheTtlDays: Math.max(1, Math.min(365, Number(fields.cacheTtlDays.value) || DEFAULT_SETTINGS.cacheTtlDays)),
     maxCacheEntries: Math.max(100, Math.min(10000, Number(fields.maxCacheEntries.value) || DEFAULT_SETTINGS.maxCacheEntries)),
@@ -593,8 +599,6 @@ function applyCostProfile(profile) {
   const preset = COST_PROFILES[profile];
   if (!preset) return;
 
-  fields.batchSize.value = preset.batchSize;
-  fields.maxCharsPerBatch.value = preset.maxCharsPerBatch;
   fields.maxElementsPerScan.value = preset.maxElementsPerScan;
   fields.maxTextLength.value = preset.maxTextLength;
   fields.maxRequestsPerPage.value = preset.maxRequestsPerPage;
@@ -637,11 +641,11 @@ function updateThinkingControlAvailability() {
 
 function getProviderHint(provider) {
   const hints = {
-    openai: t("providerHintOpenai", [], "使用 OpenAI 官方 Chat Completions 接口，不添加非标准思考参数。"),
-    deepseek: t("providerHintDeepseek", [], "使用 DeepSeek 官方 OpenAI-compatible 接口；DeepSeek 推理通常由模型名区分。"),
-    dashscope: t("providerHintDashscope", [], "使用阿里云 DashScope 兼容模式；可通过 enable_thinking 关闭 Qwen 思考。"),
-    local: t("providerHintLocal", [], "适合本机代理、vLLM、SGLang 等兼容服务；Qwen 模型可通过 chat_template_kwargs 关闭思考。"),
-    custom: t("providerHintCustom", [], "用于自定义 OpenAI-compatible 服务；会根据 API 地址和模型名判断是否支持关闭思考。")
+    openai: t("providerHintOpenai", [], "使用 OpenAI 官方 Chat Completions 接口；Thinking 能力以测试 API 的结果为准。"),
+    deepseek: t("providerHintDeepseek", [], "使用 DeepSeek 官方 OpenAI-compatible 接口；Thinking 能力以测试 API 的结果为准。"),
+    dashscope: t("providerHintDashscope", [], "使用阿里云 DashScope 兼容模式；Thinking 能力以测试 API 的结果为准。"),
+    local: t("providerHintLocal", [], "适合本机代理、vLLM、SGLang 等兼容服务；Thinking 能力以测试 API 的结果为准。"),
+    custom: t("providerHintCustom", [], "用于自定义 OpenAI-compatible 服务；测试 API 时会探测可用的 Thinking 控制参数。")
   };
   return hints[provider] || hints.custom;
 }
@@ -665,6 +669,13 @@ function getThinkingHint() {
   const effective = getEffectiveThinkingStrategyFromForm();
   const hint = getThinkingStrategyHint(effective);
   if (selected === THINKING_STRATEGIES.AUTO) {
+    const currentDetectionKey = globalThis.LLMTranslatorShared.createThinkingStrategyDetectionKey({
+      apiUrl: fields.apiUrl.value,
+      model: fields.model.value
+    });
+    if (!currentDetectionKey || currentDetectionKey !== thinkingStrategyDetectionKey) {
+      return t("thinkingHintAutoPending", [], "自动模式会在测试 API 时探测可用参数；测试前不会添加额外思考参数。");
+    }
     return t("thinkingHintAutoResolved", [hint], `推荐保持开启：${hint}`);
   }
   return hint;
@@ -687,7 +698,9 @@ function getEffectiveThinkingStrategyFromForm() {
     provider: fields.provider.value,
     apiUrl: fields.apiUrl.value,
     model: fields.model.value,
-    thinkingStrategy: fields.thinkingStrategy.value
+    thinkingStrategy: fields.thinkingStrategy.value,
+    detectedThinkingStrategy,
+    thinkingStrategyDetectionKey
   });
 }
 

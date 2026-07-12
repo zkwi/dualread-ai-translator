@@ -290,9 +290,6 @@
   "optionsAutoTranslateLabel": {
     "message": "访问外文网页时自动开始翻译"
   },
-  "optionsBatchSize": {
-    "message": "每批段落数"
-  },
   "optionsCacheMaintenance": {
     "message": "缓存与维护"
   },
@@ -328,9 +325,6 @@
   },
   "optionsMaxCacheEntries": {
     "message": "最多缓存条数"
-  },
-  "optionsMaxCharsPerBatch": {
-    "message": "每批最大字符数"
   },
   "optionsMaxCharsPerPage": {
     "message": "本页最多请求字符数"
@@ -666,19 +660,19 @@
     "message": "自定义"
   },
   "providerHintCustom": {
-    "message": "用于自定义 OpenAI-compatible 服务；会根据 API 地址和模型名判断是否支持关闭思考。"
+    "message": "用于自定义 OpenAI-compatible 服务；测试 API 时会探测可用的 Thinking 控制参数。"
   },
   "providerHintDashscope": {
-    "message": "使用阿里云 DashScope 兼容模式；可通过 enable_thinking 关闭 Qwen 思考。"
+    "message": "使用阿里云 DashScope 兼容模式；Thinking 能力以测试 API 的结果为准。"
   },
   "providerHintDeepseek": {
-    "message": "使用 DeepSeek 官方 OpenAI-compatible 接口；DeepSeek 推理通常由模型名区分。"
+    "message": "使用 DeepSeek 官方 OpenAI-compatible 接口；Thinking 能力以测试 API 的结果为准。"
   },
   "providerHintLocal": {
-    "message": "适合本机代理、vLLM、SGLang 等兼容服务；Qwen 模型可通过 chat_template_kwargs 关闭思考。"
+    "message": "适合本机代理、vLLM、SGLang 等兼容服务；Thinking 能力以测试 API 的结果为准。"
   },
   "providerHintOpenai": {
-    "message": "使用 OpenAI 官方 Chat Completions 接口，不添加非标准思考参数。"
+    "message": "使用 OpenAI 官方 Chat Completions 接口；Thinking 能力以测试 API 的结果为准。"
   },
   "providerHintOpenaiShort": {
     "message": "使用 OpenAI 官方 Chat Completions 接口。"
@@ -837,7 +831,10 @@
     "message": "必要配置"
   },
   "thinkingHintAuto": {
-    "message": "强烈建议保持开启；自动根据 API 地址和模型名选择关闭思考参数。"
+    "message": "强烈建议保持开启；测试 API 时会自动探测可用的关闭思考参数。"
+  },
+  "thinkingHintAutoPending": {
+    "message": "自动模式会在测试 API 时探测可用参数；测试前不会添加额外思考参数。"
   },
   "thinkingHintAutoResolved": {
     "message": "推荐保持开启：$1"
@@ -895,6 +892,9 @@
   },
   "thinkingSummaryOmit": {
     "message": "不发送参数"
+  },
+  "thinkingSummaryPending": {
+    "message": "自动：等待测试 API"
   },
   "tooltipAutoTranslate": {
     "message": "保存为全局开关，打开外文网页时自动开始翻译。"

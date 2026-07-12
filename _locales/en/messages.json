@@ -290,9 +290,6 @@
   "optionsAutoTranslateLabel": {
     "message": "Auto start translation on foreign-language pages"
   },
-  "optionsBatchSize": {
-    "message": "Paragraphs per batch"
-  },
   "optionsCacheMaintenance": {
     "message": "Cache and maintenance"
   },
@@ -328,9 +325,6 @@
   },
   "optionsMaxCacheEntries": {
     "message": "Max cache entries"
-  },
-  "optionsMaxCharsPerBatch": {
-    "message": "Max characters per batch"
   },
   "optionsMaxCharsPerPage": {
     "message": "Max requested characters per page"
@@ -666,19 +660,19 @@
     "message": "Custom"
   },
   "providerHintCustom": {
-    "message": "For custom OpenAI-compatible services. Thinking controls are inferred from the API URL and model."
+    "message": "For custom OpenAI-compatible services. API testing detects a supported Thinking control."
   },
   "providerHintDashscope": {
-    "message": "DashScope-compatible Qwen endpoint. The model name can be changed manually."
+    "message": "DashScope-compatible endpoint. Thinking support is determined by API testing."
   },
   "providerHintDeepseek": {
-    "message": "Official DeepSeek Chat Completions endpoint."
+    "message": "Official DeepSeek Chat Completions endpoint. Thinking support is determined by API testing."
   },
   "providerHintLocal": {
-    "message": "For self-hosted or local OpenAI-compatible services."
+    "message": "For self-hosted or local OpenAI-compatible services. Thinking support is determined by API testing."
   },
   "providerHintOpenai": {
-    "message": "Official OpenAI Chat Completions endpoint."
+    "message": "Official OpenAI Chat Completions endpoint. Thinking support is determined by API testing."
   },
   "providerHintOpenaiShort": {
     "message": "Official OpenAI endpoint."
@@ -837,7 +831,10 @@
     "message": "Required fields are missing."
   },
   "thinkingHintAuto": {
-    "message": "Strongly recommended. Keep this enabled so DualRead can choose thinking-control parameters from the API URL and model name."
+    "message": "Strongly recommended. Testing the API automatically detects a supported thinking-control parameter."
+  },
+  "thinkingHintAutoPending": {
+    "message": "Auto mode detects a supported parameter during API testing; no extra thinking parameter is sent before testing."
   },
   "thinkingHintAutoResolved": {
     "message": "Recommended to keep enabled: $1"
@@ -895,6 +892,9 @@
   },
   "thinkingSummaryOmit": {
     "message": "No parameter"
+  },
+  "thinkingSummaryPending": {
+    "message": "Auto: test API first"
   },
   "tooltipAutoTranslate": {
     "message": "Save as a global switch. Foreign-language webpages will translate automatically."

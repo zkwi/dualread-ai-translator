@@ -382,6 +382,12 @@ function getThinkingSummary() {
   }
 
   const selected = globalThis.LLMTranslatorShared.normalizeThinkingStrategy(settings?.thinkingStrategy);
+  if (selected === globalThis.LLMTranslatorShared.THINKING_STRATEGIES.AUTO) {
+    const detectionKey = globalThis.LLMTranslatorShared.createThinkingStrategyDetectionKey(settings || {});
+    if (!detectionKey || settings?.thinkingStrategyDetectionKey !== detectionKey) {
+      return t("thinkingSummaryPending", [], "自动：等待测试 API");
+    }
+  }
   const effective = globalThis.LLMTranslatorShared.getEffectiveThinkingStrategy(settings || {});
   const label = getThinkingStrategyShortLabel(effective);
   if (selected === globalThis.LLMTranslatorShared.THINKING_STRATEGIES.AUTO) {

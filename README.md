@@ -71,7 +71,7 @@ Settings are saved automatically. The project does not include or require any de
 
 UI language is configured separately from translation languages. You can keep the interface in English while translating English to Simplified Chinese, Japanese to Traditional Chinese, or any other provider-supported direction.
 
-Strongly recommended: keep **disable controllable thinking** enabled from **Advanced connection settings**. Thinking/reasoning mode can make every translation request much slower. The default **Auto select** mode chooses common provider parameters from the API URL and model name, including Doubao/Volcengine `thinking: { type: "disabled" }`, `enable_thinking: false`, OpenRouter reasoning controls, and local Qwen `chat_template_kwargs`.
+Strongly recommended: keep **disable controllable thinking** enabled from **Advanced connection settings**. Thinking/reasoning mode can make translation much slower. **Auto select** does not hard-code providers from the URL or model name. Clicking **Test API** probes the supported control shape and saves the result. Changing the API URL or model requires another test; no extra Thinking field is sent before that test succeeds.
 
 ## Usage
 
@@ -96,7 +96,7 @@ Any OpenAI-compatible Chat Completions API can work. Built-in presets cover Open
 
 ### Can DualRead disable model thinking mode?
 
-Yes, and it is strongly recommended for translation speed. Keep **Strongly recommended: disable controllable thinking** enabled and use **Auto select** unless your provider requires a specific parameter. Auto mode covers DashScope/Qwen, DeepSeek-like models, OpenRouter, and local Qwen-compatible services. If a provider rejects an unsupported thinking parameter, DualRead retries once without that parameter.
+Yes, and it is strongly recommended for translation speed. Keep **Strongly recommended: disable controllable thinking** enabled, choose **Auto select**, and click **Test API**. DualRead tries the next control shape only when the endpoint explicitly rejects a Thinking field; authentication, rate-limit, model, network, and timeout errors stop immediately. A manual strategy remains available in advanced settings.
 
 ### Where is my API key stored?
 
@@ -131,7 +131,7 @@ npm run audit:public        # scan publishable files for keys, local paths, and 
 node scripts/generate-locales.js
 ```
 
-More development notes are in [docs/development.md](docs/development.md). Manual sample pages are listed in [test-pages.md](test-pages.md).
+Start with the [documentation index](docs/README.md). Development notes are in [docs/development.md](docs/development.md), and manual sample pages are listed in [test-pages.md](test-pages.md).
 
 ## Open Source Hygiene
 
