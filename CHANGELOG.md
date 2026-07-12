@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0
+
+- Replaced batch JSON webpage translation with independent plain-text SSE streams, so each visible segment can update as soon as its first translated fragment arrives.
+- Added structure-aware translation placement for Block, Flex, Grid, clipped preview, list, and slotted Web Component layouts, preventing narrow cards and Reddit previews from interleaving or squeezing bilingual text.
+- Kept fast viewport sampling for immediate feedback and added a bounded post-paint supplement, preventing visible CNN-style headlines between sample points from being missed.
+- Treated clipped long previews as one bounded translation unit outside the clipping container while preserving paragraph-by-paragraph translation on full article views.
+- Automatically send `thinking: { type: "disabled" }` to Volcengine Ark and Doubao models, with connection-test and live translation request coverage.
+- Updated connection settings and documentation for the simplified streaming workflow while preserving request, character, concurrency, and cache budgets.
+
 ## 0.6.3
 
 - Translated oversized Reddit text posts by falling back from the full `shreddit-post-text-body` container to its internal paragraphs when the body exceeds the per-segment length limit.

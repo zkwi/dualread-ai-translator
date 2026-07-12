@@ -23,9 +23,40 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
 
   try {
+    await testStreamingTranslationUpdatesBeforeResponseCompletes(browser);
+    if (process.env.TEST_FILTER === "streaming") return;
+    if (process.env.TEST_FILTER === "streaming-core") {
+      await testStreamingTranslationsUseLimitedConcurrency(browser);
+      await testFarViewportCancelsStalePendingTranslations(browser);
+      return;
+    }
+    if (process.env.TEST_FILTER === "streaming-manual") {
+      await testManualTranslationShowsLoadingPlaceholderImmediately(browser);
+      await testManualCurrentAreaUsesProvidedSettingsForImmediatePlaceholder(browser);
+      await testStoppingTranslationClearsImmediateLoadingPlaceholder(browser);
+      return;
+    }
+    if (process.env.TEST_FILTER === "layout-adapter") {
+      await testViewportSupplementFindsVisibleListSiblings(browser);
+      await testFlexAndGridCardsGiveTranslationsTheirOwnRow(browser);
+      await testClippedRedditPreviewUsesSingleSafeTranslationUnit(browser);
+      return;
+    }
+    if (process.env.TEST_FILTER === "layout-coverage") {
+      await testViewportSupplementFindsVisibleListSiblings(browser);
+      return;
+    }
+    if (process.env.TEST_FILTER === "layout-flex-grid") {
+      await testFlexAndGridCardsGiveTranslationsTheirOwnRow(browser);
+      return;
+    }
+    if (process.env.TEST_FILTER === "layout-reddit") {
+      await testClippedRedditPreviewUsesSingleSafeTranslationUnit(browser);
+      return;
+    }
     await testPreservesLineBreaksInTweetText(browser);
-    await testMultipleTextBlocksShareOneBatchRequest(browser);
-    await testBatchSplitsByCharacterLimit(browser);
+    await testMultipleTextBlocksUseIndependentStreamRequests(browser);
+    await testBatchCharacterLimitDoesNotCombineStreamRequests(browser);
     await testMainContentPriorityBeatsEarlierSideCards(browser);
     await testContentScriptReinjectsWhenVersionChanges(browser);
     await testXPrimaryColumnIgnoresSidebarAndComposer(browser);
@@ -33,12 +64,15 @@ async function main() {
     await testNewsCardSkipsCreditsAndHiddenMetadata(browser);
     await testNewsCardKeepsHeadlineWhenUtilityLabelIsPresent(browser);
     await testCnnHomepageLeadCardSurvivesUtilityFiltering(browser);
+    await testViewportSupplementFindsVisibleListSiblings(browser);
+    await testFlexAndGridCardsGiveTranslationsTheirOwnRow(browser);
     await testArticleHeadlineLinkWithoutHeadingIsTranslated(browser);
     await testEmbeddedPlayerErrorsDoNotStealNewsBudget(browser);
     await testRedditPostTitleIsTranslatedWithoutMetadata(browser);
     await testRedditDetailTitleTranslationKeepsTitleSlotOrder(browser);
     await testTranslationInheritsInsertionTargetSlot(browser);
     await testRedditTextBodyUsesSafeTranslationAnchor(browser);
+    await testClippedRedditPreviewUsesSingleSafeTranslationUnit(browser);
     await testLongRedditTextBodyFallsBackToParagraphs(browser);
     await testLongRedditThreadDoesNotFullWalkComments(browser);
     await testTranslatedViewportScrollScanDoesNotFullWalk(browser);
@@ -61,7 +95,7 @@ async function main() {
     await testRetrySuccessDoesNotDoubleCountStats(browser);
     await testRetryFailureStaysKeyboardAccessible(browser);
     await testContentMessageFailureReturnsReadableResponse(browser);
-    await testTranslationBatchesUseLimitedConcurrency(browser);
+    await testStreamingTranslationsUseLimitedConcurrency(browser);
     await testFarViewportCancelsStalePendingTranslations(browser);
     await testAutoTranslationStartsEnglishContentWithTargetLocale(browser);
     await testDisabledAutoTranslationDoesNotWakeBackgroundForSettings(browser);
@@ -120,7 +154,7 @@ async function testPreservesLineBreaksInTweetText(browser) {
   await page.close();
 }
 
-async function testMultipleTextBlocksShareOneBatchRequest(browser) {
+async function testMultipleTextBlocksUseIndependentStreamRequests(browser) {
   const page = await createHarnessPage(browser, {
     batchSize: 6,
     html: `
@@ -135,12 +169,12 @@ async function testMultipleTextBlocksShareOneBatchRequest(browser) {
   const result = await runTranslation(page);
   const batchSizes = await page.evaluate(() => window.__mockTranslateBatchSizes);
 
-  assert.deepStrictEqual(batchSizes, [3], "Multiple text blocks should be merged into one batch request.");
+  assert.deepStrictEqual(batchSizes, [1, 1, 1], "Each text block should use its own plain-text stream request.");
   assert.strictEqual(result.translationCount, 3);
   await page.close();
 }
 
-async function testBatchSplitsByCharacterLimit(browser) {
+async function testBatchCharacterLimitDoesNotCombineStreamRequests(browser) {
   const page = await createHarnessPage(browser, {
     batchSize: 10,
     maxCharsPerBatch: 500,
@@ -156,7 +190,7 @@ async function testBatchSplitsByCharacterLimit(browser) {
   await runTranslation(page);
   const batchSizes = await page.evaluate(() => window.__mockTranslateBatchSizes);
 
-  assert.deepStrictEqual(batchSizes, [2, 1], "Batching should honor both paragraph count and character limits.");
+  assert.deepStrictEqual(batchSizes, [1, 1, 1], "Legacy batch character limits should not combine stream requests.");
   await page.close();
 }
 
@@ -393,6 +427,119 @@ async function testCnnHomepageLeadCardSurvivesUtilityFiltering(browser) {
   assert.doesNotMatch(requested, /E\. Jean Carroll/);
   assert.strictEqual(await hasTranslationNear(page, ".lead-card"), true);
   assert.strictEqual(await hasTranslationNear(page, "#cnn-lead-link"), true);
+  await page.close();
+}
+
+async function testViewportSupplementFindsVisibleListSiblings(browser) {
+  const columns = Array.from({ length: 3 }, (_, columnIndex) => `
+    <ul class="news-column">
+      ${Array.from({ length: 5 }, (_, rowIndex) => {
+        const number = columnIndex * 5 + rowIndex + 1;
+        return `
+          <li data-headline="headline-${number}">
+            <a href="/story-${number}">
+              Visible headline ${number} explains a distinct international news development today
+            </a>
+          </li>
+        `;
+      }).join("")}
+    </ul>
+  `).join("");
+
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 24,
+    bodyStyle: "font:18px Arial;margin:0",
+    html: `
+      <style>
+        main { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .news-column { list-style: none; margin: 0; padding: 0; }
+        .news-column li { box-sizing: border-box; height: 150px; padding: 12px; border-bottom: 1px solid #ddd; }
+        .news-column a { color: #111; text-decoration: none; }
+      </style>
+      <main>${columns}</main>
+    `
+  });
+
+  const expectedHeadlines = await page.locator("[data-headline]").evaluateAll((items) => (
+    items.map((item) => item.textContent.replace(/\s+/g, " ").trim())
+  ));
+  const result = await runTranslation(page);
+
+  for (const headline of expectedHeadlines) {
+    assert.ok(
+      result.requestedTexts.includes(headline),
+      `Viewport supplement should include visible list sibling: ${headline}`
+    );
+  }
+
+  await page.close();
+}
+
+async function testFlexAndGridCardsGiveTranslationsTheirOwnRow(browser) {
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 4,
+    bodyStyle: "font:18px Arial;padding:24px",
+    html: `
+      <main>
+        <ul style="list-style:none;margin:0;padding:0">
+          <li id="flex-card" style="display:flex;flex-wrap:nowrap;align-items:flex-start;gap:12px;width:420px">
+            <div id="flex-image" style="flex:0 0 140px;height:100px;background:#ddd">Product image</div>
+            <a id="flex-title" href="/toothbrush" style="flex:1 1 auto;min-width:0;color:#111;text-decoration:none">
+              Using an electric toothbrush is a great way to improve your oral hygiene
+            </a>
+          </li>
+        </ul>
+        <section id="grid-card" style="display:grid;grid-template-columns:120px 300px;gap:12px;width:432px;margin-top:32px">
+          <div style="height:80px;background:#ddd">Travel image</div>
+          <p id="grid-title" style="margin:0">A practical travel guide explains how passengers can prepare for changing conditions.</p>
+        </section>
+      </main>
+    `
+  });
+
+  const before = await page.evaluate(() => ({
+    flexTitleWidth: document.getElementById("flex-title").getBoundingClientRect().width
+  }));
+
+  await runTranslation(page);
+
+  const layout = await page.evaluate(() => {
+    const flexCard = document.getElementById("flex-card");
+    const flexTitle = document.getElementById("flex-title");
+    const flexTranslation = flexCard.querySelector(":scope > .llm-bilingual-translation");
+    const firstRowBottom = Math.max(
+      document.getElementById("flex-image").getBoundingClientRect().bottom,
+      flexTitle.getBoundingClientRect().bottom
+    );
+    const gridCard = document.getElementById("grid-card");
+    const gridTranslation = gridCard.querySelector(":scope > .llm-bilingual-translation");
+    return {
+      flexTitleWidth: flexTitle.getBoundingClientRect().width,
+      flexTranslationTop: flexTranslation?.getBoundingClientRect().top || 0,
+      firstRowBottom,
+      flexLayoutMarker: flexCard.dataset.llmTranslatorLayout || "",
+      gridTranslationWidth: gridTranslation?.getBoundingClientRect().width || 0,
+      gridCardWidth: gridCard.getBoundingClientRect().width,
+      gridColumnStart: gridTranslation ? getComputedStyle(gridTranslation).gridColumnStart : ""
+    };
+  });
+
+  assert.ok(layout.flexTitleWidth >= before.flexTitleWidth - 1, "Translation must not squeeze the original Flex title.");
+  assert.ok(layout.flexTranslationTop >= layout.firstRowBottom - 1, "Flex translation should occupy the next row.");
+  assert.strictEqual(layout.flexLayoutMarker, "stacked-flex");
+  assert.ok(layout.gridTranslationWidth >= layout.gridCardWidth - 1, "Grid translation should span the full card width.");
+  assert.strictEqual(layout.gridColumnStart, "1");
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "clear_translation" }));
+  const cleared = await page.evaluate(() => ({
+    translationCount: document.querySelectorAll(".llm-bilingual-translation").length,
+    flexLayoutMarker: document.getElementById("flex-card").dataset.llmTranslatorLayout || "",
+    gridLayoutMarker: document.getElementById("grid-card").dataset.llmTranslatorLayout || ""
+  }));
+  assert.strictEqual(cleared.translationCount, 0);
+  assert.strictEqual(cleared.flexLayoutMarker, "");
+  assert.strictEqual(cleared.gridLayoutMarker, "");
+
   await page.close();
 }
 
@@ -642,6 +789,56 @@ async function testRedditTextBodyUsesSafeTranslationAnchor(browser) {
   await page.close();
 }
 
+async function testClippedRedditPreviewUsesSingleSafeTranslationUnit(browser) {
+  const paragraphs = Array.from({ length: 6 }, (_, index) => `
+    <p>
+      Preview paragraph ${index + 1} explains a long model comparison with enough English words to exceed the configured
+      per-element limit while Reddit keeps most of the post hidden inside its compact feed card.
+    </p>
+  `).join("");
+
+  const page = await createHarnessPage(browser, {
+    maxElementsPerScan: 8,
+    maxTextLength: 320,
+    bodyStyle: "font:18px Arial;padding:24px",
+    html: `
+      <style>
+        shreddit-post, shreddit-post-text-body { display: block; width: 620px; }
+        .feed-card-text-preview { display: flow-root; max-height: 96px; overflow: hidden; }
+        .feed-card-text-preview p { display: inline; margin: 0; }
+      </style>
+      <main>
+        <shreddit-post post-type="text" post-language="en">
+          <shreddit-post-text-body slot="text-body">
+            <a href="/r/codex/comments/clipped" class="pointer-events-none" slot="text-body">
+              <div data-post-click-location="text-body">
+                <div id="clipped-preview" class="md feed-card-text-preview" property="schema:articleBody">
+                  ${paragraphs}
+                </div>
+              </div>
+            </a>
+          </shreddit-post-text-body>
+        </shreddit-post>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const layout = await page.evaluate(() => ({
+    insidePreview: document.querySelectorAll("#clipped-preview .llm-bilingual-translation").length,
+    insideLink: document.querySelectorAll("a[slot='text-body'] .llm-bilingual-translation").length,
+    safeBodyTranslations: document.querySelectorAll("shreddit-post-text-body > .llm-bilingual-translation").length
+  }));
+
+  assert.strictEqual(result.requestCount, 1, "A clipped Reddit preview should be one bounded translation unit.");
+  assert.ok(result.requestedTexts[0].length <= 320, "The clipped preview request must honor maxTextLength.");
+  assert.strictEqual(layout.insidePreview, 0);
+  assert.strictEqual(layout.insideLink, 0);
+  assert.strictEqual(layout.safeBodyTranslations, 1);
+
+  await page.close();
+}
+
 async function testLongRedditTextBodyFallsBackToParagraphs(browser) {
   const paragraphs = Array.from({ length: 12 }, (_, index) => `
     <p id="long-post-paragraph-${index + 1}">
@@ -728,7 +925,7 @@ async function testLongRedditThreadDoesNotFullWalkComments(browser) {
     await new Promise((resolve) => setTimeout(resolve, 250));
     return {
       count: response.count,
-      feedbackCount: document.querySelectorAll(".llm-bilingual-translation.is-loading, .llm-bilingual-translation.is-done").length,
+      feedbackCount: document.querySelectorAll(".llm-bilingual-translation.is-loading, .llm-bilingual-translation.is-streaming, .llm-bilingual-translation.is-done").length,
       rectCalls: window.__rectCalls,
       treeWalkerNextCalls: window.__treeWalkerNextCalls
     };
@@ -1229,7 +1426,7 @@ async function testDynamicContentTranslatesDuringContinuousMutations(browser) {
 
   await page.waitForTimeout(720);
   const result = await page.evaluate(() => ({
-    feedbackCount: document.querySelectorAll(".llm-bilingual-translation.is-loading, .llm-bilingual-translation.is-done").length,
+    feedbackCount: document.querySelectorAll(".llm-bilingual-translation.is-loading, .llm-bilingual-translation.is-streaming, .llm-bilingual-translation.is-done").length,
     requestCount: window.__mockItems.length
   }));
 
@@ -1330,14 +1527,14 @@ async function testManualTranslationShowsLoadingPlaceholderImmediately(browser) 
     const response = await window.__sendContentMessage({ action: "scan_current_area" });
     return {
       count: response.count,
-      loadingCount: document.querySelectorAll(".llm-bilingual-translation.is-loading").length,
+      loadingCount: document.querySelectorAll(".llm-bilingual-translation.is-loading, .llm-bilingual-translation.is-streaming").length,
       requestCount: window.__mockItems.length
     };
   });
 
   assert.strictEqual(stateAfterStart.count, 1);
   assert.strictEqual(stateAfterStart.loadingCount, 1, "Manual start should render loading feedback before the batch request flushes.");
-  assert.strictEqual(stateAfterStart.requestCount, 0, "The placeholder should not wait for the backend request.");
+  assert.strictEqual(stateAfterStart.requestCount, 1, "The first stream request should start immediately after the placeholder appears.");
 
   await page.close();
 }
@@ -1363,7 +1560,7 @@ async function testManualCurrentAreaUsesProvidedSettingsForImmediatePlaceholder(
     });
     await new Promise((resolve) => setTimeout(resolve, 120));
     const interim = {
-      loadingCount: document.querySelectorAll(".llm-bilingual-translation.is-loading").length,
+      loadingCount: document.querySelectorAll(".llm-bilingual-translation.is-loading, .llm-bilingual-translation.is-streaming").length,
       getSettingsMessages: window.__runtimeMessages.filter((message) => message.action === "get_settings").length,
       requestCount: window.__mockItems.length
     };
@@ -1374,8 +1571,40 @@ async function testManualCurrentAreaUsesProvidedSettingsForImmediatePlaceholder(
   assert.strictEqual(stateAfterStart.count, 1);
   assert.strictEqual(stateAfterStart.loadingCount, 1, "Provided settings should allow current-area loading feedback without another settings round trip.");
   assert.strictEqual(stateAfterStart.getSettingsMessages, 0, "Current-area scan should reuse settings passed by the background script.");
-  assert.strictEqual(stateAfterStart.requestCount, 0, "The placeholder should still appear before the backend request.");
+  assert.strictEqual(stateAfterStart.requestCount, 1, "Provided settings should allow the stream request to start without another settings lookup.");
 
+  await page.close();
+}
+
+async function testStreamingTranslationUpdatesBeforeResponseCompletes(browser) {
+  const page = await createHarnessPage(browser, {
+    translateDelayMs: 800,
+    html: `
+      <main>
+        <p>The first visible paragraph should appear while the SSE response is still open.</p>
+      </main>
+    `
+  });
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(180);
+
+  const partialState = await page.evaluate(() => {
+    const node = document.querySelector(".llm-bilingual-translation");
+    return {
+      className: node?.className || "",
+      text: node?.textContent || "",
+      done: !!node?.classList.contains("is-done"),
+      batchMessages: window.__runtimeMessages.filter((message) => message.action === "translate_batch").length
+    };
+  });
+
+  assert.match(partialState.className, /is-streaming/);
+  assert.match(partialState.text, /测试译文/);
+  assert.strictEqual(partialState.done, false);
+  assert.strictEqual(partialState.batchMessages, 0);
+
+  await page.waitForFunction(() => document.querySelector(".llm-bilingual-translation")?.classList.contains("is-done"));
   await page.close();
 }
 
@@ -1448,7 +1677,7 @@ async function testStoppingTranslationClearsImmediateLoadingPlaceholder(browser)
   await page.close();
 }
 
-async function testTranslationBatchesUseLimitedConcurrency(browser) {
+async function testStreamingTranslationsUseLimitedConcurrency(browser) {
   const page = await createHarnessPage(browser, {
     batchSize: 2,
     maxConcurrentBatches: 2,
@@ -1467,8 +1696,8 @@ async function testTranslationBatchesUseLimitedConcurrency(browser) {
 
   await runTranslation(page);
 
-  const maxConcurrent = await page.evaluate(() => window.__maxConcurrentTranslateBatches);
-  assert.strictEqual(maxConcurrent, 2, "Translation batches should use the configured small concurrency.");
+  const maxConcurrent = await page.evaluate(() => window.__maxConcurrentStreamRequests);
+  assert.strictEqual(maxConcurrent, 2, "Plain-text stream requests should use the configured small concurrency.");
   await page.close();
 }
 
@@ -2174,6 +2403,9 @@ async function createHarnessPage(browser, options = {}) {
     window.__maxConcurrentTranslateBatches = 0;
     window.__mockTranslateBatchSizes = [];
     window.__mockTranslateFailuresRemaining = failFirstTranslate ? 1 : 0;
+    window.__streamRequests = [];
+    window.__inflightStreamRequests = 0;
+    window.__maxConcurrentStreamRequests = 0;
     window.chrome = {
       storage: {
         local: {
@@ -2185,6 +2417,113 @@ async function createHarnessPage(browser, options = {}) {
         }
       },
       runtime: {
+        connect({ name } = {}) {
+          const messageListeners = [];
+          const disconnectListeners = [];
+          const pending = new Map();
+          let disconnected = false;
+
+          const emit = (message) => {
+            if (disconnected) return;
+            messageListeners.forEach((listener) => listener(message));
+          };
+
+          return {
+            name,
+            onMessage: {
+              addListener(listener) {
+                messageListeners.push(listener);
+              }
+            },
+            onDisconnect: {
+              addListener(listener) {
+                disconnectListeners.push(listener);
+              }
+            },
+            postMessage(message) {
+              if (disconnected) throw new Error("Port is disconnected.");
+              if (message.type === "cancel") {
+                const timers = pending.get(message.requestId) || [];
+                timers.forEach((timer) => clearTimeout(timer));
+                if (pending.delete(message.requestId)) {
+                  window.__inflightStreamRequests = Math.max(0, window.__inflightStreamRequests - 1);
+                }
+                return;
+              }
+              if (message.type !== "translate") return;
+
+              const item = message.item || {};
+              window.__streamRequests.push(message);
+              window.__mockItems.push(String(item.text || ""));
+              window.__mockTranslateBatchSizes.push(1);
+              window.__inflightStreamRequests += 1;
+              window.__maxConcurrentStreamRequests = Math.max(
+                window.__maxConcurrentStreamRequests,
+                window.__inflightStreamRequests
+              );
+
+              const translation = `测试译文：${String(item.text || "").slice(0, 80)}`;
+              const firstDelta = translation.slice(0, Math.max(1, Math.min(5, translation.length)));
+              const secondDelta = translation.slice(firstDelta.length);
+              const firstDelay = translateDelayMs > 0 ? Math.min(60, Math.max(10, Math.floor(translateDelayMs / 4))) : 0;
+              const completeDelay = translateDelayMs > 0 ? translateDelayMs : 0;
+              const timers = [];
+              timers.push(setTimeout(() => {
+                emit({
+                  type: "delta",
+                  requestId: message.requestId,
+                  runId: message.runId,
+                  id: item.id,
+                  delta: firstDelta,
+                  text: firstDelta
+                });
+              }, firstDelay));
+              timers.push(setTimeout(() => {
+                if (window.__mockTranslateFailuresRemaining > 0) {
+                  window.__mockTranslateFailuresRemaining -= 1;
+                  emit({
+                    type: "error",
+                    requestId: message.requestId,
+                    runId: message.runId,
+                    id: item.id,
+                    error: "Mock translation failure."
+                  });
+                } else {
+                  if (secondDelta) {
+                    emit({
+                      type: "delta",
+                      requestId: message.requestId,
+                      runId: message.runId,
+                      id: item.id,
+                      delta: secondDelta,
+                      text: translation
+                    });
+                  }
+                  emit({
+                    type: "done",
+                    requestId: message.requestId,
+                    runId: message.runId,
+                    id: item.id,
+                    text: translation,
+                    streamed: true,
+                    fallback: false
+                  });
+                }
+                pending.delete(message.requestId);
+                window.__inflightStreamRequests = Math.max(0, window.__inflightStreamRequests - 1);
+              }, completeDelay));
+              pending.set(message.requestId, timers);
+            },
+            disconnect() {
+              if (disconnected) return;
+              disconnected = true;
+              pending.forEach((timers) => timers.forEach((timer) => clearTimeout(timer)));
+              pending.clear();
+              window.__inflightStreamRequests = 0;
+              disconnectListeners.forEach((listener) => listener());
+            }
+          };
+        },
         onMessage: {
           addListener(listener) {
             listeners.push(listener);
@@ -2272,7 +2611,7 @@ async function createHarnessPage(browser, options = {}) {
       targetLanguage: options.targetLanguage || "简体中文",
       batchSize: options.batchSize ?? 4,
       maxElementsPerScan: options.maxElementsPerScan ?? 12,
-      maxTextLength: 1600,
+      maxTextLength: options.maxTextLength ?? 1600,
       maxRequestsPerPage: options.maxRequestsPerPage ?? 80,
       maxCharsPerPage: options.maxCharsPerPage ?? 60000,
       maxCharsPerBatch: options.maxCharsPerBatch ?? 6000,

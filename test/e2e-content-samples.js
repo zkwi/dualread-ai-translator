@@ -179,6 +179,56 @@ async function injectContentHarness(page) {
         }
       },
       runtime: {
+        connect({ name } = {}) {
+          const messageListeners = [];
+          const disconnectListeners = [];
+          let disconnected = false;
+          return {
+            name,
+            onMessage: {
+              addListener(listener) {
+                messageListeners.push(listener);
+              }
+            },
+            onDisconnect: {
+              addListener(listener) {
+                disconnectListeners.push(listener);
+              }
+            },
+            postMessage(message) {
+              if (disconnected || message.type !== "translate") return;
+              const item = message.item || {};
+              const text = `测试译文：${String(item.text || "").slice(0, 80)}`;
+              window.__mockTranslateRequests += 1;
+              queueMicrotask(() => {
+                if (disconnected) return;
+                const envelope = {
+                  requestId: message.requestId,
+                  runId: message.runId,
+                  id: item.id
+                };
+                messageListeners.forEach((listener) => listener({
+                  ...envelope,
+                  type: "delta",
+                  delta: text,
+                  text
+                }));
+                messageListeners.forEach((listener) => listener({
+                  ...envelope,
+                  type: "done",
+                  text,
+                  streamed: true,
+                  fallback: false
+                }));
+              });
+            },
+            disconnect() {
+              if (disconnected) return;
+              disconnected = true;
+              disconnectListeners.forEach((listener) => listener());
+            }
+          };
+        },
         onMessage: {
           addListener(listener) {
             listeners.push(listener);
@@ -228,6 +278,7 @@ async function injectContentHarness(page) {
     batchSize: 4,
     maxElementsPerScan: 12,
     maxTextLength: 1600,
+    maxConcurrentBatches: 2,
     autoTranslate: false,
     displayMode: "bilingual",
     viewportOnly: true

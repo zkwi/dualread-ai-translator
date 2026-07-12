@@ -7,6 +7,8 @@ const { chromium } = require("playwright");
 
 const extensionDir = path.resolve(__dirname, "..");
 const manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, "manifest.json"), "utf8"));
+const contentSource = fs.readFileSync(path.join(extensionDir, "content.js"), "utf8");
+const contentVersion = contentSource.match(/CONTENT_SCRIPT_VERSION\s*=\s*"([^"]+)"/)?.[1];
 
 main().catch((error) => {
   console.error(error);
@@ -15,6 +17,7 @@ main().catch((error) => {
 
 async function main() {
   assert.strictEqual(manifest.default_locale, "en");
+  assert.ok(contentVersion, "content script version should be declared");
 
   const server = await createFixtureServer();
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "dualread-extension-"));
@@ -37,7 +40,7 @@ async function main() {
     await page.goto(fixtureUrl);
     await page.waitForFunction(
       (version) => document.documentElement.dataset.llmTranslatorVersion === version,
-      manifest.version,
+      contentVersion,
       { timeout: 10000 }
     );
 
@@ -102,6 +105,18 @@ function createFixtureServer() {
   const server = http.createServer((request, response) => {
     if (request.method === "POST" && request.url === "/v1/chat/completions") {
       return readRequestBody(request).then((body) => {
+        const requestBody = JSON.parse(body || "{}");
+        if (requestBody.stream === true) {
+          const sourceText = extractPlainTranslationText(requestBody);
+          const translation = `测试译文：${sourceText.slice(0, 80)}`;
+          const midpoint = Math.max(1, Math.floor(translation.length / 2));
+          response.writeHead(200, { "content-type": "text/event-stream; charset=utf-8" });
+          response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: translation.slice(0, midpoint) } }] })}\n\n`);
+          response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: translation.slice(midpoint) } }] })}\n\n`);
+          response.end("data: [DONE]\n\n");
+          return;
+        }
+
         const items = extractTranslationItems(body);
         response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
         response.end(JSON.stringify({
@@ -143,6 +158,14 @@ function createFixtureServer() {
       });
     });
   });
+}
+
+function extractPlainTranslationText(requestBody) {
+  const prompt = requestBody?.messages?.find((message) => message.role === "user")?.content || "";
+  const marker = "\nText:\n";
+  const markerIndex = String(prompt).lastIndexOf(marker);
+  if (markerIndex < 0) return "Hello world.";
+  return String(prompt).slice(markerIndex + marker.length).trim() || "Hello world.";
 }
 
 function extractTranslationItems(body) {

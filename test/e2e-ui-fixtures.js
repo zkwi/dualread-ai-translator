@@ -14,6 +14,12 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
 
   try {
+    if (process.env.TEST_FILTER === "streaming-settings") {
+      await testOptionsCostProfileUpdatesAdvancedDefaults(browser);
+      await testOptionsEnterRunsApiTestWhenReady(browser);
+      await testOptionsApiFallbackExplainsNonStreaming(browser);
+      return;
+    }
     await testPopupDisablesVisibilityWithoutTranslations(browser);
     await testPopupShowsBrandAndConfigNotice(browser);
     await testPopupShowsProviderAndModelSummary(browser);
@@ -743,6 +749,23 @@ async function testOptionsApiSuccessMessageIsCompact(browser) {
   await page.close();
 }
 
+async function testOptionsApiFallbackExplainsNonStreaming(browser) {
+  const page = await createOptionsPage(browser);
+
+  await page.fill("#apiKey", "fallback-test-key");
+  await page.click("#test");
+  await page.evaluate(() => window.__resolveTestApi({
+    ok: true,
+    text: "你好",
+    streamed: false,
+    fallback: true
+  }));
+  await page.waitForFunction(() => document.getElementById("message").textContent.includes("API 可用"));
+
+  assert.match(await page.locator("#message").textContent(), /非流式/);
+  await page.close();
+}
+
 async function testOptionsChangeEventSavesApiKey(browser) {
   const page = await createOptionsPage(browser);
 
@@ -1019,6 +1042,13 @@ async function testOptionsLayoutDoesNotOverflow(browser) {
 async function testOptionsCostProfileUpdatesAdvancedDefaults(browser) {
   const page = await createOptionsPage(browser);
 
+  assert.strictEqual(await page.locator("#batchSize").isVisible(), false);
+  assert.strictEqual(await page.locator("#maxCharsPerBatch").isVisible(), false);
+  assert.match(
+    await page.locator("#maxConcurrentBatches").locator("xpath=ancestor::label").innerText(),
+    /同时翻译段落数/
+  );
+
   await page.selectOption("#costProfile", "economy");
   await page.waitForFunction(() => window.__lastSavedSettings?.costProfile === "economy");
   assert.strictEqual(await page.locator("#maxElementsPerScan").inputValue(), "12");
@@ -1183,7 +1213,8 @@ async function testOptionsSavesCustomTranslationPrompt(browser) {
 
   await page.waitForSelector("#translationPrompt");
   const defaultPrompt = await page.locator("#translationPrompt").inputValue();
-  assert.match(defaultPrompt, /Return ONLY a JSON array/);
+  assert.match(defaultPrompt, /line breaks/i);
+  assert.doesNotMatch(defaultPrompt, /JSON array/i);
 
   await page.fill("#translationPrompt", "Translate from {{sourceLanguage}} to {{targetLanguage}} in a concise style.");
   await page.click("#save");
@@ -1210,8 +1241,9 @@ async function testOptionsResetPromptRequiresConfirm(browser) {
     window.__confirmResult = true;
   });
   await page.click("#resetPrompt");
-  await page.waitForFunction(() => document.getElementById("translationPrompt").value.includes("Return ONLY a JSON array"));
-  await page.waitForFunction(() => window.__lastSavedSettings?.translationPrompt?.includes("Return ONLY a JSON array"));
+  await page.waitForFunction(() => document.getElementById("translationPrompt").value.includes("line breaks"));
+  await page.waitForFunction(() => window.__lastSavedSettings?.translationPrompt?.includes("line breaks"));
+  assert.doesNotMatch(await page.locator("#translationPrompt").inputValue(), /JSON array/i);
   await page.close();
 }
 

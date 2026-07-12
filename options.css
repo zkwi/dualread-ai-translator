@@ -865,3 +865,6 @@ button.danger:hover:not(:disabled) {
     width: 100%;
   }
 }
+.legacy-batch-settings {
+  display: none !important;
+}

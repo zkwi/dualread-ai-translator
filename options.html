@@ -239,7 +239,7 @@
       <summary>
         <span>
           <strong data-i18n="optionsAdvancedSettings">高级设置</strong>
-          <small data-i18n="optionsAdvancedSettingsDesc">提示词、批量、并发、缓存和细粒度成本参数</small>
+          <small data-i18n="optionsAdvancedSettingsDesc">提示词、流式并发、缓存和细粒度成本参数</small>
         </span>
       </summary>
 
@@ -254,10 +254,10 @@
       </label>
 
       <p class="help">
-        <span data-i18n="optionsPromptHelp">支持 {{sourceLanguage}} 和 {{targetLanguage}} 占位符。请求时会自动追加待翻译文本的 JSON 数组。</span>
+        <span data-i18n="optionsPromptHelp">支持 {{sourceLanguage}} 和 {{targetLanguage}} 占位符。网页正文会逐段以纯文本流式翻译。</span>
       </p>
 
-      <div class="grid">
+      <div class="grid legacy-batch-settings" hidden aria-hidden="true">
         <label>
           <span data-i18n="optionsBatchSize">每批段落数</span>
           <input id="batchSize" type="number" min="1" max="20" step="1">
@@ -271,9 +271,9 @@
 
       <div class="grid">
         <label>
-          <span data-i18n="optionsMaxConcurrentBatches">并发请求批次数</span>
+          <span data-i18n="optionsMaxConcurrentBatches">同时翻译段落数</span>
           <input id="maxConcurrentBatches" type="number" min="1" max="3" step="1">
-          <small class="field-help" data-i18n="optionsMaxConcurrentHelp">建议 2；网络和 API 稳定时可设为 3。</small>
+          <small class="field-help" data-i18n="optionsMaxConcurrentHelp">建议 2；每个段落会独立流式显示，接口稳定时可设为 3。</small>
         </label>
       </div>
 

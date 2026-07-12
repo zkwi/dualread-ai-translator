@@ -22,9 +22,10 @@ It is designed as a lightweight OpenAI-compatible web translator: bring your own
 - **Chrome AI translator workflow**: translate with OpenAI, DeepSeek, DashScope/Qwen, local models, or any OpenAI-compatible API.
 - **Viewport-first translation**: translate the current screen and nearby content instead of sending the whole page.
 - **Dynamic page support**: handle scrolling feeds, expanded posts, late-loaded content, and long articles.
+- **Structure-aware layout**: place translations safely in block, Flex, Grid, clipped preview, list, and Web Component layouts.
 - **Auto translate with language skip**: translate foreign-language pages automatically and skip pages already dominated by the target language.
 - **Right-click translation**: translate the current webpage or selected text from the context menu.
-- **Cost-aware design**: batch requests, small concurrency, per-page budgets, and local paragraph cache.
+- **Responsive and cost-aware**: plain-text streaming per paragraph, small concurrency, per-page budgets, and local paragraph cache.
 - **Privacy-conscious**: no project server, no analytics, no bundled developer API key.
 
 ## Use Cases
@@ -70,7 +71,7 @@ Settings are saved automatically. The project does not include or require any de
 
 UI language is configured separately from translation languages. You can keep the interface in English while translating English to Simplified Chinese, Japanese to Traditional Chinese, or any other provider-supported direction.
 
-Strongly recommended: keep **disable controllable thinking** enabled from **Advanced connection settings**. Thinking/reasoning mode can make every translation batch much slower. The default **Auto select** mode chooses common provider parameters from the API URL and model name, including `enable_thinking: false`, `thinking: { type: "disabled" }`, OpenRouter reasoning controls, and local Qwen `chat_template_kwargs`.
+Strongly recommended: keep **disable controllable thinking** enabled from **Advanced connection settings**. Thinking/reasoning mode can make every translation request much slower. The default **Auto select** mode chooses common provider parameters from the API URL and model name, including Doubao/Volcengine `thinking: { type: "disabled" }`, `enable_thinking: false`, OpenRouter reasoning controls, and local Qwen `chat_template_kwargs`.
 
 ## Usage
 

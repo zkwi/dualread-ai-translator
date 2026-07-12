@@ -203,6 +203,9 @@
   "messageApiTestFailed": {
     "message": "API テストに失敗しました。"
   },
+  "messageApiTestFallback": {
+    "message": "API は利用できますが、ストリーミングには対応していません。非ストリーミング翻訳を使用します。テスト訳文：$1"
+  },
   "messageApiTestSuccess": {
     "message": "API は利用できます。テスト訳文：$1"
   },
@@ -258,7 +261,7 @@
     "message": "詳細設定"
   },
   "optionsAdvancedSettingsDesc": {
-    "message": "プロンプト、バッチ、並行数、キャッシュ、詳細なコスト上限。"
+    "message": "プロンプト、ストリーミング並行数、キャッシュ、詳細なコスト上限。"
   },
   "optionsApiKeyHelp": {
     "message": "ローカルの Chrome 拡張機能ストレージにのみ保存されます。"
@@ -333,10 +336,10 @@
     "message": "ページごとの最大リクエスト文字数"
   },
   "optionsMaxConcurrentBatches": {
-    "message": "並行リクエスト数"
+    "message": "同時に翻訳する段落数"
   },
   "optionsMaxConcurrentHelp": {
-    "message": "推奨は 2。API とネットワークが安定している場合のみ 3 にします。"
+    "message": "推奨は 2。各段落は個別にストリーミング表示され、API が安定している場合は 3 にできます。"
   },
   "optionsMaxElementsPerScan": {
     "message": "1 回の最大段落数"
@@ -360,7 +363,7 @@
     "message": "プロンプト"
   },
   "optionsPromptHelp": {
-    "message": "{{sourceLanguage}} と {{targetLanguage}} を使用できます。翻訳対象の JSON 配列は自動で追加されます。"
+    "message": "{{sourceLanguage}} と {{targetLanguage}} を使用できます。Web ページの段落はプレーンテキストでストリーミング翻訳されます。"
   },
   "optionsProvider": {
     "message": "サービス"

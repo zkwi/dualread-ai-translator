@@ -203,6 +203,9 @@
   "messageApiTestFailed": {
     "message": "API test failed."
   },
+  "messageApiTestFallback": {
+    "message": "API works, but streaming is unsupported. Non-streaming translation will be used. Test translation: $1"
+  },
   "messageApiTestSuccess": {
     "message": "API works. Test translation: $1"
   },
@@ -258,7 +261,7 @@
     "message": "Advanced settings"
   },
   "optionsAdvancedSettingsDesc": {
-    "message": "Prompt, batching, concurrency, cache, and detailed cost limits."
+    "message": "Prompt, streaming concurrency, cache, and detailed cost limits."
   },
   "optionsApiKeyHelp": {
     "message": "Stored only in local Chrome extension storage. It is not sent to this project."
@@ -333,10 +336,10 @@
     "message": "Max requested characters per page"
   },
   "optionsMaxConcurrentBatches": {
-    "message": "Concurrent request batches"
+    "message": "Simultaneous paragraph translations"
   },
   "optionsMaxConcurrentHelp": {
-    "message": "Recommended: 2. Use 3 only when your API and network are stable."
+    "message": "Recommended: 2. Each paragraph streams independently; use 3 when the API is stable."
   },
   "optionsMaxElementsPerScan": {
     "message": "Max paragraphs per scan"
@@ -360,7 +363,7 @@
     "message": "Prompt"
   },
   "optionsPromptHelp": {
-    "message": "Supports {{sourceLanguage}} and {{targetLanguage}} placeholders. The JSON array of text blocks is appended automatically."
+    "message": "Supports {{sourceLanguage}} and {{targetLanguage}} placeholders. Webpage paragraphs are translated as plain-text streams."
   },
   "optionsProvider": {
     "message": "Provider"

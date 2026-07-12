@@ -32,6 +32,10 @@ async function main() {
   await testTranslateBatchOmitsThinkingWhenStrategyOmit();
   await testTranslateBatchRetriesWithoutUnsupportedThinkingParameter();
   await testTranslateBatchTimesOutSlowApi();
+  await testApiStreamsPlainTextAcrossSplitSseChunks();
+  await testApiFallsBackToPlainNonStreamingWhenStreamUnsupported();
+  await testApiAcceptsJsonWhenProxyIgnoresStreaming();
+  await testStreamingPortEmitsDeltaBeforeDone();
   await testApiUsesShortTimeoutForConnectionCheck();
   await testGetSettingsUpgradesLegacyDefaultPrompt();
   await testGetSettingsUpgradesLegacyDefaultTimeout();
@@ -876,6 +880,182 @@ async function testTranslateBatchTimesOutSlowApi() {
 
   assert.strictEqual(response.ok, false);
   assert.match(response.error, /超时|timeout/i);
+}
+
+async function testApiStreamsPlainTextAcrossSplitSseChunks() {
+  const requestBodies = [];
+  const encoder = new TextEncoder();
+  const context = createBackgroundContext({
+    fetch: async (url, options) => {
+      requestBodies.push(JSON.parse(options.body));
+      const chunks = [
+        "da",
+        "ta: {\"choices\":[{\"delta\":{\"content\":\"你\"}}]}\n\n",
+        "data: {\"choices\":[{\"delta\":{\"content\":\"好\"}}]}\n",
+        "\ndata: [DONE]\n\n"
+      ];
+
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => "text/event-stream" },
+        body: new ReadableStream({
+          start(controller) {
+            chunks.forEach((chunk) => controller.enqueue(encoder.encode(chunk)));
+            controller.close();
+          }
+        })
+      };
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "test_api",
+    settings: {
+      apiUrl: "https://ark.cn-beijing.volces.com/api/plan/v3",
+      apiKey: "test-key",
+      model: "doubao-seed-2.0-mini",
+      sourceLanguage: "English",
+      targetLanguage: "简体中文",
+      apiTimeoutMs: 120000,
+      disableThinking: true,
+      thinkingStrategy: "auto"
+    }
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.strictEqual(response.text, "你好");
+  assert.strictEqual(response.streamed, true);
+  assert.strictEqual(requestBodies.length, 1);
+  assert.strictEqual(requestBodies[0].stream, true);
+  assert.deepStrictEqual(requestBodies[0].thinking, { type: "disabled" });
+  assert.doesNotMatch(requestBodies[0].messages[1].content, /JSON array/i);
+}
+
+async function testApiFallsBackToPlainNonStreamingWhenStreamUnsupported() {
+  const requestBodies = [];
+  const context = createBackgroundContext({
+    fetch: async (url, options) => {
+      const body = JSON.parse(options.body);
+      requestBodies.push(body);
+      if (body.stream) {
+        return {
+          ok: false,
+          status: 400,
+          async text() {
+            return "stream is unsupported for this endpoint";
+          }
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return {
+            choices: [{ message: { content: "你好" } }]
+          };
+        }
+      };
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "test_api",
+    settings: {
+      apiUrl: "https://api.example.com/v1",
+      apiKey: "test-key",
+      model: "test-model",
+      sourceLanguage: "English",
+      targetLanguage: "简体中文",
+      apiTimeoutMs: 120000,
+      disableThinking: true,
+      thinkingStrategy: "auto"
+    }
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.strictEqual(response.text, "你好");
+  assert.strictEqual(response.streamed, false);
+  assert.strictEqual(response.fallback, true);
+  assert.deepStrictEqual(requestBodies.map((body) => body.stream), [true, false]);
+  assert.doesNotMatch(requestBodies[1].messages[1].content, /JSON array/i);
+}
+
+async function testApiAcceptsJsonWhenProxyIgnoresStreaming() {
+  const context = createBackgroundContext({
+    fetch: async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json; charset=utf-8" },
+      async json() {
+        return { choices: [{ message: { content: "你好" } }] };
+      }
+    })
+  });
+
+  loadBackground(context);
+  const response = await sendRuntimeMessage(context, {
+    action: "test_api",
+    settings: {
+      apiUrl: "https://proxy.example.com/v1",
+      apiKey: "test-key",
+      model: "test-model",
+      sourceLanguage: "English",
+      targetLanguage: "简体中文",
+      apiTimeoutMs: 120000
+    }
+  });
+
+  assert.strictEqual(response.ok, true);
+  assert.strictEqual(response.text, "你好");
+  assert.strictEqual(response.streamed, false);
+  assert.strictEqual(response.fallback, true);
+}
+
+async function testStreamingPortEmitsDeltaBeforeDone() {
+  const encoder = new TextEncoder();
+  const context = createBackgroundContext({
+    fetch: async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "text/event-stream" },
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode("data: {\"choices\":[{\"delta\":{\"content\":\"先\"}}]}\n\n"));
+          setTimeout(() => {
+            controller.enqueue(encoder.encode("data: {\"choices\":[{\"delta\":{\"content\":\"显示\"}}]}\n\ndata: [DONE]\n\n"));
+            controller.close();
+          }, 30);
+        }
+      })
+    })
+  });
+
+  loadBackground(context);
+  const port = createMockRuntimePort("llm-translation-stream");
+  context.runtimeConnectListener(port);
+  port.send({
+    type: "translate",
+    requestId: "request-1",
+    runId: 7,
+    item: { id: "item-1", text: "Show this first." }
+  });
+
+  await waitFor(() => port.postedMessages.some((message) => message.type === "delta"));
+  assert.strictEqual(port.postedMessages.some((message) => message.type === "done"), false);
+
+  await waitFor(() => port.postedMessages.some((message) => message.type === "done"));
+  const deltaMessages = port.postedMessages.filter((message) => message.type === "delta");
+  const doneMessage = port.postedMessages.find((message) => message.type === "done");
+  assert.deepStrictEqual(deltaMessages.map((message) => message.delta), ["先", "显示"]);
+  assert.strictEqual(doneMessage.text, "先显示");
+  assert.strictEqual(doneMessage.requestId, "request-1");
+  assert.strictEqual(doneMessage.runId, 7);
 }
 
 async function testApiUsesShortTimeoutForConnectionCheck() {
@@ -1904,9 +2084,12 @@ function createBackgroundContext(options = {}) {
     setTimeout,
     clearTimeout,
     AbortController,
+    TextDecoder,
+    ReadableStream,
     fetch: options.fetch || createLocaleFetch(),
     onInstalledListener: null,
     runtimeMessageListener: null,
+    runtimeConnectListener: null,
     onStartupListener: null,
     tabsOnUpdatedListener: null,
     tabsOnActivatedListener: null,
@@ -1937,6 +2120,11 @@ function createBackgroundContext(options = {}) {
         onMessage: {
           addListener(listener) {
             context.runtimeMessageListener = listener;
+          }
+        },
+        onConnect: {
+          addListener(listener) {
+            context.runtimeConnectListener = listener;
           }
         }
       },
@@ -2056,6 +2244,44 @@ function loadBackground(context) {
   const source = fs.readFileSync(path.join(extensionDir, "background.js"), "utf8");
   vm.runInContext(source, context, { filename: "background.js" });
   assert.ok(context.runtimeMessageListener, "background should register a runtime message listener");
+}
+
+function createMockRuntimePort(name) {
+  const messageListeners = [];
+  const disconnectListeners = [];
+  return {
+    name,
+    postedMessages: [],
+    onMessage: {
+      addListener(listener) {
+        messageListeners.push(listener);
+      }
+    },
+    onDisconnect: {
+      addListener(listener) {
+        disconnectListeners.push(listener);
+      }
+    },
+    postMessage(message) {
+      this.postedMessages.push(message);
+    },
+    send(message) {
+      messageListeners.forEach((listener) => listener(message));
+    },
+    disconnect() {
+      disconnectListeners.forEach((listener) => listener());
+    }
+  };
+}
+
+async function waitFor(predicate, timeoutMs = 500) {
+  const startedAt = Date.now();
+  while (!predicate()) {
+    if (Date.now() - startedAt >= timeoutMs) {
+      throw new Error("Timed out waiting for condition.");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
 }
 
 async function sendRuntimeMessage(context, message) {

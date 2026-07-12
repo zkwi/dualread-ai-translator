@@ -15,6 +15,7 @@ let lastCachePruneAt = 0;
 let cachePrunePromise = null;
 let contextMenuSetupPromise = Promise.resolve();
 const unsupportedThinkingControlKeys = new Set();
+const unsupportedStreamingKeys = new Set();
 
 chrome.runtime.onInstalled.addListener(async () => {
   const existing = await chrome.storage.local.get(Object.keys(DEFAULT_SETTINGS));
@@ -162,6 +163,98 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   return false;
 });
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "llm-translation-stream") return;
+
+  const controllers = new Map();
+  let connected = true;
+
+  port.onMessage.addListener((message) => {
+    if (message?.type === "cancel") {
+      controllers.get(String(message.requestId || ""))?.abort();
+      return;
+    }
+    if (message?.type !== "translate") return;
+
+    const requestId = String(message.requestId || "");
+    if (!requestId) return;
+    controllers.get(requestId)?.abort();
+
+    const controller = new AbortController();
+    controllers.set(requestId, controller);
+    streamTranslationToPort(port, message, controller, () => connected)
+      .finally(() => {
+        if (controllers.get(requestId) === controller) {
+          controllers.delete(requestId);
+        }
+      });
+  });
+
+  port.onDisconnect.addListener(() => {
+    connected = false;
+    controllers.forEach((controller) => controller.abort());
+    controllers.clear();
+  });
+});
+
+async function streamTranslationToPort(port, message, controller, isConnected) {
+  const requestId = String(message.requestId || "");
+  const runId = Number(message.runId) || 0;
+  const item = {
+    id: String(message.item?.id || ""),
+    text: String(message.item?.text || "")
+  };
+
+  const post = (payload) => {
+    if (!isConnected() || controller.signal.aborted) return;
+    try {
+      port.postMessage({ requestId, runId, ...payload });
+    } catch (error) {
+      controller.abort();
+    }
+  };
+
+  try {
+    const settings = await getSettings();
+    validateSettings(settings);
+    if (!item.id || !item.text.trim()) {
+      throw new Error(t("errorNoTranslationResult", [], "没有获取到译文。"));
+    }
+
+    const cachedResults = await getCachedResults(settings, [item]);
+    const cached = cachedResults.get(item.id);
+    if (cached?.text) {
+      post({ type: "cached", id: item.id, text: cached.text });
+      return;
+    }
+
+    const result = await requestPlainTranslation(settings, item.text, {
+      stream: true,
+      signal: controller.signal,
+      onDelta(delta, text) {
+        post({ type: "delta", id: item.id, delta, text });
+      }
+    });
+
+    if (controller.signal.aborted) return;
+    try {
+      await saveResultsToCache(settings, [item], [{ id: item.id, text: result.text }]);
+    } catch (error) {
+      console.warn("Failed to save translation cache:", error);
+    }
+    post({
+      type: "done",
+      id: item.id,
+      text: result.text,
+      streamed: result.streamed,
+      fallback: result.fallback
+    });
+  } catch (error) {
+    if (controller.signal.aborted || error?.name === "AbortError") return;
+    post({ type: "error", id: item.id, error: error.message || String(error) });
+  }
+}
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local") return;
@@ -918,16 +1011,13 @@ async function testApi(settings) {
     apiTimeoutMs: Math.min(getApiTimeoutMs(mergedSettings), API_TEST_TIMEOUT_MS)
   };
 
-  const results = await requestTranslations(testSettings, [
-    { id: "test", text: "Hello world." }
-  ]);
-
-  const result = results[0];
-  if (!result || result.error) {
-    throw new Error(result?.error || t("errorTestNoTranslation", [], "测试请求没有返回译文。"));
-  }
-
-  return { ok: true, text: result.text };
+  const result = await requestPlainTranslation(testSettings, "Hello world.", { stream: true });
+  return {
+    ok: true,
+    text: result.text,
+    streamed: result.streamed === true,
+    fallback: result.fallback === true
+  };
 }
 
 function validateSettings(settings) {
@@ -1034,6 +1124,166 @@ async function clearTranslationCache() {
   }
 
   return { ok: true, count: cacheKeys.length };
+}
+
+async function requestPlainTranslation(settings, text, options = {}) {
+  const url = LLMTranslatorShared.normalizeChatCompletionsUrl(settings.apiUrl);
+  const streamingKey = `${url}\n${String(settings.model || "").trim().toLowerCase()}`;
+  if (options.stream !== false && unsupportedStreamingKeys.has(streamingKey)) {
+    return requestPlainTranslation(settings, text, { ...options, stream: false, fallback: true });
+  }
+  const prompt = buildPlainTranslationPrompt(settings, text);
+  const body = buildChatCompletionBody(settings, prompt);
+  body.stream = options.stream !== false;
+
+  if (!body.stream) {
+    const response = await fetchWithOneRetry(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${settings.apiKey}`
+      },
+      body: JSON.stringify(body)
+    }, settings);
+    await throwForPlainTranslationHttpError(response);
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error(t("errorApiMissingContent", [], "API 返回中没有 choices[0].message.content。"));
+    }
+    return { text: String(content).trim(), streamed: false, fallback: options.fallback === true };
+  }
+
+  const controller = new AbortController();
+  const timeoutMs = getApiTimeoutMs(settings);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const abortFromCaller = () => controller.abort();
+  options.signal?.addEventListener?.("abort", abortFromCaller, { once: true });
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${settings.apiKey}`
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    await throwForPlainTranslationHttpError(response);
+    const contentType = String(response.headers?.get?.("content-type") || "").toLowerCase();
+    if (contentType.includes("application/json") || !response.body?.getReader) {
+      const data = await response.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) {
+        throw new Error(t("errorApiMissingContent", [], "API 返回中没有 choices[0].message.content。"));
+      }
+      unsupportedStreamingKeys.add(streamingKey);
+      return { text: String(content).trim(), streamed: false, fallback: true };
+    }
+    const translatedText = await consumeChatCompletionStream(response, options.onDelta);
+    return { text: translatedText, streamed: true, fallback: false };
+  } catch (error) {
+    if (error?.streamUnsupported === true) {
+      unsupportedStreamingKeys.add(streamingKey);
+      return requestPlainTranslation(settings, text, { ...options, stream: false, fallback: true });
+    }
+    if (error?.name === "AbortError") {
+      const seconds = String(Math.round(timeoutMs / 1000));
+      const timeoutError = new Error(t("errorApiTimeout", [seconds], `API 请求超时（${seconds} 秒）。`));
+      timeoutError.name = "TimeoutError";
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    options.signal?.removeEventListener?.("abort", abortFromCaller);
+  }
+}
+
+async function throwForPlainTranslationHttpError(response) {
+  if (response.ok) return;
+  const errorText = await response.text();
+  const error = new Error(t(
+    "errorApiRequestFailed",
+    [String(response.status), errorText.slice(0, 240)],
+    `API 请求失败：${response.status} ${errorText.slice(0, 240)}`
+  ));
+  error.streamUnsupported = (response.status === 400 || response.status === 422)
+    && /stream|streaming|sse/i.test(errorText)
+    && /unsupported|not support|unknown|invalid|unexpected/i.test(errorText);
+  throw error;
+}
+
+async function consumeChatCompletionStream(response, onDelta) {
+  const reader = response.body?.getReader?.();
+  if (!reader) {
+    throw new Error(t("errorApiMissingContent", [], "API 没有返回可读取的流式内容。"));
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let translatedText = "";
+  let finished = false;
+
+  const consumeLine = (line) => {
+    const clean = String(line || "").replace(/\r$/, "").trim();
+    if (!clean || clean.startsWith(":")) return;
+    if (!clean.startsWith("data:")) return;
+
+    const payload = clean.slice(5).trim();
+    if (!payload) return;
+    if (payload === "[DONE]") {
+      finished = true;
+      return;
+    }
+
+    const data = JSON.parse(payload);
+    const delta = data?.choices?.[0]?.delta?.content;
+    if (typeof delta !== "string" || delta.length === 0) return;
+    translatedText += delta;
+    onDelta?.(delta, translatedText);
+  };
+
+  while (!finished) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    let newlineIndex = buffer.indexOf("\n");
+    while (newlineIndex >= 0) {
+      consumeLine(buffer.slice(0, newlineIndex));
+      buffer = buffer.slice(newlineIndex + 1);
+      if (finished) break;
+      newlineIndex = buffer.indexOf("\n");
+    }
+  }
+
+  buffer += decoder.decode();
+  if (!finished && buffer.trim()) consumeLine(buffer);
+
+  const cleanText = translatedText.trim();
+  if (!cleanText) {
+    throw new Error(t("errorTestNoTranslation", [], "测试请求没有返回译文。"));
+  }
+  return cleanText;
+}
+
+function buildPlainTranslationPrompt(settings, text) {
+  const resolvedPrompt = LLMTranslatorShared.resolveTranslationPrompt(settings)
+    .split("\n")
+    .filter((line) => !/(json array|same id|extra keys|markdown fences)/i.test(line))
+    .join("\n")
+    .trim();
+
+  return [
+    resolvedPrompt,
+    "Translate this single text segment. Return only the translated plain text.",
+    "Do not return JSON, Markdown fences, explanations, labels, or comments.",
+    "",
+    "Text:",
+    String(text || "")
+  ].filter((part, index) => part || index > 0).join("\n");
 }
 
 async function requestTranslations(settings, items) {
@@ -1236,6 +1486,8 @@ function isRetriableStatus(status) {
 function buildTranslationPrompt(settings, items) {
   return [
     LLMTranslatorShared.resolveTranslationPrompt(settings),
+    "Return ONLY a JSON array. Each item must be: {\"id\":\"same id\",\"text\":\"translation\"}.",
+    "Do not add explanations, markdown fences, comments, or extra keys.",
     "",
     "Input JSON array:",
     JSON.stringify(items.map((item) => ({ id: item.id, text: item.text })))

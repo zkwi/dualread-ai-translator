@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.6.3";
+  const CONTENT_SCRIPT_VERSION = "0.7.0";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -24,8 +24,10 @@
     observer: null,
     queue: [],
     queuedIds: new Set(),
-    flushTimer: null,
-    flushRunId: null,
+    translationPort: null,
+    streamRequests: new Map(),
+    activeStreams: 0,
+    streamCounter: 0,
     counter: 0,
     settings: null,
     runId: 0,
@@ -42,7 +44,6 @@
     budget: createEmptyBudget(),
     translationVisible: true,
     displayMode: "bilingual",
-    fastFlushUntil: 0,
     stats: createEmptyStats()
   };
 
@@ -52,6 +53,7 @@
   // getCleanText 很贵（递归子树 + 逐元素读样式），同一元素在一次扫描里会被多处调用；
   // 缓存到下一次页面内容变更为止，MutationObserver 里统一失效。
   const cleanTextCache = new WeakMap();
+  const translationTextCache = new WeakMap();
   let cleanTextEpoch = 0;
 
   function invalidateCleanTextCache() {
@@ -235,7 +237,6 @@
     state.stats = createEmptyStats();
     state.budget = createEmptyBudget();
     state.active = true;
-    state.fastFlushUntil = Date.now() + 3000;
     setDisplayMode(state.settings?.displayMode);
     setTranslationVisibility(true);
     injectStyles();
@@ -332,10 +333,9 @@
       state.mutationObserver = null;
     }
 
-    clearTimeout(state.flushTimer);
     clearTimeout(state.mutationScanTimer);
     clearTimeout(state.viewportScanTimer);
-    state.flushRunId = null;
+    closeTranslationPort();
     state.mutationScanTimer = null;
     state.queue = [];
     state.queuedIds.clear();
@@ -352,6 +352,9 @@
     setTranslationVisibility(true);
 
     document.querySelectorAll(".llm-bilingual-translation").forEach((node) => node.remove());
+    document.querySelectorAll("[data-llm-translator-layout]").forEach((node) => {
+      delete node.dataset.llmTranslatorLayout;
+    });
     document.querySelectorAll("[data-llm-translator-id]").forEach((node) => {
       delete node.dataset.llmTranslatorId;
       delete node.dataset.llmTranslatorStatus;
@@ -405,7 +408,7 @@
           continue;
         }
 
-        const text = getCleanText(block);
+        const text = getTranslationText(block, costSettings);
         const textKey = text.toLowerCase();
         if (!seenTexts.has(textKey) && isCandidateElement(block, costSettings, text)) {
           seenTexts.add(textKey);
@@ -435,13 +438,22 @@
 
   function collectViewportCandidateElements(scanRoot, costSettings, maxResults, options = {}) {
     const sampled = collectSampledViewportCandidateElements(scanRoot, costSettings, maxResults);
-    if (sampled.candidates.length > 0) return sampled.candidates;
+    if (sampled.candidates.length > 0) {
+      if (!options.allowSelectorFallbackWhenSampled) return sampled.candidates;
+
+      const supplemented = collectSelectorViewportCandidateElements(scanRoot, costSettings, maxResults);
+      return mergeUniqueElements(sampled.candidates, supplemented, maxResults);
+    }
 
     // 采样已经命中可读块但全被翻译/过滤时，视口内没有新内容；
     // 跳过全页选择器兜底，避免长页面逐块测量布局。
     if (sampled.sawReadableBlock && !options.allowSelectorFallbackWhenSampled) return [];
 
     return collectSelectorViewportCandidateElements(scanRoot, costSettings, maxResults);
+  }
+
+  function mergeUniqueElements(primary, secondary, maxResults) {
+    return Array.from(new Set([...(primary || []), ...(secondary || [])])).slice(0, maxResults);
   }
 
   function collectSampledViewportCandidateElements(scanRoot, costSettings, maxResults) {
@@ -515,7 +527,7 @@
       const block = findImmediateReadableBlock(element, costSettings);
       if (!block || candidates.has(block) || !isElementNearActiveViewport(block)) continue;
 
-      const text = getCleanText(block);
+      const text = getTranslationText(block, costSettings);
       const textKey = text.toLowerCase();
       if (seenTexts.has(textKey) || !isCandidateElement(block, costSettings, text)) continue;
 
@@ -673,7 +685,7 @@
     if (block.dataset.llmTranslatorStatus) return false;
     if (!isElementInActiveViewport(block)) return false;
 
-    const text = getCleanText(block);
+    const text = getTranslationText(block, costSettings);
     const textKey = text.toLowerCase();
     if (seenTexts.has(textKey) || !isCandidateElement(block, costSettings, text)) return true;
 
@@ -736,6 +748,7 @@
     }
     if (existingState.observer) existingState.observer.disconnect();
     if (existingState.mutationObserver) existingState.mutationObserver.disconnect();
+    if (existingState.translationPort) existingState.translationPort.disconnect();
     if (existingState.flushTimer) clearTimeout(existingState.flushTimer);
     if (existingState.mutationScanTimer) clearTimeout(existingState.mutationScanTimer);
     if (existingState.viewportScanTimer) clearTimeout(existingState.viewportScanTimer);
@@ -864,7 +877,13 @@
     if (redditTitle) return redditTitle;
 
     const redditTextBody = findRedditTextBodyElement(element);
-    if (redditTextBody && !isOversizedRedditTextBody(redditTextBody, costSettings)) return redditTextBody;
+    if (redditTextBody && (
+      findClippedReadableContainer(redditTextBody)
+      || !isOversizedRedditTextBody(redditTextBody, costSettings)
+    )) return redditTextBody;
+
+    const clippedPreview = findClippedReadableAncestor(element);
+    if (clippedPreview) return clippedPreview;
 
     const articleHeadlineLink = findArticleHeadlineLinkElement(element);
     if (articleHeadlineLink) return articleHeadlineLink;
@@ -931,7 +950,7 @@
     if (element.closest(".llm-bilingual-translation")) return false;
     if (element.querySelector(".llm-bilingual-translation")) return false;
 
-    const text = knownText === null ? getCleanText(element) : knownText;
+    const text = knownText === null ? getTranslationText(element, costSettings) : knownText;
     if (text.length < getMinimumCandidateTextLength(element) || text.length > costSettings.maxTextLength) return false;
     if (isSiteMetadataCandidate(element, text)) return false;
     if (isShortLowInformationLinkCandidate(element, text)) return false;
@@ -1254,10 +1273,9 @@
   }
 
   function cancelPendingViewportWork() {
-    // 用户已经进入完全不同的阅读区域时，让旧批次失效，优先服务当前视口。
+    // 用户已经进入完全不同的阅读区域时，让旧请求失效，优先服务当前视口。
     state.runId += 1;
-    clearTimeout(state.flushTimer);
-    state.flushRunId = null;
+    closeTranslationPort();
     state.queue.forEach((element) => resetPendingElement(element, { releaseBudget: true }));
     state.queue = [];
     state.queuedIds.clear();
@@ -1291,14 +1309,18 @@
     const placement = element.dataset.llmTranslatorPlacement
       || LLMTranslatorShared.getTranslationPlacement(element.tagName);
     const node = findExistingTranslationNode(element, placement);
-    if (node) node.remove();
+    if (node) {
+      const layoutContainer = node.parentElement;
+      node.remove();
+      clearUnusedTranslationLayoutMarker(layoutContainer);
+    }
 
     delete element.dataset.llmTranslatorStatus;
     delete element.dataset.llmTranslatorPlacement;
   }
 
   function releaseReservedBudget(element) {
-    const textLength = normalizeText(getCleanText(element)).length;
+    const textLength = normalizeText(getTranslationText(element)).length;
     state.budget.requests = Math.max(0, state.budget.requests - 1);
     state.budget.chars = Math.max(0, state.budget.chars - textLength);
   }
@@ -1367,7 +1389,6 @@
 
     state.settings = options.settings || await chrome.runtime.sendMessage({ action: "get_settings" });
     refreshPageLanguageContext(state.settings);
-    state.fastFlushUntil = Date.now() + 3000;
     setTranslationVisibility(true);
     const elements = scanViewport(document, { immediate: true, deferFullScan: true });
     return { ok: true, count: elements.length, stats: state.stats };
@@ -1410,7 +1431,7 @@
     clearTimeout(state.viewportScanTimer);
     state.viewportScanTimer = setTimeout(() => {
       if (!state.active) return;
-      scanViewport(root);
+      scanViewport(root, { deferFullScan: true });
     }, LLMTranslatorShared.getViewportScanDebounceMs());
   }
 
@@ -1532,7 +1553,7 @@
     const id = ensureElementId(element);
     if (state.queuedIds.has(id)) return;
 
-    const text = getCleanText(element);
+    const text = getTranslationText(element);
     if (!reserveTranslationBudget(text)) {
       setElementStatus(element, "skipped-budget");
       state.stats.skippedBudget += 1;
@@ -1543,113 +1564,146 @@
     state.queue.push(element);
     setLoading(element);
     state.stats.queued += 1;
+    flushQueue();
+  }
 
-    if (shouldFlushQueueNow()) {
-      flushQueue();
+  function flushQueue() {
+    pumpTranslationQueue();
+  }
+
+  function pumpTranslationQueue() {
+    if (!state.active) return;
+    const maxConcurrent = LLMTranslatorShared.normalizeCostSettings(state.settings).maxConcurrentBatches;
+
+    while (state.activeStreams < maxConcurrent && state.queue.length > 0) {
+      const element = state.queue.shift();
+      const streamRunId = state.runId;
+      state.activeStreams += 1;
+      translateStreamElement(element, streamRunId)
+        .finally(() => {
+          state.activeStreams = Math.max(0, state.activeStreams - 1);
+          pumpTranslationQueue();
+        });
+    }
+  }
+
+  function ensureTranslationPort() {
+    if (state.translationPort) return state.translationPort;
+
+    const port = chrome.runtime.connect({ name: "llm-translation-stream" });
+    state.translationPort = port;
+    port.onMessage.addListener(handleTranslationStreamMessage);
+    port.onDisconnect.addListener(() => {
+      if (state.translationPort !== port) return;
+      state.translationPort = null;
+      for (const [requestId, request] of Array.from(state.streamRequests.entries())) {
+        if (state.active && request.runId === state.runId) {
+          setError(request.element, t("errorTranslationFailed", [], "翻译连接已断开，请点击重试。"));
+        }
+        settleStreamRequest(requestId);
+      }
+    });
+    return port;
+  }
+
+  function translateStreamElement(element, streamRunId) {
+    const id = ensureElementId(element);
+    const requestId = `${id}:${streamRunId}:${++state.streamCounter}`;
+
+    return new Promise((resolve) => {
+      const request = {
+        element,
+        runId: streamRunId,
+        text: "",
+        counted: false,
+        resolve
+      };
+      state.streamRequests.set(requestId, request);
+
+      try {
+        ensureTranslationPort().postMessage({
+          type: "translate",
+          requestId,
+          runId: streamRunId,
+          item: { id, text: getTranslationText(element) }
+        });
+      } catch (error) {
+        if (state.active && streamRunId === state.runId) {
+          setError(element, error?.message || t("errorTranslationFailed", [], "翻译失败。"));
+        }
+        settleStreamRequest(requestId);
+      }
+    });
+  }
+
+  function handleTranslationStreamMessage(message) {
+    const requestId = String(message?.requestId || "");
+    const request = state.streamRequests.get(requestId);
+    if (!request) return;
+
+    if (!state.active || request.runId !== state.runId || Number(message.runId) !== request.runId) {
+      settleStreamRequest(requestId);
       return;
     }
 
-    clearTimeout(state.flushTimer);
-    state.flushTimer = setTimeout(flushQueue, Date.now() < state.fastFlushUntil ? 120 : 700);
-  }
-
-  function shouldFlushQueueNow() {
-    const { batchSize, maxCharsPerBatch } = getBatchLimits();
-    return state.queue.length >= batchSize || getQueuedTextLength(state.queue) >= maxCharsPerBatch;
-  }
-
-  function getBatchLimits() {
-    const costSettings = LLMTranslatorShared.normalizeCostSettings(state.settings);
-    return {
-      batchSize: Math.max(1, Math.min(20, Number(state.settings?.batchSize) || 8)),
-      maxCharsPerBatch: costSettings.maxCharsPerBatch,
-      maxConcurrentBatches: costSettings.maxConcurrentBatches
-    };
-  }
-
-  function getQueuedTextLength(elements) {
-    return elements.reduce((sum, element) => sum + getCleanText(element).length, 0);
-  }
-
-  function takeNextBatchElements() {
-    const { batchSize, maxCharsPerBatch } = getBatchLimits();
-    const elements = [];
-    let charCount = 0;
-
-    while (state.queue.length > 0 && elements.length < batchSize) {
-      const element = state.queue[0];
-      const textLength = getCleanText(element).length;
-      if (elements.length > 0 && charCount + textLength > maxCharsPerBatch) break;
-
-      elements.push(state.queue.shift());
-      charCount += textLength;
-      if (charCount >= maxCharsPerBatch) break;
+    if (message.type === "delta") {
+      request.text = typeof message.text === "string"
+        ? message.text
+        : request.text + String(message.delta || "");
+      if (!request.counted) {
+        request.counted = true;
+        state.stats.apiRequested += 1;
+      }
+      setStreamingTranslation(request.element, request.text);
+      return;
     }
 
-    return elements;
-  }
+    if (message.type === "cached") {
+      state.stats.cacheHits += 1;
+      setTranslation(request.element, message.text || "");
+      settleStreamRequest(requestId);
+      return;
+    }
 
-  async function flushQueue() {
-    clearTimeout(state.flushTimer);
-    if (!state.active || state.queue.length === 0) return;
-    if (state.flushRunId === state.runId) return;
+    if (message.type === "done") {
+      if (!request.counted) state.stats.apiRequested += 1;
+      setTranslation(request.element, message.text || request.text);
+      settleStreamRequest(requestId);
+      return;
+    }
 
-    // 小并发能减少首屏等待，但限制在 1-3，避免同一页面把模型接口打满。
-    const flushRunId = state.runId;
-    state.flushRunId = flushRunId;
-
-    try {
-      while (state.active && flushRunId === state.runId && state.queue.length > 0) {
-        const { maxConcurrentBatches } = getBatchLimits();
-        const batches = [];
-
-        while (batches.length < maxConcurrentBatches && state.queue.length > 0) {
-          const elements = takeNextBatchElements();
-          if (elements.length === 0) break;
-          batches.push(elements);
-        }
-
-        if (batches.length === 0) return;
-        await Promise.all(batches.map((elements) => translateBatchElements(elements, flushRunId)));
-      }
-    } finally {
-      if (state.flushRunId === flushRunId) {
-        state.flushRunId = null;
-      }
+    if (message.type === "error") {
+      if (!request.counted) state.stats.apiRequested += 1;
+      setError(request.element, message.error || t("errorTranslationFailed", [], "翻译失败。"));
+      settleStreamRequest(requestId);
     }
   }
 
-  async function translateBatchElements(elements, flushRunId) {
-    const items = elements.map((element) => ({
-      id: ensureElementId(element),
-      text: getCleanText(element)
-    }));
+  function settleStreamRequest(requestId) {
+    const request = state.streamRequests.get(requestId);
+    if (!request) return;
+    state.streamRequests.delete(requestId);
+    request.resolve();
+  }
+
+  function closeTranslationPort() {
+    const port = state.translationPort;
+    state.translationPort = null;
+
+    for (const [requestId, request] of Array.from(state.streamRequests.entries())) {
+      try {
+        port?.postMessage({ type: "cancel", requestId });
+      } catch (error) {
+        // Port 可能已由后台断开，本地仍需释放队列槽位。
+      }
+      state.streamRequests.delete(requestId);
+      request.resolve();
+    }
 
     try {
-      const response = await chrome.runtime.sendMessage({
-        action: "translate_batch",
-        items
-      });
-
-      if (!state.active || flushRunId !== state.runId) return;
-
-      state.stats.apiRequested += Number(response?.meta?.requested) || 0;
-      state.stats.cacheHits += Number(response?.meta?.cacheHits) || 0;
-
-      const results = response?.results || [];
-      const byId = new Map(results.map((result) => [String(result.id), result]));
-
-      for (const element of elements) {
-        const result = byId.get(element.dataset.llmTranslatorId);
-        if (!result || result.error) {
-          setError(element, result?.error || response?.error || t("errorTranslationFailed", [], "翻译失败。"));
-        } else {
-          setTranslation(element, result.text);
-        }
-      }
+      port?.disconnect();
     } catch (error) {
-      if (!state.active || flushRunId !== state.runId) return;
-      elements.forEach((element) => setError(element, error.message));
+      // 已断开的 Port 无需重复处理。
     }
   }
 
@@ -1668,6 +1722,93 @@
     const text = computeCleanText(element);
     cleanTextCache.set(element, { epoch: cleanTextEpoch, text });
     return text;
+  }
+
+  function getTranslationText(element, costSettings = LLMTranslatorShared.normalizeCostSettings(state.settings)) {
+    const maxTextLength = costSettings.maxTextLength;
+    const cached = translationTextCache.get(element);
+    if (cached && cached.epoch === cleanTextEpoch && cached.maxTextLength === maxTextLength) {
+      return cached.text;
+    }
+
+    const cleanText = getCleanText(element);
+    const text = isClippedTranslationSource(element)
+      ? truncateTextAtBoundary(cleanText, maxTextLength)
+      : cleanText;
+    translationTextCache.set(element, {
+      epoch: cleanTextEpoch,
+      maxTextLength,
+      text
+    });
+    return text;
+  }
+
+  function isClippedTranslationSource(element) {
+    return !!element && (
+      isVisuallyClipped(element)
+      || !!findClippedReadableContainer(element)
+    );
+  }
+
+  function findClippedReadableContainer(root) {
+    if (!root?.querySelectorAll) return null;
+    if (isVisuallyClipped(root)) return root;
+
+    const candidates = root.querySelectorAll("div,section,article,p,blockquote");
+    const maxCandidates = Math.min(candidates.length, 48);
+    for (let index = 0; index < maxCandidates; index += 1) {
+      if (isVisuallyClipped(candidates[index])) return candidates[index];
+    }
+    return null;
+  }
+
+  function findClippedReadableAncestor(element) {
+    if (!element?.closest) return null;
+
+    let current = element;
+    while (current && current !== document.body && current !== document.documentElement) {
+      if (isVisuallyClipped(current)) {
+        const text = getCleanText(current);
+        return text.length >= getMinimumGenericTextLength() && hasCandidateLanguageSignal(text)
+          ? current
+          : null;
+      }
+      current = current.parentElement;
+    }
+    return null;
+  }
+
+  function isVisuallyClipped(element) {
+    if (!element || element.clientHeight <= 0) return false;
+
+    const style = window.getComputedStyle(element);
+    const lineClamp = String(style.webkitLineClamp || "").trim();
+    if (lineClamp && lineClamp !== "none" && lineClamp !== "0") return true;
+
+    const clipsOverflow = [style.overflow, style.overflowY]
+      .some((value) => value === "hidden" || value === "clip");
+    return clipsOverflow && element.scrollHeight > element.clientHeight + 1;
+  }
+
+  function truncateTextAtBoundary(text, maxLength) {
+    const clean = String(text || "").trim();
+    if (clean.length <= maxLength) return clean;
+
+    const prefix = clean.slice(0, maxLength);
+    const sentenceBoundary = Math.max(
+      prefix.lastIndexOf(". "),
+      prefix.lastIndexOf("! "),
+      prefix.lastIndexOf("? "),
+      prefix.lastIndexOf("。"),
+      prefix.lastIndexOf("！"),
+      prefix.lastIndexOf("？")
+    );
+    if (sentenceBoundary >= Math.floor(maxLength * 0.5)) {
+      return prefix.slice(0, sentenceBoundary + 1).trim();
+    }
+
+    const whitespaceBoundary = Math.max(prefix.lastIndexOf(" "), prefix.lastIndexOf("\n"));
+    return prefix.slice(0, whitespaceBoundary > 0 ? whitespaceBoundary : maxLength).trim();
   }
 
   function computeCleanText(element) {
@@ -1880,7 +2021,8 @@
 
   function ensureTranslationNode(element) {
     const placement = LLMTranslatorShared.getTranslationPlacement(element.tagName);
-    const insertionTarget = getTranslationInsertionTarget(element, placement);
+    const context = getTranslationContext(element, placement);
+    const insertionTarget = context.anchor;
     let node = findExistingTranslationNode(element, placement, insertionTarget);
 
     if (!node) {
@@ -1901,8 +2043,40 @@
     element.dataset.llmTranslatorPlacement = placement;
     node.dir = "auto";
     syncTranslationSlot(node, insertionTarget);
+    applyTranslationLayout(node, context);
     node.dataset.llmTranslatorLocalTheme = detectElementTheme(element);
     return node;
+  }
+
+  function getTranslationContext(element, placement) {
+    return {
+      anchor: getTranslationInsertionTarget(element, placement),
+      placement
+    };
+  }
+
+  function applyTranslationLayout(node, context) {
+    const container = node?.parentElement;
+    if (!container) return;
+
+    const display = window.getComputedStyle(container).display;
+    let layoutMode = "block";
+    if (display === "flex" || display === "inline-flex") {
+      layoutMode = "stacked-flex";
+    } else if (display === "grid" || display === "inline-grid") {
+      layoutMode = "stacked-grid";
+    }
+
+    if (layoutMode === "block") return;
+
+    container.dataset.llmTranslatorLayout = layoutMode;
+    context.layoutMode = layoutMode;
+  }
+
+  function clearUnusedTranslationLayoutMarker(container) {
+    if (!container?.dataset?.llmTranslatorLayout) return;
+    if (container.querySelector?.(":scope > .llm-bilingual-translation")) return;
+    delete container.dataset.llmTranslatorLayout;
   }
 
   function findExistingTranslationNode(element, placement, insertionTarget = null) {
@@ -1928,12 +2102,24 @@
     const redditTarget = findRedditTextBodyInsertionTarget(element);
     if (redditTarget) return redditTarget;
 
+    const clippedTarget = findClippedTranslationInsertionTarget(element);
+    if (clippedTarget) return clippedTarget;
+
     const hackerNewsTarget = findHackerNewsTitleInsertionTarget(element);
     if (hackerNewsTarget) return hackerNewsTarget;
 
     if (placement !== "inside" || element.tagName !== "LI") return element;
 
     return findPrimaryListItemLink(element) || element;
+  }
+
+  function findClippedTranslationInsertionTarget(element) {
+    const clipped = isVisuallyClipped(element)
+      ? element
+      : findClippedReadableAncestor(element);
+    if (!clipped) return null;
+
+    return clipped.closest?.("a[href]") || clipped;
   }
 
   function findHackerNewsTitleInsertionTarget(element) {
@@ -2045,6 +2231,14 @@
     const node = ensureTranslationNode(element);
     node.className = "llm-bilingual-translation is-loading";
     node.textContent = t("contentLoading", [], "翻译中...");
+    clearRetryInteraction(node);
+    setElementStatus(element, "loading");
+  }
+
+  function setStreamingTranslation(element, text) {
+    const node = ensureTranslationNode(element);
+    node.className = "llm-bilingual-translation is-streaming";
+    node.textContent = text;
     clearRetryInteraction(node);
     setElementStatus(element, "loading");
   }
@@ -2175,6 +2369,15 @@
         unicode-bidi: plaintext !important;
         text-align: start !important;
         writing-mode: horizontal-tb !important;
+      }
+      [data-llm-translator-layout="stacked-flex"] {
+        flex-wrap: wrap !important;
+      }
+      [data-llm-translator-layout="stacked-flex"] > .llm-bilingual-translation {
+        flex: 0 0 100% !important;
+      }
+      [data-llm-translator-layout="stacked-grid"] > .llm-bilingual-translation {
+        grid-column: 1 / -1 !important;
       }
       :root[data-llm-translator-visibility="hidden"] .llm-bilingual-translation {
         display: none !important;

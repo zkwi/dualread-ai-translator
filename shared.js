@@ -37,9 +37,7 @@
   const DEFAULT_TRANSLATION_PROMPT = [
     "Translate the following webpage text from {{sourceLanguage}} to {{targetLanguage}}.",
     "Keep meaning, tone, names, numbers, URLs, and code unchanged.",
-    "Preserve paragraph breaks, line breaks, and bullet/list structure.",
-    "Return ONLY a JSON array. Each item must be: {\"id\":\"same id\",\"text\":\"translation\"}.",
-    "Do not add explanations, markdown fences, comments, or extra keys."
+    "Preserve paragraph breaks, line breaks, and bullet/list structure."
   ].join("\n");
   const COST_PROFILES = {
     economy: {
@@ -101,6 +99,13 @@
   };
   const LEGACY_DEFAULT_API_TIMEOUT_MS = [25000, 45000, 90000];
   const LEGACY_DEFAULT_TRANSLATION_PROMPTS = [
+    [
+      "Translate the following webpage text from {{sourceLanguage}} to {{targetLanguage}}.",
+      "Keep meaning, tone, names, numbers, URLs, and code unchanged.",
+      "Preserve paragraph breaks, line breaks, and bullet/list structure.",
+      "Return ONLY a JSON array. Each item must be: {\"id\":\"same id\",\"text\":\"translation\"}.",
+      "Do not add explanations, markdown fences, comments, or extra keys."
+    ].join("\n"),
     [
       "Translate the following webpage text from {{sourceLanguage}} to {{targetLanguage}}.",
       "Keep meaning, tone, names, numbers, URLs, and code unchanged.",
@@ -241,6 +246,10 @@
 
     if (provider === "dashscope" || isDashScopeEndpoint(apiUrl)) {
       return THINKING_STRATEGIES.DASHSCOPE_ENABLE_THINKING;
+    }
+
+    if (apiUrl.includes("volces.com") || model.includes("doubao")) {
+      return THINKING_STRATEGIES.THINKING_DISABLED;
     }
 
     if (provider === "deepseek" || isDeepSeekLikeModel(model)) {

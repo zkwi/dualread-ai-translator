@@ -114,7 +114,7 @@
     "message": "測試請求沒有傳回譯文。"
   },
   "errorTranslationFailed": {
-    "message": "翻譯失敗。"
+    "message": "翻譯連線已断開，請點擊重試。"
   },
   "errorTranslationStartFailed": {
     "message": "翻譯啟動失敗。"
@@ -203,6 +203,9 @@
   "messageApiTestFailed": {
     "message": "API 測試失敗。"
   },
+  "messageApiTestFallback": {
+    "message": "API 可用，但不支援流式输出，将使用非流式翻譯。測試譯文：$1"
+  },
   "messageApiTestSuccess": {
     "message": "API 可用，測試譯文：$1"
   },
@@ -258,7 +261,7 @@
     "message": "進階設定"
   },
   "optionsAdvancedSettingsDesc": {
-    "message": "提示詞、批次、並發、快取和細粒度成本參數"
+    "message": "提示詞、流式並發、快取和細粒度成本參數"
   },
   "optionsApiKeyHelp": {
     "message": "只儲存在本機 Chrome 擴充功能儲存中，不會上傳到本專案伺服器。"
@@ -333,10 +336,10 @@
     "message": "本頁最多請求字元数"
   },
   "optionsMaxConcurrentBatches": {
-    "message": "並發請求批次数"
+    "message": "同時翻譯段落数"
   },
   "optionsMaxConcurrentHelp": {
-    "message": "建议 2；網路和 API 稳定時可设為 3。"
+    "message": "建议 2；每个段落會独立流式顯示，介面稳定時可设為 3。"
   },
   "optionsMaxElementsPerScan": {
     "message": "每輪最多段落数"
@@ -360,7 +363,7 @@
     "message": "提示詞"
   },
   "optionsPromptHelp": {
-    "message": "支援 {{sourceLanguage}} 和 {{targetLanguage}} 佔位符。請求時會自動附加待翻譯文字的 JSON 陣列。"
+    "message": "支援 {{sourceLanguage}} 和 {{targetLanguage}} 佔位符。網頁正文會逐段以纯文字流式翻譯。"
   },
   "optionsProvider": {
     "message": "服務商"

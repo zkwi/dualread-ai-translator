@@ -43,6 +43,7 @@ assert.strictEqual(shared.getViewportScanDebounceMs(), 300);
 assert.strictEqual(shared.getMouseMoveScanThresholdPx(), 120);
 assert.strictEqual(shared.getViewportMaxElementsPerScan(), 24);
 assert.match(shared.DEFAULT_TRANSLATION_PROMPT, /line breaks/i);
+assert.doesNotMatch(shared.DEFAULT_TRANSLATION_PROMPT, /JSON array/i);
 assert.strictEqual(
   shared.isLegacyDefaultTranslationPrompt([
     "Translate the following webpage text from {{sourceLanguage}} to {{targetLanguage}}.",
@@ -250,6 +251,25 @@ assert.match(
     translationPrompt: "Translate from {{sourceLanguage}} to {{targetLanguage}} in a concise style."
   }),
   /English to 简体中文/
+);
+
+assert.strictEqual(
+  shared.getEffectiveThinkingStrategy({
+    provider: "custom",
+    apiUrl: "https://ark.cn-beijing.volces.com/api/plan/v3",
+    model: "doubao-seed-2.0-mini",
+    thinkingStrategy: "auto"
+  }),
+  shared.THINKING_STRATEGIES.THINKING_DISABLED
+);
+assert.strictEqual(
+  shared.getEffectiveThinkingStrategy({
+    provider: "custom",
+    apiUrl: "https://example.com/v1",
+    model: "doubao-seed-2.0-mini",
+    thinkingStrategy: "auto"
+  }),
+  shared.THINKING_STRATEGIES.THINKING_DISABLED
 );
 
 const cacheKeyA = shared.createTranslationCacheKey({

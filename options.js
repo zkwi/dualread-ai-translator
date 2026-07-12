@@ -412,7 +412,10 @@ async function testApi() {
       apiTestPassed = true;
       apiTestError = "";
       updateSetupStatus();
-      showMessage(t("messageApiTestSuccess", [compactStatusText(response.text || "")], `API 可用，测试译文：${compactStatusText(response.text || "")}`));
+      const compactText = compactStatusText(response.text || "");
+      showMessage(response.fallback
+        ? t("messageApiTestFallback", [compactText], `API 可用，但不支持流式输出，将使用非流式翻译。测试译文：${compactText}`)
+        : t("messageApiTestSuccess", [compactText], `API 可用，测试译文：${compactText}`));
     });
   } finally {
     actionButtons.test.textContent = originalText || t("optionsTestApi", [], "测试 API");
