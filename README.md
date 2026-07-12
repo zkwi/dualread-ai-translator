@@ -54,7 +54,7 @@ Open the extension popup, click **Open settings**, then configure:
 ```text
 Provider: OpenAI / DeepSeek / DashScope / Local compatible service / Custom
 API Key: your own provider key
-Model: for example gpt-4o-mini or deepseek-chat
+Model: for example gpt-4o-mini or deepseek-v4-flash
 API URL: an OpenAI-compatible Chat Completions endpoint
 ```
 
@@ -62,16 +62,18 @@ Common API URLs:
 
 ```text
 OpenAI    https://api.openai.com/v1/chat/completions
-DeepSeek  https://api.deepseek.com/v1/chat/completions
+DeepSeek  https://api.deepseek.com/chat/completions
 DashScope https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
 Local     http://localhost:8000/v1/chat/completions
 ```
 
 Settings are saved automatically. The project does not include or require any developer-owned API key.
 
-UI language is configured separately from translation languages. You can keep the interface in English while translating English to Simplified Chinese, Japanese to Traditional Chinese, or any other provider-supported direction.
+The settings page shows only API connection, translation languages, auto-translate, and display controls by default. Interface language, custom endpoint, Thinking override, prompt, concurrency, and maintenance actions live in a collapsed **Advanced settings** section, which opens automatically for the Custom provider.
 
-Strongly recommended: keep **disable controllable thinking** enabled from **Advanced connection settings**. Thinking/reasoning mode can make translation much slower. **Auto select** does not hard-code providers from the URL or model name. Clicking **Test API** probes the supported control shape and saves the result. Changing the API URL or model requires another test; no extra Thinking field is sent before that test succeeds.
+The interface follows the browser language by default and can be changed in Advanced settings, while translation languages remain independent. You can translate English to Simplified Chinese, Japanese to Traditional Chinese, or any other provider-supported direction.
+
+Strongly recommended: keep **disable controllable thinking** enabled from **Advanced settings**. Thinking/reasoning mode can make translation much slower. **Auto select** does not hard-code providers from the URL or model name. Clicking **Test API** probes the supported control shape and saves the result. Changing the API URL or model requires another test; no extra Thinking field is sent before that test succeeds.
 
 ## Usage
 
@@ -104,7 +106,7 @@ The API key is stored locally in Chrome extension storage. It is not sent to any
 
 ### Can I use a different UI language from the translation target?
 
-Yes. Interface language is independent from source and target languages. The extension UI includes Simplified Chinese, Traditional Chinese, English, and Japanese localization.
+Yes. The interface follows the browser language by default, can be changed in Advanced settings, and remains independent from source and target languages. The extension UI includes Simplified Chinese, Traditional Chinese, English, and Japanese localization.
 
 ## Privacy
 

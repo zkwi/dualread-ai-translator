@@ -5,7 +5,6 @@ const THINKING_STRATEGIES = globalThis.LLMTranslatorShared.THINKING_STRATEGIES;
 const { i18n: t, applyI18n, setUiLanguage } = globalThis.LLMTranslatorShared;
 applyI18n(document);
 const AUTO_SAVE_DELAY_MS = 700;
-const MAX_API_TIMEOUT_SECONDS = 300;
 const PROVIDER_PRESETS = {
   openai: {
     apiUrl: "https://api.openai.com/v1/chat/completions",
@@ -24,16 +23,6 @@ const PROVIDER_PRESETS = {
     model: "Qwen/Qwen3-8B"
   }
 };
-const COST_PROFILES = globalThis.LLMTranslatorShared.COST_PROFILES;
-const COST_PROFILE_FIELDS = new Set([
-  "maxElementsPerScan",
-  "maxTextLength",
-  "maxRequestsPerPage",
-  "maxCharsPerPage",
-  "maxConcurrentBatches",
-  "viewportOnly"
-]);
-
 const fields = {
   provider: document.getElementById("provider"),
   uiLanguage: document.getElementById("uiLanguage"),
@@ -43,32 +32,21 @@ const fields = {
   sourceLanguage: document.getElementById("sourceLanguage"),
   targetLanguage: document.getElementById("targetLanguage"),
   translationPrompt: document.getElementById("translationPrompt"),
-  costProfile: document.getElementById("costProfile"),
-  maxElementsPerScan: document.getElementById("maxElementsPerScan"),
-  maxTextLength: document.getElementById("maxTextLength"),
-  maxRequestsPerPage: document.getElementById("maxRequestsPerPage"),
-  maxCharsPerPage: document.getElementById("maxCharsPerPage"),
   maxConcurrentBatches: document.getElementById("maxConcurrentBatches"),
-  cacheTtlDays: document.getElementById("cacheTtlDays"),
-  maxCacheEntries: document.getElementById("maxCacheEntries"),
-  apiTimeoutMs: document.getElementById("apiTimeoutMs"),
   disableThinking: document.getElementById("disableThinking"),
   thinkingStrategy: document.getElementById("thinkingStrategy"),
   autoTranslate: document.getElementById("autoTranslate"),
-  displayMode: document.getElementById("displayMode"),
-  viewportOnly: document.getElementById("viewportOnly")
+  displayMode: document.getElementById("displayMode")
 };
 
 const messageEl = document.getElementById("message");
 const providerHintEl = document.getElementById("providerHint");
-const costProfileHintEl = document.getElementById("costProfileHint");
 const thinkingHintEl = document.getElementById("thinkingHint");
+const advancedSettingsEl = document.getElementById("advancedSettings");
 const saveStateEl = document.getElementById("saveState");
 const setupStatusEl = document.getElementById("setupStatus");
 const languageStatusEl = document.getElementById("languageStatus");
-const languagePresetButtons = Array.from(document.querySelectorAll("[data-language-preset]"));
 const actionButtons = {
-  save: document.getElementById("save"),
   test: document.getElementById("test"),
   clearCache: document.getElementById("clearCache"),
   reset: document.getElementById("reset"),
@@ -88,10 +66,8 @@ let thinkingStrategyDetectionKey = "";
 loadSettings().catch(handleLoadSettingsError);
 setupAutoSave();
 setupExitSave();
-setupLanguagePresets();
 setupConnectionShortcuts();
 
-actionButtons.save.addEventListener("click", saveSettings);
 actionButtons.test.addEventListener("click", testApi);
 actionButtons.clearCache.addEventListener("click", clearCache);
 actionButtons.reset.addEventListener("click", async () => {
@@ -127,26 +103,10 @@ actionButtons.toggleApiKey.addEventListener("click", () => {
 fields.provider.addEventListener("change", () => {
   markApiTestDirty();
   applyProviderPreset(fields.provider.value);
+  revealCustomEndpoint(fields.provider.value);
   updateHelperText();
   saveSettingsSoon();
 });
-fields.costProfile.addEventListener("change", () => {
-  applyCostProfile(fields.costProfile.value);
-  updateHelperText();
-  saveSettingsSoon();
-});
-
-function setupLanguagePresets() {
-  languagePresetButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      setSelectValue(fields.sourceLanguage, button.dataset.source || DEFAULT_SETTINGS.sourceLanguage);
-      setSelectValue(fields.targetLanguage, button.dataset.target || DEFAULT_SETTINGS.targetLanguage);
-      updateLanguagePresetButtons();
-      updateLanguageStatus();
-      saveSettingsSoon();
-    });
-  });
-}
 
 function setupConnectionShortcuts() {
   [fields.apiUrl, fields.apiKey, fields.model].forEach((field) => {
@@ -205,6 +165,7 @@ function fillForm(settings) {
   detectedThinkingStrategy = settings.detectedThinkingStrategy || "";
   thinkingStrategyDetectionKey = settings.thinkingStrategyDetectionKey || "";
   fields.provider.value = settings.provider || inferProvider(settings.apiUrl);
+  revealCustomEndpoint(fields.provider.value);
   setSelectValue(fields.uiLanguage, settings.uiLanguage || DEFAULT_SETTINGS.uiLanguage);
   fields.apiUrl.value = settings.apiUrl || DEFAULT_SETTINGS.apiUrl;
   fields.apiKey.value = settings.apiKey || "";
@@ -212,56 +173,25 @@ function fillForm(settings) {
   setSelectValue(fields.sourceLanguage, settings.sourceLanguage || DEFAULT_SETTINGS.sourceLanguage);
   setSelectValue(fields.targetLanguage, settings.targetLanguage || DEFAULT_SETTINGS.targetLanguage);
   fields.translationPrompt.value = settings.translationPrompt || DEFAULT_SETTINGS.translationPrompt;
-  fields.costProfile.value = settings.costProfile || inferCostProfile(settings);
-  fields.maxElementsPerScan.value = settings.maxElementsPerScan || DEFAULT_SETTINGS.maxElementsPerScan;
-  fields.maxTextLength.value = settings.maxTextLength || DEFAULT_SETTINGS.maxTextLength;
-  fields.maxRequestsPerPage.value = settings.maxRequestsPerPage || DEFAULT_SETTINGS.maxRequestsPerPage;
-  fields.maxCharsPerPage.value = settings.maxCharsPerPage || DEFAULT_SETTINGS.maxCharsPerPage;
   fields.maxConcurrentBatches.value = settings.maxConcurrentBatches || DEFAULT_SETTINGS.maxConcurrentBatches;
-  fields.cacheTtlDays.value = settings.cacheTtlDays || DEFAULT_SETTINGS.cacheTtlDays;
-  fields.maxCacheEntries.value = settings.maxCacheEntries || DEFAULT_SETTINGS.maxCacheEntries;
-  fields.apiTimeoutMs.value = msToSeconds(settings.apiTimeoutMs || DEFAULT_SETTINGS.apiTimeoutMs);
   fields.disableThinking.checked = settings.disableThinking === true;
   setSelectValue(fields.thinkingStrategy, settings.thinkingStrategy || DEFAULT_SETTINGS.thinkingStrategy);
   fields.autoTranslate.checked = settings.autoTranslate === true;
   setSelectValue(fields.displayMode, settings.displayMode || DEFAULT_SETTINGS.displayMode);
-  fields.viewportOnly.checked = settings.viewportOnly !== false;
   updateApiKeyToggleText();
-  updateLanguagePresetButtons();
   updateLanguageStatus();
   updateHelperText();
   updateSetupStatus();
   updateActionAvailability();
 }
 
-async function saveSettings() {
-  clearPendingAutoSave();
-  await runOptionAction(async () => {
-    const settings = readFormSettings();
-
-    if (!settings.apiUrl || !settings.model) {
-      showMessage(t("messageApiUrlModelRequired", [], "API 地址和模型名称不能为空。"), true);
-      return;
-    }
-
-    await chrome.storage.local.set(settings);
-    showMessage(t("messageSettingsSaved", [], "设置已保存。"));
-  });
-}
-
 function setupAutoSave() {
   for (const [name, field] of Object.entries(fields)) {
-    if (field === fields.provider || field === fields.costProfile) continue;
-    const markCustomCostProfile = () => {
-      if (COST_PROFILE_FIELDS.has(name)) {
-        fields.costProfile.value = "custom";
-      }
-    };
+    if (field === fields.provider) continue;
     if (field.type === "checkbox") {
-      field.addEventListener("change", () => {
+      field.addEventListener("change", async () => {
         if (isConnectionField(name)) markApiTestDirty();
-        markCustomCostProfile();
-        if (isLanguageField(name)) updateLanguagePresetButtons();
+        if (isUiLanguageField(name)) await applyUiLanguage(field.value);
         if (isLanguageField(name)) updateLanguageStatus();
         updateHelperText();
         updateSetupStatus();
@@ -271,8 +201,6 @@ function setupAutoSave() {
     } else {
       field.addEventListener("input", () => {
         if (isConnectionField(name)) markApiTestDirty();
-        markCustomCostProfile();
-        if (isLanguageField(name)) updateLanguagePresetButtons();
         if (isLanguageField(name)) updateLanguageStatus();
         updateHelperText();
         updateSetupStatus();
@@ -281,9 +209,7 @@ function setupAutoSave() {
       });
       field.addEventListener("change", async () => {
         if (isConnectionField(name)) markApiTestDirty();
-        markCustomCostProfile();
         if (isUiLanguageField(name)) await applyUiLanguage(field.value);
-        if (isLanguageField(name)) updateLanguagePresetButtons();
         if (isLanguageField(name)) updateLanguageStatus();
         updateHelperText();
         updateSetupStatus();
@@ -458,20 +384,11 @@ function readFormSettings() {
     sourceLanguage: fields.sourceLanguage.value.trim() || DEFAULT_SETTINGS.sourceLanguage,
     targetLanguage: fields.targetLanguage.value.trim() || DEFAULT_SETTINGS.targetLanguage,
     translationPrompt: fields.translationPrompt.value.trim() || DEFAULT_SETTINGS.translationPrompt,
-    costProfile: fields.costProfile.value || DEFAULT_SETTINGS.costProfile,
-    maxElementsPerScan: Math.max(1, Math.min(60, Number(fields.maxElementsPerScan.value) || DEFAULT_SETTINGS.maxElementsPerScan)),
-    maxTextLength: Math.max(200, Math.min(4000, Number(fields.maxTextLength.value) || DEFAULT_SETTINGS.maxTextLength)),
-    maxRequestsPerPage: Math.max(1, Math.min(300, Number(fields.maxRequestsPerPage.value) || DEFAULT_SETTINGS.maxRequestsPerPage)),
-    maxCharsPerPage: Math.max(1000, Math.min(200000, Number(fields.maxCharsPerPage.value) || DEFAULT_SETTINGS.maxCharsPerPage)),
     maxConcurrentBatches: Math.max(1, Math.min(3, Number(fields.maxConcurrentBatches.value) || DEFAULT_SETTINGS.maxConcurrentBatches)),
-    cacheTtlDays: Math.max(1, Math.min(365, Number(fields.cacheTtlDays.value) || DEFAULT_SETTINGS.cacheTtlDays)),
-    maxCacheEntries: Math.max(100, Math.min(10000, Number(fields.maxCacheEntries.value) || DEFAULT_SETTINGS.maxCacheEntries)),
-    apiTimeoutMs: secondsToMs(fields.apiTimeoutMs.value),
     disableThinking: fields.disableThinking.checked,
     thinkingStrategy: globalThis.LLMTranslatorShared.normalizeThinkingStrategy(fields.thinkingStrategy.value),
     autoTranslate: fields.autoTranslate.checked,
-    displayMode: fields.displayMode.value || DEFAULT_SETTINGS.displayMode,
-    viewportOnly: fields.viewportOnly.checked
+    displayMode: fields.displayMode.value || DEFAULT_SETTINGS.displayMode
   };
 
   return settings;
@@ -522,6 +439,12 @@ function applyProviderPreset(provider) {
   setSelectValue(fields.thinkingStrategy, DEFAULT_SETTINGS.thinkingStrategy);
   updateSetupStatus();
   updateActionAvailability();
+}
+
+function revealCustomEndpoint(provider) {
+  if (provider === "custom" && advancedSettingsEl) {
+    advancedSettingsEl.open = true;
+  }
 }
 
 async function applyUiLanguage(uiLanguage) {
@@ -595,24 +518,9 @@ function joinList(items) {
   return items.join(t("listSeparator", [], "、"));
 }
 
-function applyCostProfile(profile) {
-  const preset = COST_PROFILES[profile];
-  if (!preset) return;
-
-  fields.maxElementsPerScan.value = preset.maxElementsPerScan;
-  fields.maxTextLength.value = preset.maxTextLength;
-  fields.maxRequestsPerPage.value = preset.maxRequestsPerPage;
-  fields.maxCharsPerPage.value = preset.maxCharsPerPage;
-  fields.maxConcurrentBatches.value = preset.maxConcurrentBatches;
-  fields.viewportOnly.checked = preset.viewportOnly;
-}
-
 function updateHelperText() {
   if (providerHintEl) {
     providerHintEl.textContent = getProviderHint(fields.provider.value);
-  }
-  if (costProfileHintEl) {
-    costProfileHintEl.textContent = getCostProfileHint(fields.costProfile.value);
   }
   if (thinkingHintEl) {
     updateThinkingControlAvailability();
@@ -648,16 +556,6 @@ function getProviderHint(provider) {
     custom: t("providerHintCustom", [], "用于自定义 OpenAI-compatible 服务；测试 API 时会探测可用的 Thinking 控制参数。")
   };
   return hints[provider] || hints.custom;
-}
-
-function getCostProfileHint(profile) {
-  const hints = {
-    economy: t("costHintEconomy", [], "省 Token 模式会少量预取，适合长页面、直播页或只想粗略阅读时使用。"),
-    balanced: t("costHintBalanced", [], "平衡模式适合日常阅读：控制请求数量，同时会预取当前屏附近的正文。"),
-    eager: t("costHintEager", [], "积极模式会多预取一些内容，阅读更连贯，但 token 消耗也会更高。"),
-    custom: t("costHintCustom", [], "自定义模式会使用你在高级设置中填写的批量、长度和每页预算。")
-  };
-  return hints[profile] || hints.custom;
 }
 
 function getThinkingHint() {
@@ -704,26 +602,6 @@ function getEffectiveThinkingStrategyFromForm() {
   });
 }
 
-function msToSeconds(value) {
-  const ms = Number(value);
-  const fallback = DEFAULT_SETTINGS.apiTimeoutMs / 1000;
-  if (!Number.isFinite(ms) || ms <= 0) return fallback;
-  return Math.max(1, Math.min(MAX_API_TIMEOUT_SECONDS, Math.round(ms / 1000)));
-}
-
-function secondsToMs(value) {
-  const seconds = Math.max(1, Math.min(MAX_API_TIMEOUT_SECONDS, Number(value) || DEFAULT_SETTINGS.apiTimeoutMs / 1000));
-  return Math.round(seconds) * 1000;
-}
-
-function inferCostProfile(settings) {
-  for (const [name, preset] of Object.entries(COST_PROFILES)) {
-    const matches = Object.entries(preset).every(([key, value]) => settings?.[key] === undefined || settings[key] === value);
-    if (matches) return name;
-  }
-  return "custom";
-}
-
 function setSelectValue(select, value) {
   const stringValue = String(value || "");
   if (!Array.from(select.options).some((option) => option.value === stringValue)) {
@@ -733,16 +611,6 @@ function setSelectValue(select, value) {
     select.appendChild(option);
   }
   select.value = stringValue;
-}
-
-function updateLanguagePresetButtons() {
-  const source = fields.sourceLanguage.value;
-  const target = fields.targetLanguage.value;
-  languagePresetButtons.forEach((button) => {
-    const selected = button.dataset.source === source && button.dataset.target === target;
-    button.classList.toggle("is-selected", selected);
-    button.setAttribute("aria-pressed", selected ? "true" : "false");
-  });
 }
 
 function updateLanguageStatus() {

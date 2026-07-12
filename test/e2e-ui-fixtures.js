@@ -15,7 +15,7 @@ async function main() {
 
   try {
     if (process.env.TEST_FILTER === "streaming-settings") {
-      await testOptionsCostProfileUpdatesAdvancedDefaults(browser);
+      await testOptionsOnlyShowsEssentialSettings(browser);
       await testOptionsEnterRunsApiTestWhenReady(browser);
       await testOptionsApiFallbackExplainsNonStreaming(browser);
       return;
@@ -57,16 +57,15 @@ async function main() {
     await testOptionsProviderPresetUpdatesConnection(browser);
     await testOptionsHelpTextUpdates(browser);
     await testOptionsProviderThinkingHints(browser);
-    await testOptionsTimeoutUsesSeconds(browser);
     await testOptionsCanRevealAndHideApiKey(browser);
     await testOptionsDestructiveActionsRequireConfirm(browser);
-    await testOptionsLanguagePresetSaves(browser);
-    await testOptionsLanguagePresetButtons(browser);
+    await testOptionsLanguageSelectionSaves(browser);
     await testOptionsLanguageStatusWarnsOnSameLanguage(browser);
-    await testOptionsUiLanguageIsIndependent(browser);
+    await testOptionsCanChangeInterfaceLanguage(browser);
     await testOptionsEnglishMicrocopyIsUserFacing(browser);
     await testOptionsLayoutDoesNotOverflow(browser);
-    await testOptionsCostProfileUpdatesAdvancedDefaults(browser);
+    await testOptionsOnlyShowsEssentialSettings(browser);
+    await testOptionsPreservesHiddenStoredSettings(browser);
     await testOptionsDisplayModeAutoSaves(browser);
     await testOptionsAdvancedSettingsCanExpand(browser);
     await testOptionsPagehideFlushesPendingApiKey(browser);
@@ -804,6 +803,7 @@ async function testOptionsChangeEventSavesApiKey(browser) {
 async function testOptionsProviderPresetUpdatesConnection(browser) {
   const page = await createOptionsPage(browser);
 
+  await page.click("#advancedSettings summary");
   await page.selectOption("#thinkingStrategy", "dashscope_enable_thinking");
   await page.selectOption("#provider", "deepseek");
   await page.waitForFunction(() => document.getElementById("apiUrl").value === "https://api.deepseek.com/chat/completions");
@@ -820,15 +820,13 @@ async function testOptionsHelpTextUpdates(browser) {
 
   await page.selectOption("#provider", "dashscope");
   await page.waitForFunction(() => document.getElementById("providerHint").textContent.includes("DashScope"));
-
-  await page.selectOption("#costProfile", "eager");
-  await page.waitForFunction(() => document.getElementById("costProfileHint").textContent.includes("积极模式"));
   await page.close();
 }
 
 async function testOptionsProviderThinkingHints(browser) {
   const page = await createOptionsPage(browser);
 
+  await page.click("#advancedSettings summary");
   await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("不会添加"));
   assert.strictEqual(await page.locator("#disableThinking").isChecked(), true);
   assert.strictEqual(await page.locator("#disableThinking").isDisabled(), false);
@@ -870,20 +868,6 @@ async function testOptionsProviderThinkingHints(browser) {
   await savedDeepSeekPage.close();
 }
 
-async function testOptionsTimeoutUsesSeconds(browser) {
-  const page = await createOptionsPage(browser);
-
-  assert.strictEqual(await page.locator("#apiTimeoutMs").inputValue(), "120");
-  assert.strictEqual(await page.locator("#apiTimeoutMs").getAttribute("max"), "300");
-  assert.strictEqual(await page.locator(".connection-settings summary").count(), 0);
-  assert.strictEqual(await page.locator("#apiTimeoutMs").isVisible(), true);
-  await page.fill("#apiTimeoutMs", "299");
-  await page.waitForFunction(() => window.__lastSavedSettings?.apiTimeoutMs === 299000);
-  await page.fill("#apiTimeoutMs", "999");
-  await page.waitForFunction(() => window.__lastSavedSettings?.apiTimeoutMs === 300000);
-  await page.close();
-}
-
 async function testOptionsCanRevealAndHideApiKey(browser) {
   const page = await createOptionsPage(browser);
 
@@ -903,6 +887,7 @@ async function testOptionsCanRevealAndHideApiKey(browser) {
 async function testOptionsDestructiveActionsRequireConfirm(browser) {
   const page = await createOptionsPage(browser);
 
+  await page.click("#advancedSettings summary");
   assert.strictEqual(await page.locator(".actions #clearCache").count(), 0);
   assert.strictEqual(await page.locator(".actions #reset").count(), 0);
   assert.strictEqual(await page.locator(".maintenance-actions #clearCache").count(), 1);
@@ -929,27 +914,12 @@ async function testOptionsDestructiveActionsRequireConfirm(browser) {
   await page.close();
 }
 
-async function testOptionsLanguagePresetSaves(browser) {
+async function testOptionsLanguageSelectionSaves(browser) {
   const page = await createOptionsPage(browser);
 
   await page.selectOption("#targetLanguage", "English");
   await page.waitForFunction(() => window.__lastSavedSettings?.targetLanguage === "English");
   assert.strictEqual(await page.locator("#targetLanguage").inputValue(), "English");
-  await page.close();
-}
-
-async function testOptionsLanguagePresetButtons(browser) {
-  const page = await createOptionsPage(browser);
-
-  assert.strictEqual(await page.locator("[data-language-preset][data-target='简体中文']").first().getAttribute("aria-pressed"), "true");
-  await page.click("[data-language-preset][data-target='English']");
-  await page.waitForFunction(() => window.__lastSavedSettings?.sourceLanguage === "简体中文");
-  assert.strictEqual(await page.locator("#targetLanguage").inputValue(), "English");
-  assert.strictEqual(await page.locator("[data-language-preset][data-target='English']").getAttribute("aria-pressed"), "true");
-
-  await page.selectOption("#targetLanguage", "Japanese");
-  await page.waitForFunction(() => window.__lastSavedSettings?.targetLanguage === "Japanese");
-  assert.strictEqual(await page.locator("[data-language-preset].is-selected").count(), 0);
   await page.close();
 }
 
@@ -967,34 +937,31 @@ async function testOptionsLanguageStatusWarnsOnSameLanguage(browser) {
   await page.close();
 }
 
-async function testOptionsUiLanguageIsIndependent(browser) {
+async function testOptionsCanChangeInterfaceLanguage(browser) {
   const page = await createOptionsPage(browser);
 
-  await page.waitForFunction(() => document.getElementById("uiLanguage").value === "auto");
+  await page.click("#advancedSettings summary");
+  assert.strictEqual(await page.locator("#uiLanguage").inputValue(), "auto");
   await page.selectOption("#uiLanguage", "en");
   await page.waitForFunction(() => document.querySelector("[data-i18n='optionsTitle']").textContent === "DualRead AI Settings");
   await page.waitForFunction(() => window.__lastSavedSettings?.uiLanguage === "en");
 
-  assert.strictEqual(await page.locator("[data-i18n='optionsUiLanguage']").textContent(), "Interface language");
   assert.strictEqual(await page.locator("#sourceLanguage").inputValue(), "English");
   assert.strictEqual(await page.locator("#targetLanguage").inputValue(), "简体中文");
-  assert.strictEqual(await page.locator("#uiLanguage").inputValue(), "en");
   await page.close();
 }
 
 async function testOptionsEnglishMicrocopyIsUserFacing(browser) {
-  const page = await createOptionsPage(browser);
+  const page = await createOptionsPage(browser, { settings: { uiLanguage: "en" } });
 
-  await page.selectOption("#uiLanguage", "en");
-  await page.waitForFunction(() => document.querySelector("[data-i18n='optionsQuickStartDesc']").textContent.includes("three steps"));
+  await page.waitForFunction(() => document.querySelector("[data-i18n='optionsConnectionDesc']").textContent.includes("provider"));
   await page.fill("#apiKey", "english-copy-key");
   await page.waitForFunction(() => document.getElementById("setupStatus").textContent.includes("Connection looks ready"));
 
   const visibleText = await page.locator("body").innerText();
   assert.match(visibleText, /Changes are saved automatically/);
-  assert.match(visibleText, /Only translate the current screen and nearby content/);
-  assert.match(visibleText, /Strongly recommended/);
-  assert.match(visibleText, /Increase this for slow networks/);
+  assert.match(visibleText, /Translation languages/);
+  assert.match(visibleText, /Auto start translation on foreign-language pages/);
   assert.doesNotMatch(visibleText, /Auto Save Message|Ready Ready|Viewport Only/);
   await page.close();
 }
@@ -1026,11 +993,8 @@ async function testOptionsLayoutDoesNotOverflow(browser) {
         const selectors = [
           "main",
           ".page-header",
-          ".setup-steps",
           ".setup-status",
           ".secret-row",
-          ".connection-grid",
-          ".connection-grid > label",
           ".thinking-settings",
           ".actions"
         ];
@@ -1061,24 +1025,44 @@ async function testOptionsLayoutDoesNotOverflow(browser) {
   }
 }
 
-async function testOptionsCostProfileUpdatesAdvancedDefaults(browser) {
+async function testOptionsOnlyShowsEssentialSettings(browser) {
   const page = await createOptionsPage(browser);
 
-  assert.strictEqual(await page.locator("#batchSize").count(), 0);
-  assert.strictEqual(await page.locator("#maxCharsPerBatch").count(), 0);
-  assert.match(
-    await page.locator("#maxConcurrentBatches").locator("xpath=ancestor::label").innerText(),
-    /同时翻译段落数/
-  );
+  for (const id of ["provider", "model", "apiKey", "test", "sourceLanguage", "targetLanguage", "autoTranslate", "displayMode"]) {
+    assert.strictEqual(await page.locator(`#${id}`).count(), 1, `${id} should remain available`);
+  }
+  for (const id of ["save", "costProfile", "viewportOnly", "apiTimeoutMs", "maxElementsPerScan", "maxTextLength", "maxRequestsPerPage", "maxCharsPerPage", "cacheTtlDays", "maxCacheEntries"]) {
+    assert.strictEqual(await page.locator(`#${id}`).count(), 0, `${id} should be removed from the UI`);
+  }
+  assert.strictEqual(await page.locator("[data-language-preset]").count(), 0);
+  assert.strictEqual(await page.locator(".setup-steps").count(), 0);
+  for (const id of ["uiLanguage", "apiUrl", "disableThinking", "thinkingStrategy", "translationPrompt", "maxConcurrentBatches", "clearCache", "reset"]) {
+    assert.strictEqual(await page.locator(`#${id}`).count(), 1, `${id} should remain in advanced settings`);
+  }
+  await page.close();
+}
 
-  await page.selectOption("#costProfile", "economy");
-  await page.waitForFunction(() => window.__lastSavedSettings?.costProfile === "economy");
-  assert.strictEqual(await page.locator("#maxElementsPerScan").inputValue(), "12");
-  assert.strictEqual(await page.locator("#maxCharsPerPage").inputValue(), "30000");
-  assert.strictEqual(await page.locator("#maxConcurrentBatches").inputValue(), "1");
-  await page.fill("#maxConcurrentBatches", "3");
-  await page.waitForFunction(() => window.__lastSavedSettings?.costProfile === "custom");
-  await page.waitForFunction(() => window.__lastSavedSettings?.maxConcurrentBatches === 3);
+async function testOptionsPreservesHiddenStoredSettings(browser) {
+  const page = await createOptionsPage(browser, {
+    settings: {
+      apiTimeoutMs: 299000,
+      costProfile: "custom",
+      viewportOnly: false,
+      maxElementsPerScan: 33,
+      maxTextLength: 2300,
+      maxRequestsPerPage: 111,
+      maxCharsPerPage: 99000,
+      cacheTtlDays: 90,
+      maxCacheEntries: 4200
+    }
+  });
+
+  await page.selectOption("#targetLanguage", "繁體中文");
+  await page.waitForFunction(() => window.__lastSavedSettings?.targetLanguage === "繁體中文");
+  const savedKeys = await page.evaluate(() => Object.keys(window.__lastSavedSettings));
+  for (const hiddenKey of ["apiTimeoutMs", "costProfile", "viewportOnly", "maxElementsPerScan", "maxTextLength", "maxRequestsPerPage", "maxCharsPerPage", "cacheTtlDays", "maxCacheEntries"]) {
+    assert.strictEqual(savedKeys.includes(hiddenKey), false, `${hiddenKey} should not be overwritten by the simplified form`);
+  }
   await page.close();
 }
 
@@ -1094,12 +1078,15 @@ async function testOptionsDisplayModeAutoSaves(browser) {
 async function testOptionsAdvancedSettingsCanExpand(browser) {
   const page = await createOptionsPage(browser);
 
-  assert.strictEqual(await page.locator("#advancedSettings").getAttribute("open"), "");
+  assert.strictEqual(await page.locator("#advancedSettings").getAttribute("open"), null);
   assert.doesNotMatch(await page.locator("#advancedSettings summary").evaluate((node) => window.getComputedStyle(node, "::after").content), /展开|收起/);
   await page.click("#advancedSettings summary");
-  assert.strictEqual(await page.locator("#advancedSettings").getAttribute("open"), null);
-  await page.click("#advancedSettings summary");
   assert.strictEqual(await page.locator("#advancedSettings").getAttribute("open"), "");
+  await page.click("#advancedSettings summary");
+  assert.strictEqual(await page.locator("#advancedSettings").getAttribute("open"), null);
+  await page.selectOption("#provider", "custom");
+  await page.waitForFunction(() => document.getElementById("advancedSettings").open === true);
+  assert.strictEqual(await page.locator("#apiUrl").isVisible(), true);
   await page.close();
 }
 
@@ -1133,10 +1120,10 @@ async function testOptionsDisablesTestButtonWhilePending(browser) {
 async function testOptionsActionsKeepTestApiPrimary(browser) {
   const page = await createOptionsPage(browser);
 
-  assert.strictEqual(await page.locator(".actions button").count(), 2);
+  assert.strictEqual(await page.locator(".actions button").count(), 1);
   assert.strictEqual(await page.locator(".setup-section > .actions").count(), 1);
   assert.strictEqual(await page.locator(".actions").evaluate((node) => getComputedStyle(node).position), "static");
-  assert.ok(await page.locator("#save").evaluate((node) => node.classList.contains("secondary")));
+  assert.strictEqual(await page.locator("#save").count(), 0);
   assert.strictEqual(await page.locator("#test").evaluate((node) => node.classList.contains("secondary")), false);
   await page.close();
 }
@@ -1233,13 +1220,14 @@ async function testOptionsAutoSavesChangedSettings(browser) {
 async function testOptionsSavesCustomTranslationPrompt(browser) {
   const page = await createOptionsPage(browser);
 
+  await page.click("#advancedSettings summary");
   await page.waitForSelector("#translationPrompt");
   const defaultPrompt = await page.locator("#translationPrompt").inputValue();
   assert.match(defaultPrompt, /line breaks/i);
   assert.doesNotMatch(defaultPrompt, /JSON array/i);
 
   await page.fill("#translationPrompt", "Translate from {{sourceLanguage}} to {{targetLanguage}} in a concise style.");
-  await page.click("#save");
+  await page.waitForFunction(() => window.__lastSavedSettings?.translationPrompt?.includes("concise style"));
 
   const savedPrompt = await page.evaluate(() => window.__lastSavedSettings.translationPrompt);
   assert.strictEqual(savedPrompt, "Translate from {{sourceLanguage}} to {{targetLanguage}} in a concise style.");
@@ -1249,6 +1237,7 @@ async function testOptionsSavesCustomTranslationPrompt(browser) {
 async function testOptionsResetPromptRequiresConfirm(browser) {
   const page = await createOptionsPage(browser);
 
+  await page.click("#advancedSettings summary");
   assert.strictEqual(await page.locator("#resetPrompt").textContent(), "恢复默认提示词");
 
   await page.fill("#translationPrompt", "Custom prompt");

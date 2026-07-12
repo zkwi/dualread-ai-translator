@@ -35,30 +35,6 @@
   "contextTranslateSelection": {
     "message": "Translate selected text"
   },
-  "costHintBalanced": {
-    "message": "Recommended for daily reading."
-  },
-  "costHintCustom": {
-    "message": "Use your custom limits below."
-  },
-  "costHintEager": {
-    "message": "Prefetch more nearby article text for smoother reading, with higher token cost."
-  },
-  "costHintEconomy": {
-    "message": "Save tokens by translating fewer nearby blocks."
-  },
-  "costProfileBalanced": {
-    "message": "Balanced: recommended for daily use"
-  },
-  "costProfileCustom": {
-    "message": "Custom parameters"
-  },
-  "costProfileEager": {
-    "message": "Eager: prefetch more article text"
-  },
-  "costProfileEconomy": {
-    "message": "Save tokens: translate less content"
-  },
   "displayModeBilingual": {
     "message": "Bilingual: show translation below original"
   },
@@ -209,9 +185,6 @@
   "messageApiTestSuccess": {
     "message": "API works. Test translation: $1"
   },
-  "messageApiUrlModelRequired": {
-    "message": "API URL and model name are required."
-  },
   "messageAutoSaveFailed": {
     "message": "Auto save failed: $1"
   },
@@ -242,9 +215,6 @@
   "messageResetAllDone": {
     "message": "All settings were restored to defaults."
   },
-  "messageSettingsSaved": {
-    "message": "Settings saved."
-  },
   "messageTestingApi": {
     "message": "Testing API..."
   },
@@ -254,23 +224,14 @@
   "noticeTranslationAlreadyActive": {
     "message": "Translation is already active. Scroll the page or use Translate screen in the popup."
   },
-  "optionsAdvancedConnection": {
-    "message": "Advanced connection settings"
-  },
   "optionsAdvancedSettings": {
     "message": "Advanced settings"
   },
-  "optionsAdvancedSettingsDesc": {
-    "message": "Prompt, streaming concurrency, cache, and detailed cost limits."
+  "optionsAdvancedSettingsDescMinimal": {
+    "message": "Interface, custom endpoint, Thinking, prompt, concurrency, and maintenance"
   },
   "optionsApiKeyHelp": {
     "message": "Stored only in local Chrome extension storage. It is not sent to this project."
-  },
-  "optionsApiTimeout": {
-    "message": "API maximum wait time (seconds)"
-  },
-  "optionsApiTimeoutHelp": {
-    "message": "Increase this for slow networks or slower reasoning models. Default is 120 seconds."
   },
   "optionsApiUrl": {
     "message": "Chat Completions API URL"
@@ -290,32 +251,23 @@
   "optionsAutoTranslateLabel": {
     "message": "Auto start translation on foreign-language pages"
   },
-  "optionsCacheMaintenance": {
-    "message": "Cache and maintenance"
-  },
-  "optionsCacheTtlDays": {
-    "message": "Cache retention days"
-  },
   "optionsClearCache": {
     "message": "Clear cache"
   },
-  "optionsCostControl": {
-    "message": "Cost control"
+  "optionsConnection": {
+    "message": "API connection"
   },
-  "optionsCostControlDesc": {
-    "message": "Translate nearby visible content first to reduce token usage."
+  "optionsConnectionDesc": {
+    "message": "Choose a provider, enter an API Key, then test the connection."
+  },
+  "optionsCustomEndpoint": {
+    "message": "Custom endpoint"
   },
   "optionsDisableThinking": {
     "message": "Strongly recommended: disable controllable thinking"
   },
-  "optionsLanguage": {
-    "message": "Language"
-  },
   "optionsLanguageDesc": {
     "message": "Default is English to Simplified Chinese. Target-language pages are skipped automatically."
-  },
-  "optionsLanguagePresetsAria": {
-    "message": "Common language presets"
   },
   "optionsLanguageStatusInitial": {
     "message": "Choose source and target languages."
@@ -323,26 +275,11 @@
   "optionsMaintenanceActions": {
     "message": "Maintenance actions"
   },
-  "optionsMaxCacheEntries": {
-    "message": "Max cache entries"
-  },
-  "optionsMaxCharsPerPage": {
-    "message": "Max requested characters per page"
-  },
   "optionsMaxConcurrentBatches": {
     "message": "Simultaneous paragraph translations"
   },
   "optionsMaxConcurrentHelp": {
     "message": "Recommended: 2. Each paragraph streams independently; use 3 when the API is stable."
-  },
-  "optionsMaxElementsPerScan": {
-    "message": "Max paragraphs per scan"
-  },
-  "optionsMaxRequestsPerPage": {
-    "message": "Max requested paragraphs per page"
-  },
-  "optionsMaxTextLength": {
-    "message": "Max characters per block"
   },
   "optionsModelHelp": {
     "message": "A recommended model is filled in after you choose a provider. You can still edit it."
@@ -362,12 +299,6 @@
   "optionsProvider": {
     "message": "Provider"
   },
-  "optionsQuickStart": {
-    "message": "Quick start"
-  },
-  "optionsQuickStartDesc": {
-    "message": "Most users only need these three steps."
-  },
   "optionsReadingExperience": {
     "message": "Reading experience"
   },
@@ -380,9 +311,6 @@
   "optionsResetPrompt": {
     "message": "Restore default prompt"
   },
-  "optionsSaveNow": {
-    "message": "Save now"
-  },
   "optionsSetupLoadingText": {
     "message": "Saved settings will appear here."
   },
@@ -394,15 +322,6 @@
   },
   "optionsSourceLanguageHelp": {
     "message": "Use Auto detect when you are not sure what language the page uses."
-  },
-  "optionsStepApiKey": {
-    "message": "Enter API Key"
-  },
-  "optionsStepProvider": {
-    "message": "Choose provider"
-  },
-  "optionsStepTestApi": {
-    "message": "Test API"
   },
   "optionsSubtitle": {
     "message": "Bilingual webpage translation settings. Changes are saved automatically."
@@ -425,23 +344,17 @@
   "optionsTitle": {
     "message": "DualRead AI Settings"
   },
+  "optionsTranslationLanguages": {
+    "message": "Translation languages"
+  },
   "optionsTranslationPrompt": {
     "message": "Translation prompt"
-  },
-  "optionsTranslationScope": {
-    "message": "Translation scope"
   },
   "optionsUiLanguage": {
     "message": "Interface language"
   },
   "optionsUiLanguageHelp": {
     "message": "Only changes extension UI and notices. Translation source and target languages stay separate."
-  },
-  "optionsViewportOnly": {
-    "message": "Only translate the current screen and nearby content"
-  },
-  "optionsViewportOnlyHelp": {
-    "message": "Recommended. If disabled, per-page request and character budgets still apply."
   },
   "popupActionHintInitial": {
     "message": "Start translating the current page or only the current screen."
@@ -643,18 +556,6 @@
   },
   "popupUnsupportedUnconfiguredHint": {
     "message": "Finish API setup first, then open a regular foreign-language webpage."
-  },
-  "presetAutoToZhCn": {
-    "message": "Auto -> Simplified Chinese"
-  },
-  "presetEnToZhCn": {
-    "message": "English -> Simplified Chinese"
-  },
-  "presetEnToZhTw": {
-    "message": "English -> Traditional Chinese"
-  },
-  "presetZhToEn": {
-    "message": "Chinese -> English"
   },
   "providerCustom": {
     "message": "Custom"

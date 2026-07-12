@@ -48,7 +48,7 @@ async function main() {
     await optionsPage.goto(`chrome-extension://${extensionId}/options.html`);
     await optionsPage.waitForSelector("#provider", { timeout: 10000 });
     assert.match(await optionsPage.locator("h1").textContent(), /DualRead AI/);
-    await optionsPage.waitForFunction(() => document.querySelector("[data-i18n='optionsQuickStart']").textContent === "Quick start");
+    await optionsPage.waitForFunction(() => document.querySelector("[data-i18n='optionsConnection']").textContent === "API connection");
     assert.match(await optionsPage.locator("[data-i18n='optionsSubtitle']").textContent(), /Bilingual webpage translation settings/);
     await configureAndTestApi(optionsPage, server.apiUrl);
     await translateFixturePage(optionsPage, page, fixtureUrl);
@@ -74,8 +74,7 @@ async function configureAndTestApi(optionsPage, apiUrl) {
   await optionsPage.fill("#apiUrl", apiUrl);
   await optionsPage.fill("#apiKey", "smoke-test-key");
   await optionsPage.fill("#model", "smoke-model");
-  await optionsPage.click("#save");
-  await optionsPage.waitForFunction(() => document.getElementById("message").textContent.includes("Settings saved"));
+  await optionsPage.waitForFunction(() => document.getElementById("message").textContent.includes("automatically"));
 
   await optionsPage.click("#test");
   await optionsPage.waitForFunction(() => document.getElementById("message").textContent.includes("API works"), null, { timeout: 10000 });

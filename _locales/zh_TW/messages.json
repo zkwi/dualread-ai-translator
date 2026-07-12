@@ -35,30 +35,6 @@
   "contextTranslateSelection": {
     "message": "翻譯選取文字"
   },
-  "costHintBalanced": {
-    "message": "平衡模式適合日常閱讀：控制請求數量，同時會預取目前螢幕附近的正文。"
-  },
-  "costHintCustom": {
-    "message": "自訂模式會使用你在進階設定中填寫的批次、長度和每頁預算。"
-  },
-  "costHintEager": {
-    "message": "積極模式會多預取一些內容，閱讀更連貫，但 token 消耗也會更高。"
-  },
-  "costHintEconomy": {
-    "message": "省 Token 模式會少量預取，適合長頁面、直播頁或只想粗略閱讀時使用。"
-  },
-  "costProfileBalanced": {
-    "message": "平衡：推荐日常使用"
-  },
-  "costProfileCustom": {
-    "message": "自訂參數"
-  },
-  "costProfileEager": {
-    "message": "積極：多預取一些正文"
-  },
-  "costProfileEconomy": {
-    "message": "省 Token：只翻譯更少內容"
-  },
   "displayModeBilingual": {
     "message": "對照：原文下方顯示譯文"
   },
@@ -209,9 +185,6 @@
   "messageApiTestSuccess": {
     "message": "API 可用，測試譯文：$1"
   },
-  "messageApiUrlModelRequired": {
-    "message": "API 位址和模型名稱不能為空。"
-  },
   "messageAutoSaveFailed": {
     "message": "自動儲存失敗：$1"
   },
@@ -242,9 +215,6 @@
   "messageResetAllDone": {
     "message": "已還原全部預設設定。"
   },
-  "messageSettingsSaved": {
-    "message": "設定已儲存。"
-  },
   "messageTestingApi": {
     "message": "正在測試 API..."
   },
@@ -254,29 +224,20 @@
   "noticeTranslationAlreadyActive": {
     "message": "翻譯已開启。可捲動頁面或點擊擴充功能裡的“只翻譯目前螢幕”。"
   },
-  "optionsAdvancedConnection": {
-    "message": "進階連線設定"
-  },
   "optionsAdvancedSettings": {
     "message": "進階設定"
   },
-  "optionsAdvancedSettingsDesc": {
-    "message": "提示詞、流式並發、快取和細粒度成本參數"
+  "optionsAdvancedSettingsDescMinimal": {
+    "message": "界面、自訂介面、Thinking、提示詞、並發和維護"
   },
   "optionsApiKeyHelp": {
     "message": "只儲存在本機 Chrome 擴充功能儲存中，不會上傳到本專案伺服器。"
-  },
-  "optionsApiTimeout": {
-    "message": "API 最長等待時间（秒）"
-  },
-  "optionsApiTimeoutHelp": {
-    "message": "網路慢或模型回應慢時可以調大，預設 120 秒。"
   },
   "optionsApiUrl": {
     "message": "Chat Completions API 位址"
   },
   "optionsApiUrlHelp": {
-    "message": "相容 OpenAI 格式的代理或本機服務也可以填寫這裡。"
+    "message": "選擇自訂服務商時需要填寫；内置服務商會自動配置。"
   },
   "optionsAutoSave": {
     "message": "自動儲存"
@@ -290,32 +251,23 @@
   "optionsAutoTranslateLabel": {
     "message": "存取外文網頁時自動開始翻譯"
   },
-  "optionsCacheMaintenance": {
-    "message": "快取與維護"
-  },
-  "optionsCacheTtlDays": {
-    "message": "快取保留天数"
-  },
   "optionsClearCache": {
     "message": "清除快取"
   },
-  "optionsCostControl": {
-    "message": "成本控制"
+  "optionsConnection": {
+    "message": "API 連線"
   },
-  "optionsCostControlDesc": {
-    "message": "預設只处理目前可視區域附近內容，減少 token 消耗。"
+  "optionsConnectionDesc": {
+    "message": "選擇服務商，填寫 API Key，然後測試連線。"
+  },
+  "optionsCustomEndpoint": {
+    "message": "自訂介面"
   },
   "optionsDisableThinking": {
-    "message": "强烈推荐開启：自動關閉可控思考模式"
-  },
-  "optionsLanguage": {
-    "message": "語言"
+    "message": "推荐開启：自動關閉可控思考模式"
   },
   "optionsLanguageDesc": {
     "message": "預設英译中；如果頁面已是目標語言，會自動跳過。"
-  },
-  "optionsLanguagePresetsAria": {
-    "message": "常用語言組合"
   },
   "optionsLanguageStatusInitial": {
     "message": "目前方向：英語 -> 簡體中文。"
@@ -323,26 +275,11 @@
   "optionsMaintenanceActions": {
     "message": "維護操作"
   },
-  "optionsMaxCacheEntries": {
-    "message": "最多快取筆数"
-  },
-  "optionsMaxCharsPerPage": {
-    "message": "本頁最多請求字元数"
-  },
   "optionsMaxConcurrentBatches": {
     "message": "同時翻譯段落数"
   },
   "optionsMaxConcurrentHelp": {
-    "message": "建议 2；每个段落會独立流式顯示，介面稳定時可设為 3。"
-  },
-  "optionsMaxElementsPerScan": {
-    "message": "每輪最多段落数"
-  },
-  "optionsMaxRequestsPerPage": {
-    "message": "本頁最多請求段落数"
-  },
-  "optionsMaxTextLength": {
-    "message": "单段最大字元数"
+    "message": "建议 2；介面稳定時可设為 3。"
   },
   "optionsModelHelp": {
     "message": "選擇服務商後會自動填入推荐模型，也可以手动修改。"
@@ -357,31 +294,22 @@
     "message": "提示詞"
   },
   "optionsPromptHelp": {
-    "message": "支援 {{sourceLanguage}} 和 {{targetLanguage}} 佔位符。網頁正文會逐段以纯文字流式翻譯。"
+    "message": "支援 {{sourceLanguage}} 和 {{targetLanguage}} 佔位符。"
   },
   "optionsProvider": {
     "message": "服務商"
-  },
-  "optionsQuickStart": {
-    "message": "快速開始"
-  },
-  "optionsQuickStartDesc": {
-    "message": "多数情况下只需要完成這三步。"
   },
   "optionsReadingExperience": {
     "message": "使用體驗"
   },
   "optionsReadingExperienceDesc": {
-    "message": "偏向少打扰、低成本的預設行為。"
+    "message": "控制是否自動翻譯，以及原文和譯文的顯示方式。"
   },
   "optionsResetAll": {
     "message": "還原全部預設設定"
   },
   "optionsResetPrompt": {
     "message": "還原預設提示詞"
-  },
-  "optionsSaveNow": {
-    "message": "立即儲存"
   },
   "optionsSetupLoadingText": {
     "message": "設定會自動儲存。"
@@ -394,15 +322,6 @@
   },
   "optionsSourceLanguageHelp": {
     "message": "不確定頁面語言時，選擇“自動偵測”。"
-  },
-  "optionsStepApiKey": {
-    "message": "填寫 API Key"
-  },
-  "optionsStepProvider": {
-    "message": "選擇服務商"
-  },
-  "optionsStepTestApi": {
-    "message": "點擊測試 API"
   },
   "optionsSubtitle": {
     "message": "網頁對照翻譯設定。修改後會自動儲存。"
@@ -425,23 +344,17 @@
   "optionsTitle": {
     "message": "DualRead AI 設定"
   },
+  "optionsTranslationLanguages": {
+    "message": "翻譯語言"
+  },
   "optionsTranslationPrompt": {
     "message": "翻譯提示詞"
-  },
-  "optionsTranslationScope": {
-    "message": "翻譯範圍"
   },
   "optionsUiLanguage": {
     "message": "界面語言"
   },
   "optionsUiLanguageHelp": {
     "message": "只影响擴充功能界面和提示，不影响翻譯源語言或目標語言。"
-  },
-  "optionsViewportOnly": {
-    "message": "僅翻譯目前可視區域附近"
-  },
-  "optionsViewportOnlyHelp": {
-    "message": "推荐開启。關閉後仍會受每頁請求預算限制。"
   },
   "popupActionHintInitial": {
     "message": "點擊開始翻譯，譯文會顯示在原文下方。"
@@ -643,18 +556,6 @@
   },
   "popupUnsupportedUnconfiguredHint": {
     "message": "先完成 API 配置，再打開普通外文網頁使用。"
-  },
-  "presetAutoToZhCn": {
-    "message": "自動 -> 简中"
-  },
-  "presetEnToZhCn": {
-    "message": "英 -> 简中"
-  },
-  "presetEnToZhTw": {
-    "message": "英 -> 繁中"
-  },
-  "presetZhToEn": {
-    "message": "中 -> 英"
   },
   "providerCustom": {
     "message": "自訂"

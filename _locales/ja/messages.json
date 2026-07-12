@@ -35,30 +35,6 @@
   "contextTranslateSelection": {
     "message": "選択テキストを翻訳"
   },
-  "costHintBalanced": {
-    "message": "日常的な読書におすすめです。"
-  },
-  "costHintCustom": {
-    "message": "下のカスタム上限を使用します。"
-  },
-  "costHintEager": {
-    "message": "近くの記事本文を多めに先読みします。token 消費は増えます。"
-  },
-  "costHintEconomy": {
-    "message": "近くのブロックを少なめに翻訳して token を節約します。"
-  },
-  "costProfileBalanced": {
-    "message": "Balanced: recommended for daily use"
-  },
-  "costProfileCustom": {
-    "message": "Custom parameters"
-  },
-  "costProfileEager": {
-    "message": "Eager: prefetch more article text"
-  },
-  "costProfileEconomy": {
-    "message": "Save tokens: translate less content"
-  },
   "displayModeBilingual": {
     "message": "対照：原文の下に訳文を表示"
   },
@@ -209,9 +185,6 @@
   "messageApiTestSuccess": {
     "message": "API は利用できます。テスト訳文：$1"
   },
-  "messageApiUrlModelRequired": {
-    "message": "API URL とモデル名は必須です。"
-  },
   "messageAutoSaveFailed": {
     "message": "自動保存に失敗しました：$1"
   },
@@ -242,9 +215,6 @@
   "messageResetAllDone": {
     "message": "すべての設定を初期値に戻しました。"
   },
-  "messageSettingsSaved": {
-    "message": "設定を保存しました。"
-  },
   "messageTestingApi": {
     "message": "API をテスト中..."
   },
@@ -254,23 +224,14 @@
   "noticeTranslationAlreadyActive": {
     "message": "翻訳は既に有効です。ページをスクロールするか、ポップアップの現在の画面翻訳を使ってください。"
   },
-  "optionsAdvancedConnection": {
-    "message": "詳細な接続設定"
-  },
   "optionsAdvancedSettings": {
     "message": "詳細設定"
   },
-  "optionsAdvancedSettingsDesc": {
-    "message": "プロンプト、ストリーミング並行数、キャッシュ、詳細なコスト上限。"
+  "optionsAdvancedSettingsDescMinimal": {
+    "message": "表示言語、カスタム接続先、Thinking、プロンプト、並行数、メンテナンス"
   },
   "optionsApiKeyHelp": {
     "message": "ローカルの Chrome 拡張機能ストレージにのみ保存されます。"
-  },
-  "optionsApiTimeout": {
-    "message": "API 最大待ち時間（秒）"
-  },
-  "optionsApiTimeoutHelp": {
-    "message": "低速なネットワークや応答の遅いモデルでは長めにします。既定は 120 秒です。"
   },
   "optionsApiUrl": {
     "message": "Chat Completions API URL"
@@ -290,32 +251,23 @@
   "optionsAutoTranslateLabel": {
     "message": "外国語ページで自動的に翻訳を開始"
   },
-  "optionsCacheMaintenance": {
-    "message": "キャッシュとメンテナンス"
-  },
-  "optionsCacheTtlDays": {
-    "message": "キャッシュ保持日数"
-  },
   "optionsClearCache": {
     "message": "キャッシュを削除"
   },
-  "optionsCostControl": {
-    "message": "コスト制御"
+  "optionsConnection": {
+    "message": "API 接続"
   },
-  "optionsCostControlDesc": {
-    "message": "表示中の近くの内容を優先して token 使用量を抑えます。"
+  "optionsConnectionDesc": {
+    "message": "サービスを選び、API Key を入力して接続をテストします。"
+  },
+  "optionsCustomEndpoint": {
+    "message": "カスタム接続先"
   },
   "optionsDisableThinking": {
     "message": "強く推奨：制御可能な思考モードを自動で無効化"
   },
-  "optionsLanguage": {
-    "message": "言語"
-  },
   "optionsLanguageDesc": {
     "message": "既定は英語から簡体字中国語です。目標言語のページは自動的にスキップされます。"
-  },
-  "optionsLanguagePresetsAria": {
-    "message": "よく使う言語プリセット"
   },
   "optionsLanguageStatusInitial": {
     "message": "翻訳元言語と目標言語を選択してください。"
@@ -323,26 +275,11 @@
   "optionsMaintenanceActions": {
     "message": "メンテナンス操作"
   },
-  "optionsMaxCacheEntries": {
-    "message": "最大キャッシュ件数"
-  },
-  "optionsMaxCharsPerPage": {
-    "message": "ページごとの最大リクエスト文字数"
-  },
   "optionsMaxConcurrentBatches": {
     "message": "同時に翻訳する段落数"
   },
   "optionsMaxConcurrentHelp": {
     "message": "推奨は 2。各段落は個別にストリーミング表示され、API が安定している場合は 3 にできます。"
-  },
-  "optionsMaxElementsPerScan": {
-    "message": "1 回の最大段落数"
-  },
-  "optionsMaxRequestsPerPage": {
-    "message": "ページごとの最大リクエスト段落数"
-  },
-  "optionsMaxTextLength": {
-    "message": "1 ブロックの最大文字数"
   },
   "optionsModelHelp": {
     "message": "サービスを選ぶと推奨モデルが入ります。手動変更もできます。"
@@ -362,12 +299,6 @@
   "optionsProvider": {
     "message": "サービス"
   },
-  "optionsQuickStart": {
-    "message": "クイックスタート"
-  },
-  "optionsQuickStartDesc": {
-    "message": "通常はこの 3 ステップだけで使い始められます。"
-  },
   "optionsReadingExperience": {
     "message": "読書体験"
   },
@@ -380,9 +311,6 @@
   "optionsResetPrompt": {
     "message": "既定プロンプトに戻す"
   },
-  "optionsSaveNow": {
-    "message": "今すぐ保存"
-  },
   "optionsSetupLoadingText": {
     "message": "保存済みの設定を読み込んでいます。"
   },
@@ -394,15 +322,6 @@
   },
   "optionsSourceLanguageHelp": {
     "message": "ページの言語が不明な場合は自動検出を選びます。"
-  },
-  "optionsStepApiKey": {
-    "message": "API Key を入力"
-  },
-  "optionsStepProvider": {
-    "message": "サービスを選択"
-  },
-  "optionsStepTestApi": {
-    "message": "API をテスト"
   },
   "optionsSubtitle": {
     "message": "Web ページ対照翻訳設定。変更は自動的に保存されます。"
@@ -425,23 +344,17 @@
   "optionsTitle": {
     "message": "DualRead AI 設定"
   },
+  "optionsTranslationLanguages": {
+    "message": "翻訳言語"
+  },
   "optionsTranslationPrompt": {
     "message": "翻訳プロンプト"
-  },
-  "optionsTranslationScope": {
-    "message": "翻訳範囲"
   },
   "optionsUiLanguage": {
     "message": "UI 言語"
   },
   "optionsUiLanguageHelp": {
     "message": "拡張機能の UI と通知だけを変更します。翻訳元言語と目標言語には影響しません。"
-  },
-  "optionsViewportOnly": {
-    "message": "現在の画面と周辺だけを翻訳"
-  },
-  "optionsViewportOnlyHelp": {
-    "message": "推奨。オフにしてもページごとの予算制限は適用されます。"
   },
   "popupActionHintInitial": {
     "message": "ページ全体、または現在の画面だけを翻訳できます。"
@@ -643,18 +556,6 @@
   },
   "popupUnsupportedUnconfiguredHint": {
     "message": "先に API 設定を完了してから、通常の外国語 Web ページを開いてください。"
-  },
-  "presetAutoToZhCn": {
-    "message": "自動 -> 簡体字中国語"
-  },
-  "presetEnToZhCn": {
-    "message": "英語 -> 簡体字中国語"
-  },
-  "presetEnToZhTw": {
-    "message": "英語 -> 繁体字中国語"
-  },
-  "presetZhToEn": {
-    "message": "中国語 -> 英語"
   },
   "providerCustom": {
     "message": "カスタム"

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+- Simplified the settings page to the essential API connection, translation language, auto-translate, and display controls.
+- Moved interface language, custom endpoint, Thinking override, prompt, streaming concurrency, and maintenance actions into one collapsed advanced section that opens automatically for custom providers.
+- Removed redundant quick-start steps, manual save, language presets, and low-level budget/cache tuning controls from the UI while preserving existing stored values and runtime defaults.
+- Kept interface language reversible for existing users while continuing to follow the browser language by default.
+- Bumped the content script version so pages with 0.8.0 already injected request a clear reload after the extension update.
+
 ## 0.8.0
 
 - Replaced provider/URL/model hard-coding for automatic Thinking controls with capability probing during **Test API**, and persisted the successful strategy for the matching endpoint and model.
