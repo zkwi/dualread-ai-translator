@@ -39,6 +39,7 @@ async function main() {
     if (process.env.TEST_FILTER === "layout-adapter") {
       await testViewportSupplementFindsVisibleListSiblings(browser);
       await testFlexAndGridCardsGiveTranslationsTheirOwnRow(browser);
+      await testColumnFlexTweetKeepsTranslationInsidePost(browser);
       await testClippedRedditPreviewUsesSingleSafeTranslationUnit(browser);
       return;
     }
@@ -48,6 +49,7 @@ async function main() {
     }
     if (process.env.TEST_FILTER === "layout-flex-grid") {
       await testFlexAndGridCardsGiveTranslationsTheirOwnRow(browser);
+      await testColumnFlexTweetKeepsTranslationInsidePost(browser);
       return;
     }
     if (process.env.TEST_FILTER === "layout-reddit") {
@@ -66,6 +68,7 @@ async function main() {
     await testCnnHomepageLeadCardSurvivesUtilityFiltering(browser);
     await testViewportSupplementFindsVisibleListSiblings(browser);
     await testFlexAndGridCardsGiveTranslationsTheirOwnRow(browser);
+    await testColumnFlexTweetKeepsTranslationInsidePost(browser);
     await testArticleHeadlineLinkWithoutHeadingIsTranslated(browser);
     await testEmbeddedPlayerErrorsDoNotStealNewsBudget(browser);
     await testRedditPostTitleIsTranslatedWithoutMetadata(browser);
@@ -539,6 +542,63 @@ async function testFlexAndGridCardsGiveTranslationsTheirOwnRow(browser) {
   assert.strictEqual(cleared.translationCount, 0);
   assert.strictEqual(cleared.flexLayoutMarker, "");
   assert.strictEqual(cleared.gridLayoutMarker, "");
+
+  await page.close();
+}
+
+async function testColumnFlexTweetKeepsTranslationInsidePost(browser) {
+  const page = await createHarnessPage(browser, {
+    bodyStyle: "margin:0;font:18px Arial",
+    html: `
+      <main role="main" style="width:598px">
+        <div data-testid="primaryColumn">
+          <article data-testid="tweet" role="article" style="width:598px;overflow:hidden;padding:0 18px">
+            <div style="margin-left:53px;min-width:0">
+              <div id="tweet-content" style="display:flex;flex-direction:column;align-items:stretch;width:509px;min-width:0">
+                <div data-testid="tweetText">Can my two RTX 3090 graphics cards run this model?</div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </main>
+    `
+  });
+
+  await runTranslation(page);
+
+  const layout = await page.evaluate(() => {
+    const container = document.getElementById("tweet-content");
+    const article = container.closest("article");
+    const translation = container.querySelector(":scope > .llm-bilingual-translation");
+    const containerRect = container.getBoundingClientRect();
+    const articleRect = article.getBoundingClientRect();
+    const translationRect = translation.getBoundingClientRect();
+    return {
+      containerLeft: containerRect.left,
+      translationLeft: translationRect.left,
+      translationRight: translationRect.right,
+      articleRight: articleRect.right,
+      containerScrollWidth: container.scrollWidth,
+      containerClientWidth: container.clientWidth,
+      layoutMarker: container.dataset.llmTranslatorLayout || "",
+      flexWrap: getComputedStyle(container).flexWrap
+    };
+  });
+
+  assert.ok(
+    Math.abs(layout.translationLeft - layout.containerLeft) <= 1,
+    `Column Flex translation should align with the post content: ${JSON.stringify(layout)}`
+  );
+  assert.ok(
+    layout.translationRight <= layout.articleRight + 1,
+    `Column Flex translation should stay inside the post: ${JSON.stringify(layout)}`
+  );
+  assert.ok(
+    layout.containerScrollWidth <= layout.containerClientWidth + 1,
+    `Column Flex translation should not create horizontal overflow: ${JSON.stringify(layout)}`
+  );
+  assert.strictEqual(layout.layoutMarker, "");
+  assert.strictEqual(layout.flexWrap, "nowrap");
 
   await page.close();
 }

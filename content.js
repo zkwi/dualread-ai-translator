@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.9.0";
+  const CONTENT_SCRIPT_VERSION = "0.10.0";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -2065,9 +2065,11 @@
     const container = node?.parentElement;
     if (!container) return;
 
-    const display = window.getComputedStyle(container).display;
+    const containerStyle = window.getComputedStyle(container);
+    const display = containerStyle.display;
     let layoutMode = "block";
-    if (display === "flex" || display === "inline-flex") {
+    if ((display === "flex" || display === "inline-flex")
+      && (containerStyle.flexDirection === "row" || containerStyle.flexDirection === "row-reverse")) {
       layoutMode = "stacked-flex";
     } else if (display === "grid" || display === "inline-grid") {
       layoutMode = "stacked-grid";
@@ -2329,46 +2331,59 @@
     style.id = "llm-bilingual-translator-style";
     style.textContent = `
       :root {
-        --llm-translator-text: #1f2937;
-        --llm-translator-bg: rgba(37, 99, 235, 0.08);
-        --llm-translator-border: #2563eb;
-        --llm-translator-loading-text: #475569;
-        --llm-translator-loading-bg: rgba(148, 163, 184, 0.16);
-        --llm-translator-error-text: #b91c1c;
-        --llm-translator-error-bg: rgba(220, 38, 38, 0.1);
+        --llm-translator-text: #183153;
+        --llm-translator-bg: rgba(23, 105, 224, 0.065);
+        --llm-translator-border: #1769e0;
+        --llm-translator-outline: rgba(23, 105, 224, 0.11);
+        --llm-translator-loading-text: #53647a;
+        --llm-translator-loading-bg: rgba(148, 163, 184, 0.13);
+        --llm-translator-error-text: #b42318;
+        --llm-translator-error-bg: rgba(180, 35, 24, 0.08);
       }
       :root[data-llm-translator-theme="dark"] {
         --llm-translator-text: #f8fafc;
-        --llm-translator-bg: rgba(96, 165, 250, 0.16);
-        --llm-translator-border: #60a5fa;
+        --llm-translator-bg: rgba(93, 163, 255, 0.13);
+        --llm-translator-border: #5da3ff;
+        --llm-translator-outline: rgba(93, 163, 255, 0.18);
         --llm-translator-loading-text: #cbd5e1;
-        --llm-translator-loading-bg: rgba(148, 163, 184, 0.18);
+        --llm-translator-loading-bg: rgba(148, 163, 184, 0.15);
         --llm-translator-error-text: #fca5a5;
-        --llm-translator-error-bg: rgba(248, 113, 113, 0.16);
+        --llm-translator-error-bg: rgba(248, 113, 113, 0.13);
       }
       .llm-bilingual-translation[data-llm-translator-local-theme="dark"] {
         --llm-translator-text: #f8fafc;
-        --llm-translator-bg: rgba(96, 165, 250, 0.18);
-        --llm-translator-border: #60a5fa;
+        --llm-translator-bg: rgba(93, 163, 255, 0.14);
+        --llm-translator-border: #5da3ff;
+        --llm-translator-outline: rgba(93, 163, 255, 0.19);
         --llm-translator-loading-text: #cbd5e1;
-        --llm-translator-loading-bg: rgba(148, 163, 184, 0.2);
+        --llm-translator-loading-bg: rgba(148, 163, 184, 0.16);
         --llm-translator-error-text: #fca5a5;
-        --llm-translator-error-bg: rgba(248, 113, 113, 0.18);
+        --llm-translator-error-bg: rgba(248, 113, 113, 0.14);
       }
       .llm-bilingual-translation {
         display: block !important;
         box-sizing: border-box !important;
         width: 100% !important;
+        inline-size: 100% !important;
         max-width: 100% !important;
+        max-inline-size: 100% !important;
         min-width: 0 !important;
         clear: both !important;
-        margin: 6px 0 12px 0 !important;
-        padding: 8px 10px !important;
-        border-left: 3px solid var(--llm-translator-border) !important;
+        align-self: stretch !important;
+        margin: 0.45em 0 0.8em 0 !important;
+        padding: 0.62em 0.78em !important;
+        overflow-x: hidden !important;
+        border: 1px solid var(--llm-translator-outline) !important;
+        border-left: 2px solid var(--llm-translator-border) !important;
+        border-radius: 0 9px 9px 0 !important;
         background: var(--llm-translator-bg) !important;
         color: var(--llm-translator-text) !important;
-        font-size: 0.95em !important;
-        line-height: 1.65 !important;
+        box-shadow: 0 4px 14px rgba(15, 35, 63, 0.035) !important;
+        font-family: inherit !important;
+        font-size: 0.94em !important;
+        font-style: normal !important;
+        font-weight: 450 !important;
+        line-height: 1.68 !important;
         white-space: pre-wrap !important;
         overflow-wrap: anywhere !important;
         word-break: normal !important;
@@ -2396,13 +2411,13 @@
       }
       :root[data-llm-translator-mode="translation-first"] .llm-bilingual-translation.is-done {
         font-size: 1em !important;
-        background: rgba(37, 99, 235, 0.12) !important;
+        background: rgba(23, 105, 224, 0.1) !important;
       }
       :root[data-llm-translator-theme="dark"][data-llm-translator-mode="translation-first"] .llm-bilingual-translation.is-done {
-        background: rgba(96, 165, 250, 0.22) !important;
+        background: rgba(93, 163, 255, 0.19) !important;
       }
       :root[data-llm-translator-mode="translation-first"] .llm-bilingual-translation[data-llm-translator-local-theme="dark"].is-done {
-        background: rgba(96, 165, 250, 0.22) !important;
+        background: rgba(93, 163, 255, 0.19) !important;
       }
       .llm-bilingual-translation.is-loading {
         color: var(--llm-translator-loading-text) !important;
@@ -2434,49 +2449,50 @@
         z-index: 2147483647 !important;
         right: 18px !important;
         bottom: 18px !important;
-        width: min(420px, calc(100vw - 36px)) !important;
-        max-height: min(520px, calc(100vh - 36px)) !important;
+        width: min(440px, calc(100vw - 36px)) !important;
+        max-height: min(560px, calc(100vh - 36px)) !important;
         overflow: auto !important;
         box-sizing: border-box !important;
-        padding: 12px !important;
-        border: 1px solid rgba(148, 163, 184, 0.45) !important;
-        border-radius: 8px !important;
+        padding: 16px !important;
+        border: 1px solid rgba(148, 163, 184, 0.38) !important;
+        border-radius: 15px !important;
         background: #ffffff !important;
-        color: #0f172a !important;
-        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.24) !important;
-        font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+        color: #10233f !important;
+        box-shadow: 0 22px 60px rgba(15, 35, 63, 0.22) !important;
+        font: 14px/1.58 "Aptos", "Segoe UI Variable Text", "Segoe UI", sans-serif !important;
         direction: ltr !important;
         unicode-bidi: plaintext !important;
         text-align: start !important;
         writing-mode: horizontal-tb !important;
       }
       :root[data-llm-translator-theme="dark"] .llm-bilingual-selection-card {
-        border-color: rgba(148, 163, 184, 0.38) !important;
-        background: #111827 !important;
+        border-color: rgba(148, 163, 184, 0.3) !important;
+        background: #111b2a !important;
         color: #f8fafc !important;
-        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.42) !important;
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.44) !important;
       }
       .llm-bilingual-selection-card__header {
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
         gap: 10px !important;
-        margin-bottom: 8px !important;
-        font-weight: 700 !important;
+        margin-bottom: 12px !important;
+        font-size: 15px !important;
+        font-weight: 750 !important;
       }
       .llm-bilingual-selection-card__actions {
         display: flex !important;
-        gap: 6px !important;
+        gap: 7px !important;
       }
       .llm-bilingual-selection-card button {
         width: auto !important;
-        height: 28px !important;
-        min-width: 28px !important;
+        height: 30px !important;
+        min-width: 30px !important;
         margin: 0 !important;
-        padding: 0 8px !important;
-        border: 1px solid rgba(148, 163, 184, 0.55) !important;
-        border-radius: 6px !important;
-        background: transparent !important;
+        padding: 0 10px !important;
+        border: 1px solid rgba(148, 163, 184, 0.42) !important;
+        border-radius: 8px !important;
+        background: rgba(148, 163, 184, 0.08) !important;
         color: inherit !important;
         font: inherit !important;
         cursor: pointer !important;
@@ -2486,18 +2502,22 @@
         opacity: 0.5 !important;
       }
       .llm-bilingual-selection-card__label {
-        margin: 0 0 4px 0 !important;
-        color: #475569 !important;
-        font-size: 12px !important;
+        margin: 0 0 5px 0 !important;
+        color: #53647a !important;
+        font-size: 11px !important;
         font-weight: 700 !important;
+        letter-spacing: 0.05em !important;
+        text-transform: uppercase !important;
       }
       :root[data-llm-translator-theme="dark"] .llm-bilingual-selection-card__label {
         color: #cbd5e1 !important;
       }
       .llm-bilingual-selection-card__source {
-        margin: 0 0 8px 0 !important;
-        padding-bottom: 8px !important;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.35) !important;
+        margin: 0 0 12px 0 !important;
+        padding: 10px 11px !important;
+        border: 1px solid rgba(148, 163, 184, 0.25) !important;
+        border-radius: 9px !important;
+        background: rgba(148, 163, 184, 0.08) !important;
         color: #64748b !important;
         white-space: pre-wrap !important;
       }
@@ -2506,6 +2526,8 @@
       }
       .llm-bilingual-selection-card__result {
         margin: 0 !important;
+        color: inherit !important;
+        line-height: 1.68 !important;
         white-space: pre-wrap !important;
       }
       .llm-bilingual-selection-card.is-error .llm-bilingual-selection-card__result {
@@ -2513,27 +2535,28 @@
       }
       .llm-bilingual-selection-card__status {
         min-height: 18px !important;
-        margin: 8px 0 0 0 !important;
-        color: #2563eb !important;
-        font-size: 12px !important;
+        margin: 10px 0 0 0 !important;
+        color: #1769e0 !important;
+        font-size: 11.5px !important;
       }
       :root[data-llm-translator-theme="dark"] .llm-bilingual-selection-card__status {
-        color: #93c5fd !important;
+        color: #8dc0ff !important;
       }
       .llm-bilingual-page-notice {
         position: fixed !important;
         z-index: 2147483647 !important;
         right: 18px !important;
         top: 18px !important;
-        width: min(420px, calc(100vw - 36px)) !important;
+        width: min(390px, calc(100vw - 36px)) !important;
         box-sizing: border-box !important;
-        padding: 12px 14px !important;
-        border-left: 4px solid var(--llm-translator-border) !important;
-        border-radius: 8px !important;
+        padding: 13px 15px !important;
+        border: 1px solid rgba(148, 163, 184, 0.34) !important;
+        border-left: 3px solid var(--llm-translator-border) !important;
+        border-radius: 12px !important;
         background: #ffffff !important;
-        color: #0f172a !important;
-        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.24) !important;
-        font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+        color: #10233f !important;
+        box-shadow: 0 18px 48px rgba(15, 35, 63, 0.2) !important;
+        font: 13.5px/1.55 "Aptos", "Segoe UI Variable Text", "Segoe UI", sans-serif !important;
         white-space: pre-wrap !important;
         direction: ltr !important;
         unicode-bidi: plaintext !important;
@@ -2541,7 +2564,8 @@
         writing-mode: horizontal-tb !important;
       }
       :root[data-llm-translator-theme="dark"] .llm-bilingual-page-notice {
-        background: #111827 !important;
+        border-color: rgba(148, 163, 184, 0.28) !important;
+        background: #111b2a !important;
         color: #f8fafc !important;
         box-shadow: 0 18px 50px rgba(0, 0, 0, 0.42) !important;
       }
@@ -2549,6 +2573,21 @@
         border-left-color: var(--llm-translator-error-text) !important;
         background: var(--llm-translator-error-bg) !important;
         color: var(--llm-translator-error-text) !important;
+      }
+      @media (max-width: 520px) {
+        .llm-bilingual-selection-card {
+          right: 12px !important;
+          bottom: 12px !important;
+          width: calc(100vw - 24px) !important;
+          max-height: calc(100vh - 24px) !important;
+          padding: 14px !important;
+          border-radius: 13px !important;
+        }
+        .llm-bilingual-page-notice {
+          top: 12px !important;
+          right: 12px !important;
+          width: calc(100vw - 24px) !important;
+        }
       }
     `;
     document.documentElement.appendChild(style);

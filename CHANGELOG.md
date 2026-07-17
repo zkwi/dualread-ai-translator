@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0
+
+- Reworked the popup into a clearer status, configuration, statistics, and action hierarchy with denser spacing, polished controls, and coordinated light/dark themes.
+- Reframed the settings page as a responsive card-based form with stronger section hierarchy, clearer connection states, improved field rhythm, and more usable mobile layouts.
+- Refined inline translations, selected-text cards, loading/error states, and page notices into one consistent visual system with softer surfaces and safer text wrapping.
+- Fixed translations inside column-oriented Flex containers such as X posts opening a second horizontal flex column and overflowing beyond the post.
+- Added a regression fixture that verifies X-style column Flex translations remain aligned to the content column without horizontal overflow.
+
 ## 0.9.0
 
 - Simplified the settings page to the essential API connection, translation language, auto-translate, and display controls.
