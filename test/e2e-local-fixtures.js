@@ -56,6 +56,10 @@ async function main() {
       await testClippedRedditPreviewUsesSingleSafeTranslationUnit(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "viewport-prefetch") {
+      await testViewportBufferPrefetchesNextScreenBeforeScroll(browser);
+      return;
+    }
     await testPreservesLineBreaksInTweetText(browser);
     await testMultipleTextBlocksUseIndependentStreamRequests(browser);
     await testBatchCharacterLimitDoesNotCombineStreamRequests(browser);
@@ -103,6 +107,7 @@ async function main() {
     await testAutoTranslationStartsEnglishContentWithTargetLocale(browser);
     await testDisabledAutoTranslationDoesNotWakeBackgroundForSettings(browser);
     await testVisibleElementsDoNotWaitForIntersectionObserver(browser);
+    await testViewportBufferPrefetchesNextScreenBeforeScroll(browser);
     await testManualTranslationShowsLoadingPlaceholderImmediately(browser);
     await testManualCurrentAreaUsesProvidedSettingsForImmediatePlaceholder(browser);
     await testManualTriggerFlushesFirstBatchQuickly(browser);
@@ -1566,6 +1571,34 @@ async function testVisibleElementsDoNotWaitForIntersectionObserver(browser) {
   assert.strictEqual(result.requestCount, 1);
   assert.match(result.requestedTexts[0], /visible article paragraph/);
   assert.strictEqual(result.translationCount, 1);
+
+  await page.close();
+}
+
+async function testViewportBufferPrefetchesNextScreenBeforeScroll(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main style="position: relative; height: 1900px;">
+        <p id="visible-story" style="position: absolute; top: 40px; margin: 0;">
+          This visible paragraph should keep the highest translation priority.
+        </p>
+        <p id="prefetched-story" style="position: absolute; top: 1450px; margin: 0;">
+          This next-screen paragraph should be translated before the reader scrolls down.
+        </p>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+  const prefetchState = await page.evaluate(() => ({
+    scrollY: window.scrollY,
+    translated: document.querySelector("#prefetched-story + .llm-bilingual-translation")
+      ?.classList.contains("is-done") === true
+  }));
+
+  assert.strictEqual(prefetchState.scrollY, 0);
+  assert.strictEqual(prefetchState.translated, true, "next-screen content should be prefetched before scrolling");
+  assert.ok(result.requestedTexts.some((text) => text.includes("next-screen paragraph")));
 
   await page.close();
 }

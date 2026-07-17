@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.1
+
+- Expanded the bounded viewport pretranslation buffer so upcoming content can finish translating before the reader scrolls to it, while preserving visible-content priority and existing request, character, and concurrency limits.
+- Added regression coverage for translating next-screen content before any scroll occurs.
+
 ## 0.10.0
 
 - Reworked the popup into a clearer status, configuration, statistics, and action hierarchy with denser spacing, polished controls, and coordinated light/dark themes.

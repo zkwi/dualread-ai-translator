@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.10.0";
+  const CONTENT_SCRIPT_VERSION = "0.10.1";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -1330,6 +1330,9 @@
 
   function observeElements(elements) {
     if (!state.observer) {
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 800;
+      const prefetchMargin = LLMTranslatorShared.getViewportContextPadding(viewportHeight);
+
       state.observer = new IntersectionObserver((entries) => {
         for (const entry of entries) {
           if (!state.active || !entry.isIntersecting) continue;
@@ -1340,7 +1343,8 @@
         }
       }, {
         root: null,
-        rootMargin: "400px 0px",
+        // 复用有界上下文范围，提前完成下一屏内容，同时继续受扫描和页面预算约束。
+        rootMargin: `${prefetchMargin}px 0px`,
         threshold: 0.01
       });
     }
