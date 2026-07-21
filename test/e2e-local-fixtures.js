@@ -122,6 +122,7 @@ async function main() {
     await testAutoTranslationUsesCurrentViewportLanguageSample(browser);
     await testCanHideAndShowTranslations(browser);
     await testShowsSelectionTranslationCard(browser);
+    await testPageLanguageModeSkipsTargetLanguageTweets(browser);
     await testShowsPageNotice(browser);
   } finally {
     await browser.close();
@@ -1424,6 +1425,40 @@ async function testNonLatinSourceLanguagesTranslate(browser) {
   const englishDefaultResult = await runTranslation(englishDefaultPage);
   assert.strictEqual(englishDefaultResult.requestCount, 0);
   await englishDefaultPage.close();
+}
+
+async function testPageLanguageModeSkipsTargetLanguageTweets(browser) {
+  // 复现 X 混排时间线：目标语言 zh，页面 lang=en，中文推文里夹杂 GPT/work 等拉丁词。
+  const page = await createHarnessPage(browser, {
+    htmlLang: "en",
+    html: `
+      <main>
+        <article>
+          <div data-testid="tweetText">how much reverse engineering are we talking about in this long system design thread</div>
+        </article>
+        <article>
+          <div data-testid="tweetText">卡神，这个网页版的 GPT 来的是 work 模式还是 chat 模式？如果是 work 模式的话是不是跟 codex 共用一个额度池了啊？</div>
+        </article>
+      </main>
+    `
+  });
+
+  const result = await runTranslation(page);
+
+  assert.strictEqual(
+    result.requestCount,
+    1,
+    `only the English tweet should be translated, requested: ${JSON.stringify(result.requestedTexts)}`
+  );
+  assert.match(result.requestedTexts[0], /reverse engineering/);
+
+  const chineseTweetHasTranslation = await page.evaluate(() => {
+    const articles = document.querySelectorAll("article");
+    return !!articles[1].querySelector(".llm-bilingual-translation")
+      || !!articles[1].nextElementSibling?.classList?.contains("llm-bilingual-translation");
+  });
+  assert.strictEqual(chineseTweetHasTranslation, false, "Chinese tweet must not receive a translation node");
+  await page.close();
 }
 
 async function testAutoTranslationWaitsForDynamicEnglishContentWithTargetLocale(browser) {

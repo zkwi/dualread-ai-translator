@@ -1048,7 +1048,10 @@
   }
 
   function shouldSkipCandidateByLanguage(text) {
-    if (shouldUsePageLanguageCandidateMode()) return false;
+    const targetKind = LLMTranslatorShared.normalizeTargetLanguageKind(state.settings?.targetLanguage);
+    // 页面语言模式只对 en/未知目标放行：拉丁文本无法凭文字系统区分英/法/德，跳过检查才能翻译整页；
+    // zh/ja/ko 目标可以按文字系统可靠识别“已是目标语言”的段落，必须继续逐元素跳过（X 混排时间线场景）。
+    if (shouldUsePageLanguageCandidateMode() && (targetKind === "en" || !targetKind)) return false;
     return LLMTranslatorShared.isLikelyTargetLanguageText(text, state.settings?.targetLanguage);
   }
 
