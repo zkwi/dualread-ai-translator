@@ -952,6 +952,17 @@
     return cell.querySelector(".titleline a[href]") ? cell : null;
   }
 
+  function findScopedDuplicateTranslationNode(element, text) {
+    // React 重渲染会替换正文元素并丢失 data-llm-translator-* 标记，但译文节点常存活在原容器里。
+    // 在最近的内容单元（推文/列表项/评论）范围内按源文本哈希查找已完成的译文，命中则不再重复翻译。
+    const scope = element.closest?.("article,[role=\"article\"],li,blockquote,section,shreddit-post,shreddit-comment")
+      || element.parentElement;
+    if (!scope?.querySelector) return null;
+
+    const hash = LLMTranslatorShared.simpleHash(text);
+    return scope.querySelector(`.llm-bilingual-translation.is-done[data-llm-source-hash="${hash}"]`);
+  }
+
   function isCandidateElement(element, costSettings = LLMTranslatorShared.normalizeCostSettings(state.settings), knownText = null) {
     if (element.dataset.llmTranslatorStatus) return false;
     if (hasBlockedAncestor(element)) return false;
@@ -963,6 +974,7 @@
 
     const text = knownText === null ? getTranslationText(element, costSettings) : knownText;
     if (text.length < getMinimumCandidateTextLength(element) || text.length > costSettings.maxTextLength) return false;
+    if (findScopedDuplicateTranslationNode(element, text)) return false;
     if (isSiteMetadataCandidate(element, text)) return false;
     if (isShortLowInformationLinkCandidate(element, text)) return false;
     if (shouldSkipCandidateByContent(text, element)) return false;
@@ -2071,6 +2083,9 @@
     syncTranslationSlot(node, insertionTarget);
     applyTranslationLayout(node, context);
     node.dataset.llmTranslatorLocalTheme = detectElementTheme(element);
+    if (!node.dataset.llmSourceHash) {
+      node.dataset.llmSourceHash = LLMTranslatorShared.simpleHash(getTranslationText(element));
+    }
     translationNodesByElement.set(element, node);
     return node;
   }

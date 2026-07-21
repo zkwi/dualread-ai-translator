@@ -124,6 +124,7 @@ async function main() {
     await testShowsSelectionTranslationCard(browser);
     await testPageLanguageModeSkipsTargetLanguageTweets(browser);
     await testTranslationNodeStaysStableWhenClipStateChangesMidStream(browser);
+    await testReRenderedTweetDoesNotDuplicateTranslation(browser);
     await testShowsPageNotice(browser);
   } finally {
     await browser.close();
@@ -1493,6 +1494,44 @@ async function testTranslationNodeStaysStableWhenClipStateChangesMidStream(brows
   }));
   assert.strictEqual(summary.total, 1, `expected a single translation node, got ${summary.total}`);
   assert.strictEqual(summary.done, 1, "the single node should reach done state");
+  await page.close();
+}
+
+async function testReRenderedTweetDoesNotDuplicateTranslation(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main>
+        <article id="tweet-article">
+          <div data-testid="tweetText">how much reverse engineering are we talking about in this system design thread</div>
+        </article>
+      </main>
+    `
+  });
+
+  const first = await runTranslation(page);
+  assert.strictEqual(first.requestCount, 1);
+
+  // 模拟 X/React 重渲染：正文元素被替换（丢失 data-llm-translator-* 标记）且位置变化，
+  // 译文节点存活在原位但不再紧邻新元素。
+  await page.evaluate(() => {
+    const article = document.getElementById("tweet-article");
+    const old = article.querySelector("[data-testid=\"tweetText\"]");
+    const fresh = document.createElement("div");
+    fresh.setAttribute("data-testid", "tweetText");
+    fresh.textContent = old.textContent;
+    article.appendChild(fresh);
+    old.remove();
+  });
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(1200);
+
+  const summary = await page.evaluate(() => ({
+    requestCount: window.__mockItems.length,
+    nodes: document.getElementById("tweet-article").querySelectorAll(".llm-bilingual-translation").length
+  }));
+  assert.strictEqual(summary.nodes, 1, `expected 1 translation node after re-render, got ${summary.nodes}`);
+  assert.strictEqual(summary.requestCount, 1, "re-rendered identical tweet must not trigger a second request");
   await page.close();
 }
 

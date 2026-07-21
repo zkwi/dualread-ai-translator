@@ -759,6 +759,7 @@
     isLikelyTargetLanguageText,
     isLikelyTargetLanguagePage,
     isTranslationCacheEntryFresh,
+    simpleHash,
     resolveTranslationPrompt,
     createTranslationCacheKey
   };
