@@ -54,6 +54,15 @@
   // 缓存到下一次页面内容变更为止，MutationObserver 里统一失效。
   const cleanTextCache = new WeakMap();
   const translationTextCache = new WeakMap();
+  // 译文节点按元素记忆：插入锚点依赖 isVisuallyClipped 等易变布局状态，
+  // 状态更新时重算锚点会导致同一元素插入第二个节点，这里首次插入后固定复用。
+  const translationNodesByElement = new WeakMap();
+
+  function getMemoizedTranslationNode(element) {
+    const node = translationNodesByElement.get(element);
+    return node?.isConnected ? node : null;
+  }
+
   let cleanTextEpoch = 0;
 
   function invalidateCleanTextCache() {
@@ -1314,7 +1323,8 @@
 
     const placement = element.dataset.llmTranslatorPlacement
       || LLMTranslatorShared.getTranslationPlacement(element.tagName);
-    const node = findExistingTranslationNode(element, placement);
+    const node = getMemoizedTranslationNode(element)
+      || findExistingTranslationNode(element, placement);
     if (node) {
       const layoutContainer = node.parentElement;
       node.remove();
@@ -2033,6 +2043,9 @@
 
   // 译文插入和结构感知布局。
   function ensureTranslationNode(element) {
+    const memoized = getMemoizedTranslationNode(element);
+    if (memoized) return memoized;
+
     const placement = LLMTranslatorShared.getTranslationPlacement(element.tagName);
     const context = getTranslationContext(element, placement);
     const insertionTarget = context.anchor;
@@ -2058,6 +2071,7 @@
     syncTranslationSlot(node, insertionTarget);
     applyTranslationLayout(node, context);
     node.dataset.llmTranslatorLocalTheme = detectElementTheme(element);
+    translationNodesByElement.set(element, node);
     return node;
   }
 

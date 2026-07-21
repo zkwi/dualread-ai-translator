@@ -123,6 +123,7 @@ async function main() {
     await testCanHideAndShowTranslations(browser);
     await testShowsSelectionTranslationCard(browser);
     await testPageLanguageModeSkipsTargetLanguageTweets(browser);
+    await testTranslationNodeStaysStableWhenClipStateChangesMidStream(browser);
     await testShowsPageNotice(browser);
   } finally {
     await browser.close();
@@ -1458,6 +1459,40 @@ async function testPageLanguageModeSkipsTargetLanguageTweets(browser) {
       || !!articles[1].nextElementSibling?.classList?.contains("llm-bilingual-translation");
   });
   assert.strictEqual(chineseTweetHasTranslation, false, "Chinese tweet must not receive a translation node");
+  await page.close();
+}
+
+async function testTranslationNodeStaysStableWhenClipStateChangesMidStream(browser) {
+  // 复现 X 流式翻译期间布局变化：loading 时未裁剪，done 前祖先变为 overflow 裁剪，
+  // 插入锚点从元素自身漂移到裁剪祖先，旧实现会插入第二个译文节点。
+  const page = await createHarnessPage(browser, {
+    translateDelayMs: 400,
+    html: `
+      <main>
+        <article>
+          <div id="clip-wrap">
+            <div data-testid="tweetText">The quoted status keeps its translation attached to the same anchor even when layout clipping changes during streaming.</div>
+          </div>
+        </article>
+      </main>
+    `
+  });
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(120);
+  await page.evaluate(() => {
+    const wrap = document.getElementById("clip-wrap");
+    wrap.style.maxHeight = "24px";
+    wrap.style.overflow = "hidden";
+  });
+  await page.waitForTimeout(900);
+
+  const summary = await page.evaluate(() => ({
+    total: document.querySelectorAll(".llm-bilingual-translation").length,
+    done: document.querySelectorAll(".llm-bilingual-translation.is-done").length
+  }));
+  assert.strictEqual(summary.total, 1, `expected a single translation node, got ${summary.total}`);
+  assert.strictEqual(summary.done, 1, "the single node should reach done state");
   await page.close();
 }
 
