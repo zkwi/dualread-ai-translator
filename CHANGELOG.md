@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.2
+
+- Fixed duplicated translation blocks on X posts caused by insertion anchors drifting when layout clipping changed during streaming, and by React re-renders dropping translation markers.
+- Restored per-element target-language skipping for Chinese/Japanese/Korean targets on mixed-language pages, so tweets already written in the target language no longer produce identical "translations".
+- Added regression fixtures for mixed-language timelines, mid-stream clipping changes, and re-rendered posts.
+
 ## 0.10.1
 
 - Expanded the bounded viewport pretranslation buffer so upcoming content can finish translating before the reader scrolls to it, while preserving visible-content priority and existing request, character, and concurrency limits.
