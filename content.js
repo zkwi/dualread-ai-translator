@@ -2855,8 +2855,11 @@
         padding: 0.62em 0.78em !important;
         overflow-x: hidden !important;
         border: 1px solid var(--llm-translator-outline) !important;
-        border-left: 2px solid var(--llm-translator-border) !important;
-        border-radius: 0 9px 9px 0 !important;
+        border-inline-start: 2px solid var(--llm-translator-border) !important;
+        border-start-start-radius: 0 !important;
+        border-end-start-radius: 0 !important;
+        border-start-end-radius: 9px !important;
+        border-end-end-radius: 9px !important;
         background: var(--llm-translator-bg) !important;
         color: var(--llm-translator-text) !important;
         box-shadow: 0 4px 14px rgba(15, 35, 63, 0.035) !important;
@@ -2868,10 +2871,8 @@
         white-space: pre-wrap !important;
         overflow-wrap: anywhere !important;
         word-break: normal !important;
-        direction: ltr !important;
         unicode-bidi: plaintext !important;
         text-align: start !important;
-        writing-mode: horizontal-tb !important;
       }
       [data-llm-translator-layout="stacked-grid"] > .llm-bilingual-translation {
         grid-column: 1 / -1 !important;
@@ -2896,7 +2897,7 @@
       }
       .llm-bilingual-translation.is-loading {
         color: var(--llm-translator-loading-text) !important;
-        border-left-color: #94a3b8 !important;
+        border-inline-start-color: #94a3b8 !important;
         background: var(--llm-translator-loading-bg) !important;
         animation: llmTranslatorLoadingPulse 1.25s ease-in-out infinite !important;
       }
@@ -2915,7 +2916,7 @@
       }
       .llm-bilingual-translation.is-error {
         color: var(--llm-translator-error-text) !important;
-        border-left-color: var(--llm-translator-error-text) !important;
+        border-inline-start-color: var(--llm-translator-error-text) !important;
         background: var(--llm-translator-error-bg) !important;
         cursor: pointer !important;
       }

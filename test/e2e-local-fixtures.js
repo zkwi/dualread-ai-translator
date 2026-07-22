@@ -94,6 +94,13 @@ async function main() {
       await testMultiColumnGridKeepsMenuPositionAndStyles(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "directional-layout") {
+      await testArabicTranslationUsesRtlDirection(browser);
+      await testMixedContentKeepsPlaintextBidiIsolation(browser);
+      await testVerticalWritingModeIsInherited(browser);
+      await testLogicalBorderVisibleInDarkTheme(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "viewport-prefetch") {
       await testViewportBufferPrefetchesNextScreenBeforeScroll(browser);
       return;
@@ -2128,6 +2135,79 @@ async function testMultiColumnGridKeepsMenuPositionAndStyles(browser) {
   assert.strictEqual(after.gridTemplateColumns, before.gridTemplateColumns);
   assert.strictEqual(after.translationAfterCard, true);
   assert.strictEqual(after.marker, "");
+  await page.close();
+}
+
+async function testArabicTranslationUsesRtlDirection(browser) {
+  const page = await createHarnessPage(browser, {
+    targetLanguage: "Arabic",
+    translationText: "هذا نص عربي لاختبار اتجاه الكتابة من اليمين إلى اليسار.",
+    html: `<main><p>This English source is translated into Arabic to verify right-to-left layout behavior.</p></main>`
+  });
+  await runTranslation(page);
+  const style = await page.evaluate(() => {
+    const node = document.querySelector(".llm-bilingual-translation.is-done");
+    return { direction: getComputedStyle(node).direction, dir: node.dir };
+  });
+  assert.strictEqual(style.direction, "rtl");
+  assert.strictEqual(style.dir, "auto");
+  await page.close();
+}
+
+async function testMixedContentKeepsPlaintextBidiIsolation(browser) {
+  const mixedTranslation = "مرحبا example.com/docs?v=2.0 — اختبار URL وعلامات الترقيم.";
+  const page = await createHarnessPage(browser, {
+    targetLanguage: "Arabic",
+    translationText: mixedTranslation,
+    html: `<main><p>This source contains a URL and punctuation that must remain readable in a mixed-direction translation.</p></main>`
+  });
+  await runTranslation(page);
+  const result = await page.evaluate(() => {
+    const node = document.querySelector(".llm-bilingual-translation.is-done");
+    const style = getComputedStyle(node);
+    return { text: node.textContent, direction: style.direction, unicodeBidi: style.unicodeBidi };
+  });
+  assert.strictEqual(result.text, mixedTranslation);
+  assert.strictEqual(result.direction, "rtl");
+  assert.strictEqual(result.unicodeBidi, "plaintext");
+  await page.close();
+}
+
+async function testVerticalWritingModeIsInherited(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `<main style="writing-mode:vertical-rl;height:700px"><p>A vertical article should not have its bilingual translation forced back to horizontal writing mode.</p></main>`
+  });
+  await runTranslation(page);
+  const writingMode = await page.evaluate(() => getComputedStyle(
+    document.querySelector(".llm-bilingual-translation.is-done")
+  ).writingMode);
+  assert.strictEqual(writingMode, "vertical-rl");
+  await page.close();
+}
+
+async function testLogicalBorderVisibleInDarkTheme(browser) {
+  const page = await createHarnessPage(browser, {
+    targetLanguage: "Arabic",
+    translationText: "هذا نص عربي لاختبار الحد المنطقي في الوضع الداكن.",
+    bodyStyle: "background:#000;color:#fff;font:20px Arial;padding:32px",
+    html: `<main><p>A dark section with Arabic output should show its accent border on the logical reading-start side.</p></main>`
+  });
+  await runTranslation(page);
+  const border = await page.evaluate(() => {
+    const style = getComputedStyle(document.querySelector(".llm-bilingual-translation.is-done"));
+    return {
+      direction: style.direction,
+      inlineStartWidth: style.borderInlineStartWidth,
+      inlineStartStyle: style.borderInlineStartStyle,
+      inlineStartColor: style.borderInlineStartColor,
+      inlineEndWidth: style.borderInlineEndWidth
+    };
+  });
+  assert.strictEqual(border.direction, "rtl");
+  assert.strictEqual(border.inlineStartWidth, "2px");
+  assert.strictEqual(border.inlineStartStyle, "solid");
+  assert.notStrictEqual(border.inlineStartColor, "rgba(0, 0, 0, 0)");
+  assert.strictEqual(border.inlineEndWidth, "1px");
   await page.close();
 }
 
