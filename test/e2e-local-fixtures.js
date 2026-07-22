@@ -76,6 +76,13 @@ async function main() {
       await testDifferentPermalinksWithSameTextUseSeparateRecords(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "dynamic-source-updates") {
+      await testCharacterDataUpdateRetranslatesSource(browser);
+      await testReplacingChildTextNodeRetranslatesSource(browser);
+      await testStreamingResponseCannotWriteAfterSourceChanges(browser);
+      await testSourceUpdateReleasesAndReusesPageBudget(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "viewport-prefetch") {
       await testViewportBufferPrefetchesNextScreenBeforeScroll(browser);
       return;
@@ -1838,6 +1845,102 @@ async function testDifferentPermalinksWithSameTextUseSeparateRecords(browser) {
   }), repeatedText);
   assert.strictEqual(summary.requests, 2);
   assert.deepStrictEqual(summary.nodes, [1, 1]);
+  await page.close();
+}
+
+async function testCharacterDataUpdateRetranslatesSource(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `<main><article><p id="dynamic-source">The original paragraph describes the first version of a rapidly changing live update.</p></article></main>`
+  });
+  await runTranslation(page);
+  await page.evaluate(() => {
+    document.getElementById("dynamic-source").firstChild.textContent = "The updated paragraph describes the second version and must receive a fresh translation.";
+  });
+  await page.waitForTimeout(1200);
+
+  const summary = await page.evaluate(() => ({
+    requests: window.__mockItems,
+    nodes: document.querySelectorAll(".llm-bilingual-translation.is-done").length,
+    translation: document.querySelector(".llm-bilingual-translation.is-done")?.textContent || ""
+  }));
+  assert.strictEqual(summary.requests.length, 2);
+  assert.match(summary.requests[1], /updated paragraph/);
+  assert.strictEqual(summary.nodes, 1);
+  assert.match(summary.translation, /updated paragraph/);
+  await page.close();
+}
+
+async function testReplacingChildTextNodeRetranslatesSource(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `<main><article><p id="dynamic-source">Replacing a child text node should invalidate the completed translation for this paragraph.</p></article></main>`
+  });
+  await runTranslation(page);
+  await page.evaluate(() => {
+    const source = document.getElementById("dynamic-source");
+    source.replaceChild(
+      document.createTextNode("A replacement child text node must be observed and translated as the new paragraph."),
+      source.firstChild
+    );
+  });
+  await page.waitForTimeout(1200);
+
+  const summary = await page.evaluate(() => ({
+    requests: window.__mockItems,
+    nodes: document.querySelectorAll(".llm-bilingual-translation.is-done").length
+  }));
+  assert.strictEqual(summary.requests.length, 2);
+  assert.match(summary.requests[1], /replacement child text node/);
+  assert.strictEqual(summary.nodes, 1);
+  await page.close();
+}
+
+async function testStreamingResponseCannotWriteAfterSourceChanges(browser) {
+  const page = await createHarnessPage(browser, {
+    translateDelayMs: 900,
+    html: `<main><article><p id="dynamic-source">The old live update begins streaming before the publisher corrects the source paragraph.</p></article></main>`
+  });
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(120);
+  await page.evaluate(() => {
+    document.getElementById("dynamic-source").textContent = "The corrected live update replaces the old source while its response is still streaming.";
+  });
+  await page.waitForTimeout(1700);
+
+  const summary = await page.evaluate(() => ({
+    requests: window.__mockItems,
+    active: window.__inflightStreamRequests,
+    nodes: Array.from(document.querySelectorAll(".llm-bilingual-translation.is-done")).map((node) => node.textContent)
+  }));
+  assert.strictEqual(summary.requests.length, 2);
+  assert.match(summary.requests[1], /corrected live update/);
+  assert.strictEqual(summary.active, 0);
+  assert.strictEqual(summary.nodes.length, 1);
+  assert.match(summary.nodes[0], /corrected live update/);
+  assert.doesNotMatch(summary.nodes[0], /old live update/);
+  await page.close();
+}
+
+async function testSourceUpdateReleasesAndReusesPageBudget(browser) {
+  const page = await createHarnessPage(browser, {
+    maxRequestsPerPage: 1,
+    html: `<main><article><p id="dynamic-source">The first budgeted paragraph is translated before its source text changes in place.</p></article></main>`
+  });
+  await runTranslation(page);
+  await page.evaluate(() => {
+    document.getElementById("dynamic-source").textContent = "The second budgeted paragraph should translate after the previous record releases its reservation.";
+  });
+  await page.waitForTimeout(1200);
+
+  const summary = await page.evaluate(() => ({
+    requests: window.__mockItems.length,
+    nodes: document.querySelectorAll(".llm-bilingual-translation.is-done").length,
+    reservedRequests: window.__llmBilingualTranslator.budget.requests,
+    translated: window.__llmBilingualTranslator.stats.translated
+  }));
+  assert.strictEqual(summary.requests, 2);
+  assert.strictEqual(summary.nodes, 1);
+  assert.strictEqual(summary.reservedRequests, 1);
+  assert.strictEqual(summary.translated, 1);
   await page.close();
 }
 

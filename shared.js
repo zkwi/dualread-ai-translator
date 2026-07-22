@@ -265,6 +265,7 @@
   function getDynamicScanObserverOptions() {
     return {
       childList: true,
+      characterData: true,
       subtree: true,
       attributes: true,
       attributeFilter: ["class", "style", "hidden", "aria-hidden"]

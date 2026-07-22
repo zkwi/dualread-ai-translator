@@ -22,6 +22,7 @@ assert.ok(shared.getCandidateSelector().includes("figcaption"));
 
 assert.deepStrictEqual(shared.getDynamicScanObserverOptions(), {
   childList: true,
+  characterData: true,
   subtree: true,
   attributes: true,
   attributeFilter: ["class", "style", "hidden", "aria-hidden"]

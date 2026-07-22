@@ -223,6 +223,7 @@
       state: "queued",
       requestId: null,
       elementId: ensureElementId(element),
+      budgetReserved: false,
       sourceTextLength: identity.sourceFingerprint.length,
       lastSeenAt: Date.now()
     };
@@ -1599,10 +1600,13 @@
   }
 
   function releaseReservedBudget(element) {
-    const textLength = getTranslationRecord(element)?.sourceTextLength
+    const record = getTranslationRecord(element);
+    if (record && !record.budgetReserved) return;
+    const textLength = record?.sourceTextLength
       || normalizeText(getTranslationText(element)).length;
     state.budget.requests = Math.max(0, state.budget.requests - 1);
     state.budget.chars = Math.max(0, state.budget.chars - textLength);
+    if (record) record.budgetReserved = false;
   }
 
   function observeElements(elements) {
@@ -1743,18 +1747,27 @@
       if (!state.active) return;
 
       let shouldInvalidateTextCache = false;
+      const changedSources = new Set();
 
       for (const mutation of mutations) {
         if (mutation.type === "childList") {
+          const changedSource = findRecordedSourceForMutation(mutation.target);
+          if (changedSource) changedSources.add(changedSource);
           mutation.addedNodes.forEach((node) => {
-            if (queueDynamicScanRoot(node)) shouldInvalidateTextCache = true;
+            const scanNode = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+            if (queueDynamicScanRoot(scanNode)) shouldInvalidateTextCache = true;
           });
+        } else if (mutation.type === "characterData") {
+          const changedSource = findRecordedSourceForMutation(mutation.target);
+          if (changedSource) changedSources.add(changedSource);
+          if (queueDynamicScanRoot(mutation.target.parentElement)) shouldInvalidateTextCache = true;
         } else if (mutation.type === "attributes") {
           if (queueDynamicScanRoot(mutation.target, { attributeOnly: true })) shouldInvalidateTextCache = true;
         }
       }
 
-      if (shouldInvalidateTextCache) invalidateCleanTextCache();
+      if (shouldInvalidateTextCache || changedSources.size > 0) invalidateCleanTextCache();
+      changedSources.forEach(reconcileChangedSource);
       scheduleDynamicScan();
     });
 
@@ -1762,6 +1775,77 @@
       document.body,
       LLMTranslatorShared.getDynamicScanObserverOptions()
     );
+  }
+
+  function findRecordedSourceForMutation(node) {
+    const element = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    if (!element || element.closest?.(".llm-bilingual-translation")) return null;
+    if (getTranslationRecord(element)) return element;
+
+    const source = element.closest?.("[data-llm-translator-id]");
+    return source && getTranslationRecord(source) ? source : null;
+  }
+
+  function reconcileChangedSource(sourceElement) {
+    const record = getTranslationRecord(sourceElement);
+    if (!record || record.state === "cancelled") return;
+
+    const nextText = getTranslationText(sourceElement);
+    const nextFingerprint = getSourceFingerprint(nextText);
+    if (record.sourceFingerprint.hash === nextFingerprint.hash
+      && record.sourceFingerprint.length === nextFingerprint.length
+      && record.sourceFingerprint.summary === nextFingerprint.summary) {
+      return;
+    }
+
+    invalidateTranslationRecord(record, { releaseBudget: true, removeNode: true });
+    queueDynamicScanRoot(sourceElement);
+  }
+
+  function invalidateTranslationRecord(record, options = {}) {
+    if (!record || record.state === "cancelled") return;
+
+    const sourceElement = record.sourceElement;
+    const requestId = record.requestId;
+    if (requestId) {
+      try {
+        state.translationPort?.postMessage({ type: "cancel", requestId });
+      } catch (error) {
+        // 后台连接可能已断开，本地 requestId 校验仍会阻止旧响应写入。
+      }
+      settleStreamRequest(requestId);
+    }
+
+    if (options.releaseBudget && record.budgetReserved) {
+      releaseReservedBudget(sourceElement);
+    }
+
+    const node = record.translationNode;
+    if (options.removeNode && node) {
+      const oldContainer = node.parentElement;
+      node.remove();
+      clearUnusedTranslationLayoutMarker(oldContainer);
+    }
+
+    clearRecordedElementStatus(sourceElement);
+    state.queuedIds.delete(record.elementId);
+    translationRecordsByKey.delete(record.key);
+    record.state = "cancelled";
+    record.requestId = null;
+    record.translationNode = null;
+    record.lastSeenAt = Date.now();
+  }
+
+  function clearRecordedElementStatus(element) {
+    if (!element?.dataset) return;
+    const status = element.dataset.llmTranslatorStatus;
+    if (status === "done") {
+      state.stats.translated = Math.max(0, state.stats.translated - 1);
+    } else if (status === "error") {
+      state.stats.failed = Math.max(0, state.stats.failed - 1);
+    }
+    delete element.dataset.llmTranslatorStatus;
+    delete element.dataset.llmTranslatorPlacement;
   }
 
   function queueDynamicScanRoot(node, options = {}) {
@@ -1851,6 +1935,7 @@
     }
 
     const record = createTranslationRecord(element, text);
+    record.budgetReserved = true;
     state.queuedIds.add(id);
     state.queue.push(element);
     setLoading(element, record);
