@@ -2466,6 +2466,19 @@
   function getTranslationContext(element, requestedPlacement = null) {
     const placement = requestedPlacement || LLMTranslatorShared.getTranslationPlacement(element.tagName);
     const tagName = element.tagName;
+    if (!requestedPlacement) {
+      const safeLayoutAnchor = findSafeLayoutTranslationAnchor(element);
+      if (safeLayoutAnchor) {
+        return {
+          anchor: safeLayoutAnchor.anchor,
+          placement: "after",
+          strategy: "after-layout-row",
+          host: safeLayoutAnchor.anchor.parentElement,
+          contentUnit: resolveContentUnit(element),
+          confidence: safeLayoutAnchor.confidence
+        };
+      }
+    }
     return {
       anchor: getTranslationInsertionTarget(element, placement),
       placement,
@@ -2476,6 +2489,47 @@
       contentUnit: resolveContentUnit(element),
       confidence: "high"
     };
+  }
+
+  function findSafeLayoutTranslationAnchor(element) {
+    const elementStyle = window.getComputedStyle(element);
+    if (isHorizontalFlexStyle(elementStyle) || isMultiColumnGridStyle(elementStyle)) {
+      return { anchor: element, confidence: "high" };
+    }
+
+    const parent = element.parentElement;
+    if (!parent || parent === document.body || parent === document.documentElement) return null;
+    const parentStyle = window.getComputedStyle(parent);
+    if (isHorizontalFlexStyle(parentStyle)) {
+      return { anchor: parent, confidence: "high" };
+    }
+    if (isMultiColumnGridStyle(parentStyle) || hasInteractiveLayoutSibling(element)) {
+      if (parentStyle.display === "grid" || parentStyle.display === "inline-grid") {
+        return { anchor: parent, confidence: "high" };
+      }
+    }
+    return null;
+  }
+
+  function isHorizontalFlexStyle(style) {
+    return (style.display === "flex" || style.display === "inline-flex")
+      && (style.flexDirection === "row" || style.flexDirection === "row-reverse");
+  }
+
+  function isMultiColumnGridStyle(style) {
+    if (style.display !== "grid" && style.display !== "inline-grid") return false;
+    return String(style.gridTemplateColumns || "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .length > 1;
+  }
+
+  function hasInteractiveLayoutSibling(element) {
+    return Array.from(element.parentElement?.children || []).some((sibling) => (
+      sibling !== element
+      && (sibling.matches?.("a[href],button,input,select,textarea,[role=\"button\"]")
+        || !!sibling.querySelector?.("a[href],button,input,select,textarea,[role=\"button\"]"))
+    ));
   }
 
   function applyTranslationLayout(node, context) {
@@ -2492,7 +2546,7 @@
       layoutMode = "stacked-grid";
     }
 
-    if (layoutMode === "block") return;
+    if (layoutMode === "block" || layoutMode === "stacked-flex") return;
 
     container.dataset.llmTranslatorLayout = layoutMode;
     context.layoutMode = layoutMode;
@@ -2818,12 +2872,6 @@
         unicode-bidi: plaintext !important;
         text-align: start !important;
         writing-mode: horizontal-tb !important;
-      }
-      [data-llm-translator-layout="stacked-flex"] {
-        flex-wrap: wrap !important;
-      }
-      [data-llm-translator-layout="stacked-flex"] > .llm-bilingual-translation {
-        flex: 0 0 100% !important;
       }
       [data-llm-translator-layout="stacked-grid"] > .llm-bilingual-translation {
         grid-column: 1 / -1 !important;

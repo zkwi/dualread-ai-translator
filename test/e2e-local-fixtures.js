@@ -89,6 +89,11 @@ async function main() {
       await testListTranslationKeepsMarkerCheckboxAndPrimaryLinkStable(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "layout-host-safety") {
+      await testHorizontalFlexKeepsControlPositionAndStyles(browser);
+      await testMultiColumnGridKeepsMenuPositionAndStyles(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "viewport-prefetch") {
       await testViewportBufferPrefetchesNextScreenBeforeScroll(browser);
       return;
@@ -542,7 +547,9 @@ async function testFlexAndGridCardsGiveTranslationsTheirOwnRow(browser) {
   });
 
   const before = await page.evaluate(() => ({
-    flexTitleWidth: document.getElementById("flex-title").getBoundingClientRect().width
+    flexTitleWidth: document.getElementById("flex-title").getBoundingClientRect().width,
+    flexWrap: getComputedStyle(document.getElementById("flex-card")).flexWrap,
+    gridTemplateColumns: getComputedStyle(document.getElementById("grid-card")).gridTemplateColumns
   }));
 
   await runTranslation(page);
@@ -550,29 +557,27 @@ async function testFlexAndGridCardsGiveTranslationsTheirOwnRow(browser) {
   const layout = await page.evaluate(() => {
     const flexCard = document.getElementById("flex-card");
     const flexTitle = document.getElementById("flex-title");
-    const flexTranslation = flexCard.querySelector(":scope > .llm-bilingual-translation");
-    const firstRowBottom = Math.max(
-      document.getElementById("flex-image").getBoundingClientRect().bottom,
-      flexTitle.getBoundingClientRect().bottom
-    );
+    const flexTranslation = flexCard.nextElementSibling;
     const gridCard = document.getElementById("grid-card");
-    const gridTranslation = gridCard.querySelector(":scope > .llm-bilingual-translation");
+    const gridTranslation = gridCard.nextElementSibling;
     return {
       flexTitleWidth: flexTitle.getBoundingClientRect().width,
-      flexTranslationTop: flexTranslation?.getBoundingClientRect().top || 0,
-      firstRowBottom,
+      flexWrap: getComputedStyle(flexCard).flexWrap,
+      flexTranslationAfterCard: flexTranslation?.classList.contains("llm-bilingual-translation") || false,
       flexLayoutMarker: flexCard.dataset.llmTranslatorLayout || "",
-      gridTranslationWidth: gridTranslation?.getBoundingClientRect().width || 0,
-      gridCardWidth: gridCard.getBoundingClientRect().width,
-      gridColumnStart: gridTranslation ? getComputedStyle(gridTranslation).gridColumnStart : ""
+      gridTemplateColumns: getComputedStyle(gridCard).gridTemplateColumns,
+      gridTranslationAfterCard: gridTranslation?.classList.contains("llm-bilingual-translation") || false,
+      gridLayoutMarker: gridCard.dataset.llmTranslatorLayout || ""
     };
   });
 
   assert.ok(layout.flexTitleWidth >= before.flexTitleWidth - 1, "Translation must not squeeze the original Flex title.");
-  assert.ok(layout.flexTranslationTop >= layout.firstRowBottom - 1, "Flex translation should occupy the next row.");
-  assert.strictEqual(layout.flexLayoutMarker, "stacked-flex");
-  assert.ok(layout.gridTranslationWidth >= layout.gridCardWidth - 1, "Grid translation should span the full card width.");
-  assert.strictEqual(layout.gridColumnStart, "1");
+  assert.strictEqual(layout.flexWrap, before.flexWrap);
+  assert.strictEqual(layout.flexTranslationAfterCard, true);
+  assert.strictEqual(layout.flexLayoutMarker, "");
+  assert.strictEqual(layout.gridTemplateColumns, before.gridTemplateColumns);
+  assert.strictEqual(layout.gridTranslationAfterCard, true);
+  assert.strictEqual(layout.gridLayoutMarker, "");
 
   await page.evaluate(() => window.__sendContentMessage({ action: "clear_translation" }));
   const cleared = await page.evaluate(() => ({
@@ -2035,6 +2040,94 @@ async function testListTranslationKeepsMarkerCheckboxAndPrimaryLinkStable(browse
   assert.strictEqual(after.listStyleType, before.listStyleType);
   assert.strictEqual(after.translationInsideItem, true);
   assert.deepStrictEqual(after.sequence, ["task-checkbox", "task-link", "translation", "task-menu"]);
+  await page.close();
+}
+
+async function testHorizontalFlexKeepsControlPositionAndStyles(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main><article>
+        <div id="profile-row" style="display:flex;flex-wrap:nowrap;align-items:flex-start;gap:12px;width:720px">
+          <p id="profile-source" style="flex:1;min-width:0;margin:0">We are hiring engineers to build reliable agent workflows, evaluation systems, and developer tooling for production teams.</p>
+          <button id="follow-control" style="flex:0 0 auto">Follow</button>
+        </div>
+      </article></main>
+    `
+  });
+  const before = await page.evaluate(() => {
+    const row = document.getElementById("profile-row");
+    const control = document.getElementById("follow-control").getBoundingClientRect();
+    const style = getComputedStyle(row);
+    return {
+      control: { x: control.x, y: control.y },
+      display: style.display,
+      flexWrap: style.flexWrap,
+      flexDirection: style.flexDirection
+    };
+  });
+  await runTranslation(page);
+  const after = await page.evaluate(() => {
+    const row = document.getElementById("profile-row");
+    const control = document.getElementById("follow-control").getBoundingClientRect();
+    const style = getComputedStyle(row);
+    return {
+      control: { x: control.x, y: control.y },
+      display: style.display,
+      flexWrap: style.flexWrap,
+      flexDirection: style.flexDirection,
+      translationAfterRow: row.nextElementSibling?.classList.contains("llm-bilingual-translation"),
+      marker: row.dataset.llmTranslatorLayout || ""
+    };
+  });
+
+  assert.deepStrictEqual(after.control, before.control);
+  assert.strictEqual(after.display, before.display);
+  assert.strictEqual(after.flexWrap, before.flexWrap);
+  assert.strictEqual(after.flexDirection, before.flexDirection);
+  assert.strictEqual(after.translationAfterRow, true);
+  assert.strictEqual(after.marker, "");
+  await page.close();
+}
+
+async function testMultiColumnGridKeepsMenuPositionAndStyles(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main><div id="video-card" style="display:grid;grid-template-columns:150px minmax(0,1fr) 42px;gap:12px;align-items:start;width:720px">
+        <div style="height:86px;background:#ddd"></div>
+        <h3 id="video-source" style="margin:0">A practical guide to building autonomous coding agents that can plan, test, and review their changes</h3>
+        <button id="video-menu" aria-label="More">More</button>
+      </div></main>
+    `
+  });
+  const before = await page.evaluate(() => {
+    const card = document.getElementById("video-card");
+    const menu = document.getElementById("video-menu").getBoundingClientRect();
+    const style = getComputedStyle(card);
+    return {
+      menu: { x: menu.x, y: menu.y },
+      display: style.display,
+      gridTemplateColumns: style.gridTemplateColumns
+    };
+  });
+  await runTranslation(page);
+  const after = await page.evaluate(() => {
+    const card = document.getElementById("video-card");
+    const menu = document.getElementById("video-menu").getBoundingClientRect();
+    const style = getComputedStyle(card);
+    return {
+      menu: { x: menu.x, y: menu.y },
+      display: style.display,
+      gridTemplateColumns: style.gridTemplateColumns,
+      translationAfterCard: card.nextElementSibling?.classList.contains("llm-bilingual-translation"),
+      marker: card.dataset.llmTranslatorLayout || ""
+    };
+  });
+
+  assert.deepStrictEqual(after.menu, before.menu);
+  assert.strictEqual(after.display, before.display);
+  assert.strictEqual(after.gridTemplateColumns, before.gridTemplateColumns);
+  assert.strictEqual(after.translationAfterCard, true);
+  assert.strictEqual(after.marker, "");
   await page.close();
 }
 
