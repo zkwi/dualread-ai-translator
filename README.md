@@ -21,8 +21,9 @@ It is designed as a lightweight OpenAI-compatible web translator: bring your own
 - **Bilingual webpage translation**: original text stays in place, translation appears underneath.
 - **Chrome AI translator workflow**: translate with OpenAI, DeepSeek, DashScope/Qwen, local models, or any OpenAI-compatible API.
 - **Viewport-first translation**: translate the current screen and nearby content instead of sending the whole page.
-- **Dynamic page support**: handle scrolling feeds, expanded posts, late-loaded content, and long articles.
-- **Structure-aware layout**: place translations safely in block, Flex, Grid, clipped preview, list, and Web Component layouts.
+- **Dynamic page support**: keep one translation record across scrolling feeds, expanded posts, source edits, and React-style re-renders without duplicate requests.
+- **Structure-aware layout**: place translations safely in blocks, table cells, lists, Flex/Grid rows, clipped previews, and Web Component layouts without rewriting host layout styles.
+- **Responsive reading styles**: adapt spacing for compact cards, mobile screens, and long articles while respecting RTL and vertical writing modes.
 - **Auto translate with language skip**: translate foreign-language pages automatically and skip pages already dominated by the target language.
 - **Right-click translation**: translate the current webpage or selected text from the context menu.
 - **Responsive and cost-aware**: plain-text streaming per paragraph, small concurrency, per-page budgets, and local paragraph cache.
@@ -123,7 +124,9 @@ See [PRIVACY.md](PRIVACY.md) for details.
 npm install
 npm run check
 npm test
+npm run test:layout
 npm run test:samples
+npm run test:all
 ```
 
 Useful scripts:

@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.10.2";
+  const CONTENT_SCRIPT_VERSION = "0.11.0";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -44,7 +44,11 @@
     budget: createEmptyBudget(),
     translationVisible: true,
     displayMode: "bilingual",
-    stats: createEmptyStats()
+    stats: createEmptyStats(),
+    diagnostics: {
+      scanDurations: [],
+      streamRenderDurations: []
+    }
   };
 
   window.__llmBilingualTranslator = state;
@@ -225,6 +229,8 @@
       elementId: ensureElementId(element),
       budgetReserved: false,
       sourceTextLength: identity.sourceFingerprint.length,
+      strategy: "",
+      rebindReason: "",
       lastSeenAt: Date.now()
     };
     translationRecordsByKey.set(record.key, record);
@@ -248,6 +254,8 @@
       translationNodesByElement.set(element, record.translationNode);
     }
     if (previousSource && previousSource !== element && record.translationNode) {
+      unlinkSourceFromTranslation(previousSource, record.translationNode);
+      record.rebindReason = previousSource.isConnected ? "matching-record" : "source-replaced";
       rebindTranslationRecordPlacement(record, element);
     }
     return record;
@@ -283,8 +291,10 @@
     applyTranslationLayout(node, context);
     applyTranslationDensity(node, element, context);
     node.dataset.llmTranslatorLocalTheme = detectElementTheme(element);
+    record.strategy = context.strategy || placement;
     record.anchorElement = insertionTarget;
     record.lastSeenAt = Date.now();
+    linkSourceToTranslation(element, node, record);
   }
 
   function getOrCreateTranslationRecord(element, text = getTranslationText(element)) {
@@ -417,6 +427,11 @@
       return false;
     }
 
+    if (request.action === "get_layout_diagnostics") {
+      sendResponse(getLayoutDiagnosticsSnapshot());
+      return false;
+    }
+
     if (request.action === "set_translation_visibility") {
       sendResponse(setTranslationVisibility(request.visible));
       return false;
@@ -487,6 +502,8 @@
 
     state.stats = createEmptyStats();
     state.budget = createEmptyBudget();
+    state.diagnostics.scanDurations.length = 0;
+    state.diagnostics.streamRenderDurations.length = 0;
     state.active = true;
     setDisplayMode(state.settings?.displayMode);
     setTranslationVisibility(true);
@@ -600,8 +617,13 @@
   function clearTranslations() {
     stopTranslation();
     state.stats = createEmptyStats();
+    state.diagnostics.scanDurations.length = 0;
+    state.diagnostics.streamRenderDurations.length = 0;
     setTranslationVisibility(true);
 
+    translationRecordsByKey.forEach((record) => {
+      unlinkSourceFromTranslation(record.accessibilitySource || record.sourceElement, record.translationNode);
+    });
     document.querySelectorAll(".llm-bilingual-translation").forEach((node) => node.remove());
     document.querySelectorAll("[data-llm-translator-layout]").forEach((node) => {
       delete node.dataset.llmTranslatorLayout;
@@ -1587,6 +1609,7 @@
       || findExistingTranslationNode(element, placement);
     if (node) {
       const layoutContainer = node.parentElement;
+      unlinkSourceFromTranslation(element, node);
       node.remove();
       clearUnusedTranslationLayoutMarker(layoutContainer);
     }
@@ -1650,6 +1673,7 @@
   }
 
   function scanViewport(root = document, options = {}) {
+    const startedAt = performance.now();
     const superseded = prepareViewportScan();
     const elements = options.immediate
       ? collectImmediateViewportCandidateElements(root)
@@ -1669,6 +1693,7 @@
     if (superseded && state.queue.length > 0) {
       flushQueue();
     }
+    recordDiagnosticDuration(state.diagnostics.scanDurations, startedAt);
     return elements;
   }
 
@@ -1825,6 +1850,7 @@
     const node = record.translationNode;
     if (options.removeNode && node) {
       const oldContainer = node.parentElement;
+      unlinkSourceFromTranslation(record.accessibilitySource || sourceElement, node);
       node.remove();
       clearUnusedTranslationLayoutMarker(oldContainer);
     }
@@ -1928,6 +1954,13 @@
     const existingRecord = findTranslationRecord(element, text);
     if (existingRecord) {
       bindTranslationRecord(existingRecord, element);
+      if (existingRecord.state === "error") {
+        state.queuedIds.add(id);
+        state.queue.push(element);
+        setLoading(element, existingRecord);
+        state.stats.queued += 1;
+        flushQueue();
+      }
       return;
     }
     if (!reserveTranslationBudget(text)) {
@@ -2043,7 +2076,9 @@
         request.counted = true;
         state.stats.apiRequested += 1;
       }
+      const startedAt = performance.now();
       setStreamingTranslation(request.record.sourceElement, request.text, request.record);
+      recordDiagnosticDuration(state.diagnostics.streamRenderDurations, startedAt);
       return;
     }
 
@@ -2421,11 +2456,13 @@
     const record = providedRecord || getTranslationRecord(element) || getOrCreateTranslationRecord(element);
     if (record.translationNode?.isConnected) {
       translationNodesByElement.set(element, record.translationNode);
+      linkSourceToTranslation(element, record.translationNode, record);
       return record.translationNode;
     }
     const memoized = getMemoizedTranslationNode(element);
     if (memoized) {
       record.translationNode = memoized;
+      linkSourceToTranslation(element, memoized, record);
       return memoized;
     }
 
@@ -2458,12 +2495,41 @@
     if (!node.dataset.llmSourceHash) {
       node.dataset.llmSourceHash = record.sourceFingerprint.hash;
     }
+    record.strategy = context.strategy || placement;
     record.anchorElement = insertionTarget;
     record.translationNode = node;
     record.lastSeenAt = Date.now();
+    linkSourceToTranslation(element, node, record);
     translationRecordByElement.set(element, record);
     translationNodesByElement.set(element, node);
     return node;
+  }
+
+  function linkSourceToTranslation(element, node, record) {
+    if (!element || !node || !record) return;
+    if (!node.id) node.id = `${record.elementId}-translation`;
+
+    const describedBy = new Set(
+      String(element.getAttribute("aria-describedby") || "")
+        .split(/\s+/)
+        .filter(Boolean)
+    );
+    describedBy.add(node.id);
+    element.setAttribute("aria-describedby", Array.from(describedBy).join(" "));
+    record.accessibilitySource = element;
+  }
+
+  function unlinkSourceFromTranslation(element, node) {
+    const translationId = node?.id;
+    if (!element || !translationId) return;
+    const describedBy = String(element.getAttribute("aria-describedby") || "")
+      .split(/\s+/)
+      .filter((id) => id && id !== translationId);
+    if (describedBy.length > 0) {
+      element.setAttribute("aria-describedby", describedBy.join(" "));
+    } else {
+      element.removeAttribute("aria-describedby");
+    }
   }
 
   function getTranslationContext(element, requestedPlacement = null) {
@@ -2732,6 +2798,7 @@
     node.className = "llm-bilingual-translation is-loading";
     node.textContent = t("contentLoading", [], "翻译中...");
     clearRetryInteraction(node);
+    setTranslationAccessibilityState(node, { busy: true });
     record.state = "loading";
     setElementStatus(element, "loading");
   }
@@ -2742,6 +2809,7 @@
     node.className = "llm-bilingual-translation is-streaming";
     node.textContent = text;
     clearRetryInteraction(node);
+    setTranslationAccessibilityState(node, { busy: true });
     record.state = "streaming";
     setElementStatus(element, "loading");
   }
@@ -2752,6 +2820,7 @@
     node.className = "llm-bilingual-translation is-done";
     node.textContent = text;
     clearRetryInteraction(node);
+    setTranslationAccessibilityState(node, { busy: false });
     record.state = "done";
     record.lastSeenAt = Date.now();
     setElementStatus(element, "done");
@@ -2770,6 +2839,8 @@
       }
     };
     node.setAttribute("role", "button");
+    node.setAttribute("aria-live", "polite");
+    node.setAttribute("aria-busy", "false");
     node.tabIndex = 0;
     record.state = "error";
     record.lastSeenAt = Date.now();
@@ -2781,6 +2852,12 @@
     node.onkeydown = null;
     node.removeAttribute("role");
     node.removeAttribute("tabindex");
+  }
+
+  function setTranslationAccessibilityState(node, { busy }) {
+    node.setAttribute("role", "status");
+    node.setAttribute("aria-live", "polite");
+    node.setAttribute("aria-busy", busy ? "true" : "false");
   }
 
   function setElementStatus(element, status) {
@@ -3319,6 +3396,39 @@
       translationVisible: state.translationVisible,
       displayMode: state.displayMode
     };
+  }
+
+  function getLayoutDiagnosticsSnapshot() {
+    return {
+      recordCount: translationRecordsByKey.size,
+      records: Array.from(translationRecordsByKey.values()).map((record) => ({
+        recordKey: record.key,
+        hash: record.sourceFingerprint.hash,
+        length: record.sourceFingerprint.length,
+        state: record.state,
+        strategy: record.strategy || "",
+        rebindReason: record.rebindReason || ""
+      })),
+      performance: {
+        scanSamples: state.diagnostics.scanDurations.length,
+        scanP95Ms: percentile(state.diagnostics.scanDurations, 0.95),
+        streamRenderSamples: state.diagnostics.streamRenderDurations.length,
+        streamRenderP95Ms: percentile(state.diagnostics.streamRenderDurations, 0.95)
+      }
+    };
+  }
+
+  function recordDiagnosticDuration(bucket, startedAt) {
+    const duration = Math.max(0, performance.now() - startedAt);
+    bucket.push(duration);
+    if (bucket.length > 200) bucket.splice(0, bucket.length - 200);
+  }
+
+  function percentile(values, ratio) {
+    if (!Array.isArray(values) || values.length === 0) return 0;
+    const sorted = [...values].sort((left, right) => left - right);
+    const index = Math.min(sorted.length - 1, Math.ceil(sorted.length * ratio) - 1);
+    return Math.round(sorted[index] * 1000) / 1000;
   }
 
   function refreshPageLanguageContext(settings) {

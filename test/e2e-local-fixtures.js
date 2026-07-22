@@ -112,6 +112,16 @@ async function main() {
       await testNestedMainNavigationAndHeaderStayUntranslated(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "release-acceptance") {
+      await testTranslationAccessibilityRelation(browser);
+      await testHundredCardsStayBoundedAcrossRapidRerenders(browser);
+      return;
+    }
+    if (process.env.TEST_FILTER === "retry") {
+      await testRetrySuccessDoesNotDoubleCountStats(browser);
+      await testRetryFailureStaysKeyboardAccessible(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "viewport-prefetch") {
       await testViewportBufferPrefetchesNextScreenBeforeScroll(browser);
       return;
@@ -181,6 +191,35 @@ async function main() {
     await testPageLanguageModeSkipsTargetLanguageTweets(browser);
     await testTranslationNodeStaysStableWhenClipStateChangesMidStream(browser);
     await testReRenderedTweetDoesNotDuplicateTranslation(browser);
+    await testReRenderedTweetDuringLoadingUsesOneRequest(browser);
+    await testReRenderedTweetDuringStreamingUsesOneNode(browser);
+    await testRepeatedTweetReplacementKeepsOneActiveTranslation(browser);
+    await testCompletedTranslationRebindsAfterSourceReplacement(browser);
+    await testTranslationRebindKeepsControlsAfterTranslation(browser);
+    await testArticleReplacementWithSamePermalinkReusesTranslation(browser);
+    await testSameSectionDuplicateTextTranslatesEachCard(browser);
+    await testSameCardSourceReplacementReusesTranslation(browser);
+    await testDifferentPermalinksWithSameTextUseSeparateRecords(browser);
+    await testCharacterDataUpdateRetranslatesSource(browser);
+    await testReplacingChildTextNodeRetranslatesSource(browser);
+    await testStreamingResponseCannotWriteAfterSourceChanges(browser);
+    await testSourceUpdateReleasesAndReusesPageBudget(browser);
+    await testLongTableCellsKeepTranslationsInsideCells(browser);
+    await testTableTranslationPreservesColumnStructure(browser);
+    await testListTranslationKeepsMarkerCheckboxAndPrimaryLinkStable(browser);
+    await testHorizontalFlexKeepsControlPositionAndStyles(browser);
+    await testMultiColumnGridKeepsMenuPositionAndStyles(browser);
+    await testArabicTranslationUsesRtlDirection(browser);
+    await testMixedContentKeepsPlaintextBidiIsolation(browser);
+    await testVerticalWritingModeIsInherited(browser);
+    await testLogicalBorderVisibleInDarkTheme(browser);
+    await testMobileDensityAvoidsOverflowAndOverlap(browser);
+    await testCompactDensityUsesReducedSpacing(browser);
+    await testArticleDensityPreservesReadableSpacing(browser);
+    await testDensityWorksInTranslationFirstMode(browser);
+    await testNestedMainNavigationAndHeaderStayUntranslated(browser);
+    await testTranslationAccessibilityRelation(browser);
+    await testHundredCardsStayBoundedAcrossRapidRerenders(browser);
     await testShowsPageNotice(browser);
   } finally {
     await browser.close();
@@ -1765,7 +1804,11 @@ async function testTranslationRebindKeepsControlsAfterTranslation(browser) {
       .filter((element) => element === source
         || element.id === "tweet-controls"
         || element.dataset.llmSourceHash === sourceHash)
-      .map((element) => element.id || (element === source ? "source" : "translation"));
+      .map((element) => {
+        if (element === source) return "source";
+        if (element.classList.contains("llm-bilingual-translation")) return "translation";
+        return element.id;
+      });
   });
   assert.deepStrictEqual(sequence, ["source", "translation", "tweet-controls"]);
   await page.close();
@@ -2048,7 +2091,9 @@ async function testListTranslationKeepsMarkerCheckboxAndPrimaryLinkStable(browse
       checkbox: { x: checkbox.x, y: checkbox.y },
       link: { x: link.x, y: link.y },
       listStyleType: getComputedStyle(item).listStyleType,
-      sequence: Array.from(item.children).map((child) => child.id || "translation"),
+      sequence: Array.from(item.children).map((child) => (
+        child.classList.contains("llm-bilingual-translation") ? "translation" : child.id
+      )),
       translationInsideItem: !!translation
     };
   });
@@ -2339,6 +2384,117 @@ async function testNestedMainNavigationAndHeaderStayUntranslated(browser) {
   assert.strictEqual(await hasTranslationNear(page, "#nested-nav"), false);
   assert.strictEqual(await hasTranslationNear(page, "#nested-header"), false);
   assert.strictEqual(await hasTranslationNear(page, "#article-body"), true);
+  await page.close();
+}
+
+async function testTranslationAccessibilityRelation(browser) {
+  const page = await createHarnessPage(browser, {
+    translateDelayMs: 600,
+    html: `
+      <main>
+        <article>
+          <span id="existing-help">Existing context</span>
+          <p id="accessible-source" aria-describedby="existing-help">This paragraph stays connected to its polite live translation throughout loading and completion.</p>
+        </article>
+      </main>
+    `
+  });
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(100);
+  const loading = await page.evaluate(() => {
+    const source = document.getElementById("accessible-source");
+    const node = document.querySelector(".llm-bilingual-translation");
+    return {
+      nodeId: node?.id || "",
+      live: node?.getAttribute("aria-live") || "",
+      busy: node?.getAttribute("aria-busy") || "",
+      describedBy: source?.getAttribute("aria-describedby") || ""
+    };
+  });
+  assert.ok(loading.nodeId, "translation should have a stable accessibility id");
+  assert.strictEqual(loading.live, "polite");
+  assert.strictEqual(loading.busy, "true");
+  assert.ok(loading.describedBy.split(/\s+/).includes("existing-help"));
+  assert.ok(loading.describedBy.split(/\s+/).includes(loading.nodeId));
+
+  await page.waitForFunction(() => document.querySelector(".llm-bilingual-translation")?.classList.contains("is-done"));
+  assert.strictEqual(
+    await page.locator(".llm-bilingual-translation").getAttribute("aria-busy"),
+    "false"
+  );
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "clear_translation" }));
+  assert.strictEqual(
+    await page.locator("#accessible-source").getAttribute("aria-describedby"),
+    "existing-help"
+  );
+  await page.close();
+}
+
+async function testHundredCardsStayBoundedAcrossRapidRerenders(browser) {
+  const cards = Array.from({ length: 100 }, (_, index) => `
+    <article id="stress-card-${index}">
+      <p class="stress-source">Card ${index} contains stable readable English content for translation record stress testing.</p>
+    </article>
+  `).join("");
+  const page = await createHarnessPage(browser, {
+    viewport: { width: 1200, height: 900 },
+    maxElementsPerScan: 120,
+    maxRequestsPerPage: 120,
+    maxCharsPerPage: 120000,
+    maxConcurrentBatches: 8,
+    extraCss: `
+      main { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 2px; }
+      article, p { min-width: 0; margin: 0; font: 10px/1.1 Arial; }
+    `,
+    html: `<main>${cards}</main>`
+  });
+
+  await runTranslation(page, 3500);
+  await page.evaluate(() => {
+    for (let pass = 0; pass < 10; pass += 1) {
+      document.querySelectorAll(".stress-source").forEach((source) => {
+        const replacement = source.cloneNode(true);
+        replacement.querySelectorAll(".llm-bilingual-translation").forEach((node) => node.remove());
+        delete replacement.dataset.llmTranslatorId;
+        delete replacement.dataset.llmTranslatorStatus;
+        delete replacement.dataset.llmTranslatorPlacement;
+        source.replaceWith(replacement);
+      });
+    }
+  });
+  await page.waitForTimeout(1800);
+  for (let index = 0; index < 25; index += 1) {
+    await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  }
+  await page.waitForTimeout(400);
+
+  const summary = await page.evaluate(async () => {
+    const diagnostics = await window.__sendContentMessage({ action: "get_layout_diagnostics" });
+    return {
+      requests: window.__mockItems.length,
+      translations: document.querySelectorAll(".llm-bilingual-translation.is-done").length,
+      relatedSources: Array.from(document.querySelectorAll(".stress-source")).filter((source) => {
+        const ids = String(source.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean);
+        return ids.some((id) => document.getElementById(id)?.classList.contains("llm-bilingual-translation"));
+      }).length,
+      diagnostics
+    };
+  });
+  assert.strictEqual(summary.requests, 100, "rapid same-content rerenders must not add requests");
+  assert.strictEqual(summary.translations, 100, "each active card should keep exactly one translation");
+  assert.strictEqual(summary.relatedSources, 100, "each rerendered source should retain its accessible translation relation");
+  assert.ok(summary.diagnostics.recordCount <= 120, `record count should stay bounded, got ${summary.diagnostics.recordCount}`);
+  assert.ok(summary.diagnostics.performance.scanP95Ms < 50, `scan p95 should stay below 50ms, got ${summary.diagnostics.performance.scanP95Ms}ms`);
+  assert.ok(summary.diagnostics.performance.streamRenderP95Ms < 8, `stream render p95 should stay below 8ms, got ${summary.diagnostics.performance.streamRenderP95Ms}ms`);
+  assert.ok(summary.diagnostics.records.length > 0);
+  assert.deepStrictEqual(
+    Object.keys(summary.diagnostics.records[0]).sort(),
+    ["hash", "length", "rebindReason", "recordKey", "state", "strategy"]
+  );
+  assert.doesNotMatch(JSON.stringify(summary.diagnostics), /stable readable English|测试译文/);
+  console.log(`release acceptance: records=${summary.diagnostics.recordCount} scanP95=${summary.diagnostics.performance.scanP95Ms}ms streamP95=${summary.diagnostics.performance.streamRenderP95Ms}ms`);
   await page.close();
 }
 
@@ -2772,7 +2928,8 @@ async function testRetrySuccessDoesNotDoubleCountStats(browser) {
   await page.focus(".llm-bilingual-translation.is-error");
   await page.keyboard.press("Enter");
   await page.waitForFunction(() => document.querySelectorAll(".llm-bilingual-translation.is-done").length === 1);
-  assert.strictEqual(await page.locator(".llm-bilingual-translation.is-done").getAttribute("role"), null);
+  assert.strictEqual(await page.locator(".llm-bilingual-translation.is-done").getAttribute("role"), "status");
+  assert.strictEqual(await page.locator(".llm-bilingual-translation.is-done").getAttribute("aria-busy"), "false");
   assert.strictEqual(await page.locator(".llm-bilingual-translation.is-done").getAttribute("tabindex"), null);
 
   const retriedStats = await page.evaluate(async () => {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.0
+
+- Replaced DOM-node-only deduplication with logical translation records, so streaming and completed translations survive React-style source replacement without duplicate requests or detached output.
+- Reconciled live source-text edits and stale responses while keeping per-card identity, page budgets, and translation state consistent.
+- Added semantic placement for tables and lists, host-safe Flex/Grid handling, RTL-aware logical styling, and adaptive compact/article/mobile density.
+- Linked source and translation nodes for assistive technology, with polite loading announcements and explicit busy state.
+- Added a 16-site desktop/mobile fixture matrix, real-page screenshots and layout checks, plus bounded 100-card/1000-replacement performance acceptance coverage.
+
 ## 0.10.2
 
 - Fixed duplicated translation blocks on X posts caused by insertion anchors drifting when layout clipping changed during streaming, and by React re-renders dropping translation markers.
