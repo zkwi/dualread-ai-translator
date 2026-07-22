@@ -14,10 +14,12 @@ function getContentScriptVersion(source) {
   return match[1];
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
@@ -2520,12 +2522,12 @@ async function selectTextInElement(page, selector) {
 }
 
 async function createHarnessPage(browser, options = {}) {
-  const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });
+  const page = await browser.newPage({ viewport: options.viewport || { width: 1000, height: 800 } });
   const bodyStyle = options.bodyStyle || "font:20px Arial;padding:32px";
 
   await page.setContent(`<!doctype html>
     <html>
-      <head><meta charset="utf-8"></head>
+      <head><meta charset="utf-8"><style>${options.extraCss || ""}</style></head>
       <body style="${bodyStyle}">${options.html || ""}</body>
     </html>`);
 
@@ -2594,7 +2596,7 @@ async function createHarnessPage(browser, options = {}) {
     });
   }
 
-  await page.evaluate(({ settings, settingsDelayMs, translateDelayMs, failFirstTranslate }) => {
+  await page.evaluate(({ settings, settingsDelayMs, translateDelayMs, failFirstTranslate, translationText }) => {
     const listeners = [];
 
     window.__mockSettings = settings;
@@ -2664,7 +2666,7 @@ async function createHarnessPage(browser, options = {}) {
                 window.__inflightStreamRequests
               );
 
-              const translation = `测试译文：${String(item.text || "").slice(0, 80)}`;
+              const translation = translationText || `测试译文：${String(item.text || "").slice(0, 80)}`;
               const firstDelta = translation.slice(0, Math.max(1, Math.min(5, translation.length)));
               const secondDelta = translation.slice(firstDelta.length);
               const firstDelay = translateDelayMs > 0 ? Math.min(60, Math.max(10, Math.floor(translateDelayMs / 4))) : 0;
@@ -2778,7 +2780,7 @@ async function createHarnessPage(browser, options = {}) {
                 meta: { requested: items.length, cacheHits: 0 },
                 results: items.map((item) => ({
                   id: item.id,
-                  text: `测试译文：${String(item.text || "").slice(0, 80)}`
+                  text: translationText || `测试译文：${String(item.text || "").slice(0, 80)}`
                 }))
               };
             } finally {
@@ -2825,7 +2827,8 @@ async function createHarnessPage(browser, options = {}) {
     },
     settingsDelayMs: options.settingsDelayMs || 0,
     translateDelayMs: options.translateDelayMs || 0,
-    failFirstTranslate: options.failFirstTranslate === true
+    failFirstTranslate: options.failFirstTranslate === true,
+    translationText: options.translationText || ""
   });
 
   await page.evaluate(sharedSource);
@@ -2833,9 +2836,9 @@ async function createHarnessPage(browser, options = {}) {
   return page;
 }
 
-async function runTranslation(page) {
+async function runTranslation(page, waitMs = 1800) {
   await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(waitMs);
 
   return page.evaluate(async () => {
     const statsResponse = await window.__sendContentMessage({ action: "get_page_stats" });
@@ -2848,6 +2851,11 @@ async function runTranslation(page) {
     };
   });
 }
+
+module.exports = {
+  createHarnessPage,
+  runTranslation
+};
 
 async function hasTranslationNear(page, selector) {
   return page.evaluate((targetSelector) => {
