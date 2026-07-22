@@ -281,6 +281,7 @@
     element.dataset.llmTranslatorPlacement = placement;
     syncTranslationSlot(node, insertionTarget);
     applyTranslationLayout(node, context);
+    applyTranslationDensity(node, element, context);
     node.dataset.llmTranslatorLocalTheme = detectElementTheme(element);
     record.anchorElement = insertionTarget;
     record.lastSeenAt = Date.now();
@@ -2451,6 +2452,7 @@
     node.dir = "auto";
     syncTranslationSlot(node, insertionTarget);
     applyTranslationLayout(node, context);
+    applyTranslationDensity(node, element, context);
     node.dataset.llmTranslatorLocalTheme = detectElementTheme(element);
     if (!node.dataset.llmSourceHash) {
       node.dataset.llmSourceHash = record.sourceFingerprint.hash;
@@ -2550,6 +2552,23 @@
 
     container.dataset.llmTranslatorLayout = layoutMode;
     context.layoutMode = layoutMode;
+  }
+
+  function applyTranslationDensity(node, element, context) {
+    const contentUnit = context.contentUnit || resolveContentUnit(element);
+    const reference = contentUnit?.isConnected ? contentUnit : context.anchor || element;
+    const availableWidth = Math.min(
+      reference?.getBoundingClientRect?.().width || window.innerWidth,
+      window.innerWidth || document.documentElement.clientWidth || 0
+    );
+
+    let density = "normal";
+    if (availableWidth <= 520 || ["inside-cell", "inside-list"].includes(context.strategy)) {
+      density = "compact";
+    } else if (contentUnit?.matches?.("article,[role=\"article\"]") && availableWidth >= 640) {
+      density = "article";
+    }
+    node.dataset.llmTranslatorDensity = density;
   }
 
   function clearUnusedTranslationLayoutMarker(container) {
@@ -2851,8 +2870,10 @@
         min-width: 0 !important;
         clear: both !important;
         align-self: stretch !important;
-        margin: 0.45em 0 0.8em 0 !important;
-        padding: 0.62em 0.78em !important;
+        margin-block: 0.45em 0.8em !important;
+        margin-inline: 0 !important;
+        padding-block: 0.62em !important;
+        padding-inline: 0.78em !important;
         overflow-x: hidden !important;
         border: 1px solid var(--llm-translator-outline) !important;
         border-inline-start: 2px solid var(--llm-translator-border) !important;
@@ -2873,6 +2894,22 @@
         word-break: normal !important;
         unicode-bidi: plaintext !important;
         text-align: start !important;
+      }
+      .llm-bilingual-translation[data-llm-translator-density="compact"] {
+        margin-block: 0.32em 0.55em !important;
+        padding-block: 0.45em !important;
+        padding-inline: 0.58em !important;
+        border-start-end-radius: 6px !important;
+        border-end-end-radius: 6px !important;
+        box-shadow: none !important;
+        font-size: 0.92em !important;
+        line-height: 1.55 !important;
+      }
+      .llm-bilingual-translation[data-llm-translator-density="article"] {
+        margin-block: 0.55em 0.9em !important;
+        padding-block: 0.68em !important;
+        padding-inline: 0.86em !important;
+        line-height: 1.72 !important;
       }
       [data-llm-translator-layout="stacked-grid"] > .llm-bilingual-translation {
         grid-column: 1 / -1 !important;

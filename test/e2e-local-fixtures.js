@@ -101,6 +101,13 @@ async function main() {
       await testLogicalBorderVisibleInDarkTheme(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "adaptive-density") {
+      await testMobileDensityAvoidsOverflowAndOverlap(browser);
+      await testCompactDensityUsesReducedSpacing(browser);
+      await testArticleDensityPreservesReadableSpacing(browser);
+      await testDensityWorksInTranslationFirstMode(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "viewport-prefetch") {
       await testViewportBufferPrefetchesNextScreenBeforeScroll(browser);
       return;
@@ -2208,6 +2215,107 @@ async function testLogicalBorderVisibleInDarkTheme(browser) {
   assert.strictEqual(border.inlineStartStyle, "solid");
   assert.notStrictEqual(border.inlineStartColor, "rgba(0, 0, 0, 0)");
   assert.strictEqual(border.inlineEndWidth, "1px");
+  await page.close();
+}
+
+async function testMobileDensityAvoidsOverflowAndOverlap(browser) {
+  const page = await createHarnessPage(browser, {
+    viewport: { width: 390, height: 844 },
+    bodyStyle: "margin:0;padding:8px;font:16px Arial",
+    html: `
+      <main style="width:374px">
+        <article style="width:100%">
+          <div id="mobile-row" style="display:flex;align-items:flex-start;gap:8px">
+            <p style="flex:1;min-width:0;margin:0">A narrow mobile card should receive a compact translation without covering its nearby menu control.</p>
+            <button id="mobile-menu">More</button>
+          </div>
+        </article>
+      </main>
+    `
+  });
+  await runTranslation(page);
+  const summary = await page.evaluate(() => {
+    const translation = document.querySelector(".llm-bilingual-translation.is-done");
+    const menu = document.getElementById("mobile-menu").getBoundingClientRect();
+    const translated = translation.getBoundingClientRect();
+    const overlaps = Math.max(menu.x, translated.x) < Math.min(menu.right, translated.right)
+      && Math.max(menu.y, translated.y) < Math.min(menu.bottom, translated.bottom);
+    return {
+      density: translation.dataset.llmTranslatorDensity || "",
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      overlaps
+    };
+  });
+  assert.strictEqual(summary.density, "compact");
+  assert.ok(summary.overflow <= 0);
+  assert.strictEqual(summary.overlaps, false);
+  await page.close();
+}
+
+async function testCompactDensityUsesReducedSpacing(browser) {
+  const page = await createHarnessPage(browser, {
+    viewport: { width: 390, height: 844 },
+    bodyStyle: "margin:0;padding:8px;font:16px Arial",
+    html: `<main><section style="width:330px"><p>A dense recommendation card needs smaller spacing and no decorative shadow on a narrow screen.</p></section></main>`
+  });
+  await runTranslation(page);
+  const style = await page.evaluate(() => {
+    const node = document.querySelector(".llm-bilingual-translation.is-done");
+    const computed = getComputedStyle(node);
+    return {
+      density: node.dataset.llmTranslatorDensity || "",
+      paddingInlineStart: parseFloat(computed.paddingInlineStart),
+      marginBlockStart: parseFloat(computed.marginBlockStart),
+      borderStartEndRadius: parseFloat(computed.borderStartEndRadius),
+      boxShadow: computed.boxShadow
+    };
+  });
+  assert.strictEqual(style.density, "compact");
+  assert.ok(style.paddingInlineStart <= 10);
+  assert.ok(style.marginBlockStart <= 6);
+  assert.ok(style.borderStartEndRadius <= 7);
+  assert.strictEqual(style.boxShadow, "none");
+  await page.close();
+}
+
+async function testArticleDensityPreservesReadableSpacing(browser) {
+  const page = await createHarnessPage(browser, {
+    viewport: { width: 1000, height: 800 },
+    bodyStyle: "margin:0;padding:32px;font:18px Arial",
+    html: `<main><article style="width:760px"><p>A wide article paragraph should retain comfortable bilingual spacing, line height, and visual separation for sustained reading on a desktop viewport.</p></article></main>`
+  });
+  await runTranslation(page);
+  const style = await page.evaluate(() => {
+    const node = document.querySelector(".llm-bilingual-translation.is-done");
+    const computed = getComputedStyle(node);
+    return {
+      density: node.dataset.llmTranslatorDensity || "",
+      paddingInlineStart: parseFloat(computed.paddingInlineStart),
+      lineHeight: parseFloat(computed.lineHeight)
+    };
+  });
+  assert.strictEqual(style.density, "article");
+  assert.ok(style.paddingInlineStart >= 12);
+  assert.ok(style.lineHeight >= 26);
+  await page.close();
+}
+
+async function testDensityWorksInTranslationFirstMode(browser) {
+  const page = await createHarnessPage(browser, {
+    viewport: { width: 390, height: 844 },
+    displayMode: "translation-first",
+    bodyStyle: "margin:0;padding:8px;font:16px Arial",
+    html: `<main><article style="width:350px"><p id="priority-source">Translation-first mode should retain compact mobile layout while visually prioritizing the translated text.</p></article></main>`
+  });
+  await runTranslation(page);
+  const summary = await page.evaluate(() => ({
+    density: document.querySelector(".llm-bilingual-translation.is-done")?.dataset.llmTranslatorDensity || "",
+    sourceOpacity: parseFloat(getComputedStyle(document.getElementById("priority-source")).opacity),
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+  }));
+  assert.strictEqual(summary.density, "compact");
+  assert.ok(summary.sourceOpacity < 1);
+  assert.ok(summary.overflow <= 0);
   await page.close();
 }
 
