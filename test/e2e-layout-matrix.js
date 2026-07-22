@@ -47,9 +47,9 @@ async function main() {
 
           const metrics = await collectLayoutMetrics(page, before);
           const classification = classifyLayoutMetrics(metrics);
-          if (fixture.scenario === "x-rerender" && metrics.requestCount !== 2) {
+          if (fixture.scenario === "x-rerender" && metrics.logicalRequestCount !== 2) {
             classification.status = "FAIL";
-            classification.issues.push(`逻辑内容请求数应为 2，实际为 ${metrics.requestCount}`);
+            classification.issues.push(`逻辑内容请求数应为 2，实际为 ${metrics.logicalRequestCount}`);
           }
 
           const screenshot = `${fixture.key}-${viewport.name}.png`;

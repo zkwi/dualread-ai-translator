@@ -61,6 +61,11 @@ async function collectLayoutMetrics(page, before) {
     const translations = Array.from(document.querySelectorAll(".llm-bilingual-translation"));
     const sources = Array.from(document.querySelectorAll("[data-test-source]"));
     const units = Array.from(document.querySelectorAll("[data-unit]"));
+    const logicalSourceTexts = new Set(sources.map((source) => {
+      const clone = source.cloneNode(true);
+      clone.querySelectorAll?.(".llm-bilingual-translation").forEach((node) => node.remove());
+      return normalizedText(clone);
+    }));
 
     const unitDetails = units.map((unit, index) => {
       const unitSources = Array.from(unit.querySelectorAll("[data-test-source]"));
@@ -140,6 +145,7 @@ async function collectLayoutMetrics(page, before) {
       sourceCount: sources.length,
       translationCount: translations.length,
       requestCount: window.__mockItems.length,
+      logicalRequestCount: window.__mockItems.filter((text) => logicalSourceTexts.has(String(text).replace(/\s+/g, " ").trim())).length,
       activeRequestCount: window.__inflightStreamRequests,
       missingUnits: unitDetails.reduce((sum, unit) => sum + unit.missingCount, 0),
       duplicateUnits: unitDetails.reduce((sum, unit) => sum + unit.duplicateCount, 0),

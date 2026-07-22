@@ -57,10 +57,162 @@
   // 译文节点按元素记忆：插入锚点依赖 isVisuallyClipped 等易变布局状态，
   // 状态更新时重算锚点会导致同一元素插入第二个节点，这里首次插入后固定复用。
   const translationNodesByElement = new WeakMap();
+  const translationRecordByElement = new WeakMap();
+  const translationRecordsByKey = new Map();
+  const contentUnitIds = new WeakMap();
+  let contentUnitCounter = 0;
+
+  state.translationRecordsByKey = translationRecordsByKey;
 
   function getMemoizedTranslationNode(element) {
+    const recordNode = translationRecordByElement.get(element)?.translationNode;
+    if (recordNode?.isConnected) return recordNode;
     const node = translationNodesByElement.get(element);
     return node?.isConnected ? node : null;
+  }
+
+  function getTranslationRecord(element) {
+    return translationRecordByElement.get(element) || null;
+  }
+
+  function getTranslationProfileKey(settings = state.settings) {
+    return LLMTranslatorShared.simpleHash(JSON.stringify({
+      apiUrl: String(settings?.apiUrl || "").trim(),
+      model: String(settings?.model || "").trim(),
+      sourceLanguage: String(settings?.sourceLanguage || "").trim(),
+      targetLanguage: String(settings?.targetLanguage || "").trim(),
+      translationPrompt: String(settings?.translationPrompt || "").trim()
+    }));
+  }
+
+  function getPreliminaryContentUnit(element) {
+    return element.closest?.([
+      "article",
+      "[role=\"article\"]",
+      "li",
+      "blockquote",
+      "section",
+      "shreddit-post",
+      "shreddit-comment"
+    ].join(",")) || element.parentElement || element;
+  }
+
+  function getPreliminaryContentUnitKey(element) {
+    const contentUnit = getPreliminaryContentUnit(element);
+    let id = contentUnitIds.get(contentUnit);
+    if (!id) {
+      contentUnitCounter += 1;
+      id = `unit-${contentUnitCounter}`;
+      contentUnitIds.set(contentUnit, id);
+    }
+    return id;
+  }
+
+  function getSourceFingerprint(text) {
+    const normalized = normalizeText(text);
+    return {
+      hash: LLMTranslatorShared.simpleHash(normalized),
+      length: normalized.length,
+      summary: normalized.length <= 128
+        ? normalized
+        : `${normalized.slice(0, 64)}\u0000${normalized.slice(-64)}`
+    };
+  }
+
+  function getTranslationRecordKey(element, text) {
+    const profileKey = getTranslationProfileKey();
+    const contentUnitKey = getPreliminaryContentUnitKey(element);
+    const sourceFingerprint = getSourceFingerprint(text);
+    return {
+      key: `${profileKey}:${contentUnitKey}:${sourceFingerprint.hash}`,
+      profileKey,
+      contentUnitKey,
+      sourceFingerprint
+    };
+  }
+
+  function isMatchingTranslationRecord(record, identity) {
+    return !!record
+      && record.profileKey === identity.profileKey
+      && record.contentUnitKey === identity.contentUnitKey
+      && record.sourceFingerprint.hash === identity.sourceFingerprint.hash
+      && record.sourceFingerprint.length === identity.sourceFingerprint.length
+      && record.sourceFingerprint.summary === identity.sourceFingerprint.summary
+      && record.state !== "cancelled";
+  }
+
+  function findTranslationRecord(element, text) {
+    const direct = getTranslationRecord(element);
+    if (direct) {
+      const fingerprint = getSourceFingerprint(text);
+      if (direct.sourceFingerprint.hash === fingerprint.hash
+        && direct.sourceFingerprint.length === fingerprint.length
+        && direct.sourceFingerprint.summary === fingerprint.summary
+        && direct.profileKey === getTranslationProfileKey()
+        && direct.state !== "cancelled") {
+        direct.lastSeenAt = Date.now();
+        return direct;
+      }
+    }
+
+    const identity = getTranslationRecordKey(element, text);
+    const record = translationRecordsByKey.get(identity.key);
+    if (!isMatchingTranslationRecord(record, identity)) return null;
+    record.lastSeenAt = Date.now();
+    return record;
+  }
+
+  function createTranslationRecord(element, text) {
+    pruneTranslationRecords();
+    const identity = getTranslationRecordKey(element, text);
+    const record = {
+      ...identity,
+      sourceElement: element,
+      anchorElement: null,
+      translationNode: null,
+      state: "queued",
+      requestId: null,
+      elementId: ensureElementId(element),
+      sourceTextLength: identity.sourceFingerprint.length,
+      lastSeenAt: Date.now()
+    };
+    translationRecordsByKey.set(record.key, record);
+    translationRecordByElement.set(element, record);
+    return record;
+  }
+
+  function bindTranslationRecord(record, element) {
+    if (!record || !element) return record;
+    record.sourceElement = element;
+    record.lastSeenAt = Date.now();
+    translationRecordByElement.set(element, record);
+    element.dataset.llmTranslatorId = record.elementId;
+    if (["queued", "loading", "streaming"].includes(record.state)) {
+      element.dataset.llmTranslatorStatus = "loading";
+    } else if (["done", "error", "skipped-budget"].includes(record.state)) {
+      element.dataset.llmTranslatorStatus = record.state;
+    }
+    if (record.translationNode?.isConnected) {
+      translationNodesByElement.set(element, record.translationNode);
+    }
+    return record;
+  }
+
+  function getOrCreateTranslationRecord(element, text = getTranslationText(element)) {
+    const existing = findTranslationRecord(element, text);
+    return existing ? bindTranslationRecord(existing, element) : createTranslationRecord(element, text);
+  }
+
+  function pruneTranslationRecords(now = Date.now()) {
+    const maxIdleMs = 5 * 60 * 1000;
+    for (const [key, record] of translationRecordsByKey) {
+      const sourceConnected = !!record.sourceElement?.isConnected;
+      const nodeConnected = !!record.translationNode?.isConnected;
+      const active = ["queued", "loading", "streaming"].includes(record.state);
+      if (!active && ((!sourceConnected && !nodeConnected) || now - record.lastSeenAt > maxIdleMs)) {
+        translationRecordsByKey.delete(key);
+      }
+    }
   }
 
   let cleanTextEpoch = 0;
@@ -370,6 +522,7 @@
       delete node.dataset.llmTranslatorStatus;
       delete node.dataset.llmTranslatorPlacement;
     });
+    translationRecordsByKey.clear();
   }
 
   // 候选发现：视口采样、有界补扫和通用可读块判断。
@@ -974,6 +1127,11 @@
 
     const text = knownText === null ? getTranslationText(element, costSettings) : knownText;
     if (text.length < getMinimumCandidateTextLength(element) || text.length > costSettings.maxTextLength) return false;
+    const existingRecord = findTranslationRecord(element, text);
+    if (existingRecord) {
+      bindTranslationRecord(existingRecord, element);
+      return false;
+    }
     if (findScopedDuplicateTranslationNode(element, text)) return false;
     if (isSiteMetadataCandidate(element, text)) return false;
     if (isShortLowInformationLinkCandidate(element, text)) return false;
@@ -1345,10 +1503,17 @@
 
     delete element.dataset.llmTranslatorStatus;
     delete element.dataset.llmTranslatorPlacement;
+    const record = getTranslationRecord(element);
+    if (record && ["queued", "loading", "streaming"].includes(record.state)) {
+      record.state = "cancelled";
+      record.requestId = null;
+      translationRecordsByKey.delete(record.key);
+    }
   }
 
   function releaseReservedBudget(element) {
-    const textLength = normalizeText(getTranslationText(element)).length;
+    const textLength = getTranslationRecord(element)?.sourceTextLength
+      || normalizeText(getTranslationText(element)).length;
     state.budget.requests = Math.max(0, state.budget.requests - 1);
     state.budget.chars = Math.max(0, state.budget.chars - textLength);
   }
@@ -1587,15 +1752,21 @@
     if (state.queuedIds.has(id)) return;
 
     const text = getTranslationText(element);
+    const existingRecord = findTranslationRecord(element, text);
+    if (existingRecord) {
+      bindTranslationRecord(existingRecord, element);
+      return;
+    }
     if (!reserveTranslationBudget(text)) {
       setElementStatus(element, "skipped-budget");
       state.stats.skippedBudget += 1;
       return;
     }
 
+    const record = createTranslationRecord(element, text);
     state.queuedIds.add(id);
     state.queue.push(element);
-    setLoading(element);
+    setLoading(element, record);
     state.stats.queued += 1;
     flushQueue();
   }
@@ -1631,7 +1802,11 @@
       state.translationPort = null;
       for (const [requestId, request] of Array.from(state.streamRequests.entries())) {
         if (state.active && request.runId === state.runId) {
-          setError(request.element, t("errorTranslationFailed", [], "翻译连接已断开，请点击重试。"));
+          setError(
+            request.record.sourceElement,
+            t("errorTranslationFailed", [], "翻译连接已断开，请点击重试。"),
+            request.record
+          );
         }
         settleStreamRequest(requestId);
       }
@@ -1642,10 +1817,13 @@
   function translateStreamElement(element, streamRunId) {
     const id = ensureElementId(element);
     const requestId = `${id}:${streamRunId}:${++state.streamCounter}`;
+    const record = getTranslationRecord(element) || getOrCreateTranslationRecord(element);
+    record.requestId = requestId;
+    record.state = "loading";
 
     return new Promise((resolve) => {
       const request = {
-        element,
+        record,
         runId: streamRunId,
         text: "",
         counted: false,
@@ -1678,6 +1856,10 @@
       settleStreamRequest(requestId);
       return;
     }
+    if (request.record.requestId !== requestId || request.record.state === "cancelled") {
+      settleStreamRequest(requestId);
+      return;
+    }
 
     if (message.type === "delta") {
       request.text = typeof message.text === "string"
@@ -1687,27 +1869,27 @@
         request.counted = true;
         state.stats.apiRequested += 1;
       }
-      setStreamingTranslation(request.element, request.text);
+      setStreamingTranslation(request.record.sourceElement, request.text, request.record);
       return;
     }
 
     if (message.type === "cached") {
       state.stats.cacheHits += 1;
-      setTranslation(request.element, message.text || "");
+      setTranslation(request.record.sourceElement, message.text || "", request.record);
       settleStreamRequest(requestId);
       return;
     }
 
     if (message.type === "done") {
       if (!request.counted) state.stats.apiRequested += 1;
-      setTranslation(request.element, message.text || request.text);
+      setTranslation(request.record.sourceElement, message.text || request.text, request.record);
       settleStreamRequest(requestId);
       return;
     }
 
     if (message.type === "error") {
       if (!request.counted) state.stats.apiRequested += 1;
-      setError(request.element, message.error || t("errorTranslationFailed", [], "翻译失败。"));
+      setError(request.record.sourceElement, message.error || t("errorTranslationFailed", [], "翻译失败。"), request.record);
       settleStreamRequest(requestId);
     }
   }
@@ -1716,6 +1898,7 @@
     const request = state.streamRequests.get(requestId);
     if (!request) return;
     state.streamRequests.delete(requestId);
+    if (request.record.requestId === requestId) request.record.requestId = null;
     request.resolve();
   }
 
@@ -1730,6 +1913,12 @@
         // Port 可能已由后台断开，本地仍需释放队列槽位。
       }
       state.streamRequests.delete(requestId);
+      if (request.record.requestId === requestId) {
+        request.record.requestId = null;
+        if (["queued", "loading", "streaming"].includes(request.record.state)) {
+          request.record.state = "cancelled";
+        }
+      }
       request.resolve();
     }
 
@@ -2054,9 +2243,17 @@
   }
 
   // 译文插入和结构感知布局。
-  function ensureTranslationNode(element) {
+  function ensureTranslationNode(element, providedRecord = null) {
+    const record = providedRecord || getTranslationRecord(element) || getOrCreateTranslationRecord(element);
+    if (record.translationNode?.isConnected) {
+      translationNodesByElement.set(element, record.translationNode);
+      return record.translationNode;
+    }
     const memoized = getMemoizedTranslationNode(element);
-    if (memoized) return memoized;
+    if (memoized) {
+      record.translationNode = memoized;
+      return memoized;
+    }
 
     const placement = LLMTranslatorShared.getTranslationPlacement(element.tagName);
     const context = getTranslationContext(element, placement);
@@ -2084,8 +2281,12 @@
     applyTranslationLayout(node, context);
     node.dataset.llmTranslatorLocalTheme = detectElementTheme(element);
     if (!node.dataset.llmSourceHash) {
-      node.dataset.llmSourceHash = LLMTranslatorShared.simpleHash(getTranslationText(element));
+      node.dataset.llmSourceHash = record.sourceFingerprint.hash;
     }
+    record.anchorElement = insertionTarget;
+    record.translationNode = node;
+    record.lastSeenAt = Date.now();
+    translationRecordByElement.set(element, record);
     translationNodesByElement.set(element, node);
     return node;
   }
@@ -2271,32 +2472,40 @@
     return score;
   }
 
-  function setLoading(element) {
-    const node = ensureTranslationNode(element);
+  function setLoading(element, providedRecord = null) {
+    const record = providedRecord || getTranslationRecord(element) || getOrCreateTranslationRecord(element);
+    const node = ensureTranslationNode(element, record);
     node.className = "llm-bilingual-translation is-loading";
     node.textContent = t("contentLoading", [], "翻译中...");
     clearRetryInteraction(node);
+    record.state = "loading";
     setElementStatus(element, "loading");
   }
 
-  function setStreamingTranslation(element, text) {
-    const node = ensureTranslationNode(element);
+  function setStreamingTranslation(element, text, providedRecord = null) {
+    const record = providedRecord || getTranslationRecord(element) || getOrCreateTranslationRecord(element);
+    const node = ensureTranslationNode(element, record);
     node.className = "llm-bilingual-translation is-streaming";
     node.textContent = text;
     clearRetryInteraction(node);
+    record.state = "streaming";
     setElementStatus(element, "loading");
   }
 
-  function setTranslation(element, text) {
-    const node = ensureTranslationNode(element);
+  function setTranslation(element, text, providedRecord = null) {
+    const record = providedRecord || getTranslationRecord(element) || getOrCreateTranslationRecord(element);
+    const node = ensureTranslationNode(element, record);
     node.className = "llm-bilingual-translation is-done";
     node.textContent = text;
     clearRetryInteraction(node);
+    record.state = "done";
+    record.lastSeenAt = Date.now();
     setElementStatus(element, "done");
   }
 
-  function setError(element, message) {
-    const node = ensureTranslationNode(element);
+  function setError(element, message, providedRecord = null) {
+    const record = providedRecord || getTranslationRecord(element) || getOrCreateTranslationRecord(element);
+    const node = ensureTranslationNode(element, record);
     node.className = "llm-bilingual-translation is-error";
     node.textContent = t("contentErrorRetry", [message], `翻译失败：${message}（点击重试）`);
     node.onclick = () => retryElement(element);
@@ -2308,6 +2517,8 @@
     };
     node.setAttribute("role", "button");
     node.tabIndex = 0;
+    record.state = "error";
+    record.lastSeenAt = Date.now();
     setElementStatus(element, "error");
   }
 

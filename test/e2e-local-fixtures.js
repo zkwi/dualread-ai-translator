@@ -58,6 +58,12 @@ async function main() {
       await testClippedRedditPreviewUsesSingleSafeTranslationUnit(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "translation-records") {
+      await testReRenderedTweetDuringLoadingUsesOneRequest(browser);
+      await testReRenderedTweetDuringStreamingUsesOneNode(browser);
+      await testRepeatedTweetReplacementKeepsOneActiveTranslation(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "viewport-prefetch") {
       await testViewportBufferPrefetchesNextScreenBeforeScroll(browser);
       return;
@@ -1535,6 +1541,103 @@ async function testReRenderedTweetDoesNotDuplicateTranslation(browser) {
   assert.strictEqual(summary.nodes, 1, `expected 1 translation node after re-render, got ${summary.nodes}`);
   assert.strictEqual(summary.requestCount, 1, "re-rendered identical tweet must not trigger a second request");
   await page.close();
+}
+
+async function testReRenderedTweetDuringLoadingUsesOneRequest(browser) {
+  const page = await createHarnessPage(browser, {
+    translateDelayMs: 700,
+    html: `
+      <main>
+        <article id="tweet-article">
+          <a href="/example/status/101">Permalink</a>
+          <div data-testid="tweetText">A loading translation must survive a React source-node replacement without starting another request.</div>
+        </article>
+      </main>
+    `
+  });
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(10);
+  await replaceTweetSource(page);
+  await page.waitForTimeout(1100);
+
+  const summary = await getTweetTranslationSummary(page);
+  assert.strictEqual(summary.requestCount, 1, `loading re-render should keep one request, got ${summary.requestCount}`);
+  assert.strictEqual(summary.nodeCount, 1, `loading re-render should keep one node, got ${summary.nodeCount}`);
+  assert.strictEqual(summary.doneCount, 1);
+  await page.close();
+}
+
+async function testReRenderedTweetDuringStreamingUsesOneNode(browser) {
+  const page = await createHarnessPage(browser, {
+    translateDelayMs: 700,
+    html: `
+      <main>
+        <article id="tweet-article">
+          <a href="/example/status/102">Permalink</a>
+          <div data-testid="tweetText">A streaming translation must keep its logical record when the visible source element is replaced.</div>
+        </article>
+      </main>
+    `
+  });
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(120);
+  assert.strictEqual(await page.locator(".llm-bilingual-translation.is-streaming").count(), 1);
+  await replaceTweetSource(page);
+  await page.waitForTimeout(1100);
+
+  const summary = await getTweetTranslationSummary(page);
+  assert.strictEqual(summary.requestCount, 1, `streaming re-render should keep one request, got ${summary.requestCount}`);
+  assert.strictEqual(summary.nodeCount, 1, `streaming re-render should keep one node, got ${summary.nodeCount}`);
+  assert.strictEqual(summary.doneCount, 1);
+  await page.close();
+}
+
+async function testRepeatedTweetReplacementKeepsOneActiveTranslation(browser) {
+  const page = await createHarnessPage(browser, {
+    translateDelayMs: 1200,
+    html: `
+      <main>
+        <article id="tweet-article">
+          <a href="/example/status/103">Permalink</a>
+          <div data-testid="tweetText">Ten rapid source replacements must still map to one active translation request and one visible translation node.</div>
+        </article>
+      </main>
+    `
+  });
+
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  for (let index = 0; index < 10; index += 1) {
+    await page.waitForTimeout(45);
+    await replaceTweetSource(page);
+  }
+  await page.waitForTimeout(1400);
+
+  const summary = await getTweetTranslationSummary(page);
+  assert.strictEqual(summary.requestCount, 1, `ten re-renders should keep one request, got ${summary.requestCount}`);
+  assert.strictEqual(summary.nodeCount, 1, `ten re-renders should keep one node, got ${summary.nodeCount}`);
+  assert.strictEqual(summary.doneCount, 1);
+  await page.close();
+}
+
+async function replaceTweetSource(page) {
+  await page.evaluate(() => {
+    const oldSource = document.querySelector("#tweet-article [data-testid=\"tweetText\"]");
+    const freshSource = document.createElement("div");
+    freshSource.dataset.testid = "tweetText";
+    freshSource.textContent = oldSource.textContent;
+    oldSource.insertAdjacentElement("afterend", freshSource);
+    oldSource.remove();
+  });
+}
+
+async function getTweetTranslationSummary(page) {
+  return page.evaluate(() => ({
+    requestCount: window.__mockItems.length,
+    nodeCount: document.querySelectorAll("#tweet-article .llm-bilingual-translation").length,
+    doneCount: document.querySelectorAll("#tweet-article .llm-bilingual-translation.is-done").length
+  }));
 }
 
 async function testAutoTranslationWaitsForDynamicEnglishContentWithTargetLocale(browser) {
