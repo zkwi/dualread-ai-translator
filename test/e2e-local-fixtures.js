@@ -70,6 +70,12 @@ async function main() {
       await testArticleReplacementWithSamePermalinkReusesTranslation(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "content-units") {
+      await testSameSectionDuplicateTextTranslatesEachCard(browser);
+      await testSameCardSourceReplacementReusesTranslation(browser);
+      await testDifferentPermalinksWithSameTextUseSeparateRecords(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "viewport-prefetch") {
       await testViewportBufferPrefetchesNextScreenBeforeScroll(browser);
       return;
@@ -1758,6 +1764,80 @@ async function testArticleReplacementWithSamePermalinkReusesTranslation(browser)
   assert.strictEqual(summary.logicalRequestCount, 1, "same permalink should reuse the completed translation request");
   assert.strictEqual(summary.logicalNodeCount, 1, "same permalink should reattach the existing translation node");
   assert.strictEqual(summary.logicalDoneCount, 1);
+  await page.close();
+}
+
+async function testSameSectionDuplicateTextTranslatesEachCard(browser) {
+  const repeatedText = "Read more stories from this publication and follow the authors you enjoy.";
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main>
+        <section id="recommendations">
+          <div class="recommendation-card"><p>${repeatedText}</p></div>
+          <div class="recommendation-card"><p>${repeatedText}</p></div>
+        </section>
+      </main>
+    `
+  });
+  await runTranslation(page);
+
+  const summary = await page.evaluate((text) => ({
+    logicalRequests: window.__mockItems.filter((item) => String(item).trim() === text).length,
+    cardTranslationCounts: Array.from(document.querySelectorAll(".recommendation-card"))
+      .map((card) => card.querySelectorAll(".llm-bilingual-translation.is-done").length)
+  }), repeatedText);
+  assert.strictEqual(summary.logicalRequests, 2, "identical text in two cards should create two logical requests");
+  assert.deepStrictEqual(summary.cardTranslationCounts, [1, 1]);
+  await page.close();
+}
+
+async function testSameCardSourceReplacementReusesTranslation(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main><section><div id="stable-card" class="recommendation-card">
+        <p id="card-source">The same card can replace its paragraph element without changing the logical content identity.</p>
+      </div></section></main>
+    `
+  });
+  await runTranslation(page);
+  await page.evaluate(() => {
+    const oldSource = document.getElementById("card-source");
+    const freshSource = document.createElement("p");
+    freshSource.id = "card-source";
+    freshSource.textContent = oldSource.textContent;
+    oldSource.replaceWith(freshSource);
+  });
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(700);
+
+  const summary = await page.evaluate(() => ({
+    requests: window.__mockItems.filter((item) => String(item).includes("same card can replace")).length,
+    nodes: document.querySelectorAll("#stable-card .llm-bilingual-translation.is-done").length
+  }));
+  assert.strictEqual(summary.requests, 1);
+  assert.strictEqual(summary.nodes, 1);
+  await page.close();
+}
+
+async function testDifferentPermalinksWithSameTextUseSeparateRecords(browser) {
+  const repeatedText = "Two independent posts may legitimately contain the same quoted sentence and both require translation.";
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main><section>
+        <div class="post-card"><a href="/example/status/301">First</a><p>${repeatedText}</p></div>
+        <div class="post-card"><a href="/example/status/302">Second</a><p>${repeatedText}</p></div>
+      </section></main>
+    `
+  });
+  await runTranslation(page);
+
+  const summary = await page.evaluate((text) => ({
+    requests: window.__mockItems.filter((item) => String(item).trim() === text).length,
+    nodes: Array.from(document.querySelectorAll(".post-card"))
+      .map((card) => card.querySelectorAll(".llm-bilingual-translation.is-done").length)
+  }), repeatedText);
+  assert.strictEqual(summary.requests, 2);
+  assert.deepStrictEqual(summary.nodes, [1, 1]);
   await page.close();
 }
 

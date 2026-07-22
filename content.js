@@ -85,23 +85,41 @@
     }));
   }
 
-  function getPreliminaryContentUnit(element) {
-    return element.closest?.([
+  function resolveContentUnit(element) {
+    const explicitUnit = element.closest?.([
       "article",
       "[role=\"article\"]",
       "li",
       "blockquote",
-      "section",
       "shreddit-post",
       "shreddit-comment"
-    ].join(",")) || element.parentElement || element;
+    ].join(","));
+    if (explicitUnit) return explicitUnit;
+
+    let current = element;
+    while (current && current !== document.body && current !== document.documentElement) {
+      if (getStableContentPermalink(current)
+        || getStableElementIdentity(current)) {
+        return current;
+      }
+      const parent = current.parentElement;
+      if (!parent) break;
+      if (parent.matches?.("main,[role=\"main\"],section,body")) return current;
+      current = parent;
+    }
+
+    return element.parentElement || element;
   }
 
-  function getPreliminaryContentUnitKey(element) {
-    const contentUnit = getPreliminaryContentUnit(element);
+  function getContentUnitIdentity(element) {
+    const contentUnit = resolveContentUnit(element);
     const permalink = getStableContentPermalink(contentUnit);
     if (permalink) {
       return `permalink-${LLMTranslatorShared.simpleHash(permalink)}`;
+    }
+    const stableIdentity = getStableElementIdentity(contentUnit);
+    if (stableIdentity) {
+      return `element-${LLMTranslatorShared.simpleHash(stableIdentity)}`;
     }
     let id = contentUnitIds.get(contentUnit);
     if (!id) {
@@ -110,6 +128,16 @@
       contentUnitIds.set(contentUnit, id);
     }
     return id;
+  }
+
+  function getStableElementIdentity(element) {
+    const id = String(element?.id || "").trim();
+    if (id && !id.startsWith("llm-")) return `id:${id}`;
+
+    const testId = String(element?.getAttribute?.("data-testid") || "").trim();
+    if (testId && !["tweetText", "postText"].includes(testId)) return `testid:${testId}`;
+
+    return "";
   }
 
   function getStableContentPermalink(contentUnit) {
@@ -143,7 +171,7 @@
 
   function getTranslationRecordKey(element, text) {
     const profileKey = getTranslationProfileKey();
-    const contentUnitKey = getPreliminaryContentUnitKey(element);
+    const contentUnitKey = getContentUnitIdentity(element);
     const sourceFingerprint = getSourceFingerprint(text);
     return {
       key: `${profileKey}:${contentUnitKey}:${sourceFingerprint.hash}`,
@@ -1167,7 +1195,7 @@
   function findScopedDuplicateTranslationNode(element, text) {
     // React 重渲染会替换正文元素并丢失 data-llm-translator-* 标记，但译文节点常存活在原容器里。
     // 在最近的内容单元（推文/列表项/评论）范围内按源文本哈希查找已完成的译文，命中则不再重复翻译。
-    const scope = element.closest?.("article,[role=\"article\"],li,blockquote,section,shreddit-post,shreddit-comment")
+    const scope = element.closest?.("article,[role=\"article\"],li,blockquote,shreddit-post,shreddit-comment")
       || element.parentElement;
     if (!scope?.querySelector) return null;
 
