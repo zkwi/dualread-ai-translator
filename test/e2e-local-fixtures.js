@@ -83,6 +83,12 @@ async function main() {
       await testSourceUpdateReleasesAndReusesPageBudget(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "semantic-placement") {
+      await testLongTableCellsKeepTranslationsInsideCells(browser);
+      await testTableTranslationPreservesColumnStructure(browser);
+      await testListTranslationKeepsMarkerCheckboxAndPrimaryLinkStable(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "viewport-prefetch") {
       await testViewportBufferPrefetchesNextScreenBeforeScroll(browser);
       return;
@@ -1941,6 +1947,94 @@ async function testSourceUpdateReleasesAndReusesPageBudget(browser) {
   assert.strictEqual(summary.nodes, 1);
   assert.strictEqual(summary.reservedRequests, 1);
   assert.strictEqual(summary.translated, 1);
+  await page.close();
+}
+
+async function testLongTableCellsKeepTranslationsInsideCells(browser) {
+  const longHeader = "A long semantic table header can contain explanatory prose that readers need translated without adding an invalid child to the table row, body, or table element, so the extension must keep the bilingual node inside this header cell throughout rendering.";
+  const longCell = "A long table cell can contain a detailed explanation with history, terminology, practical examples, and enough prose to remain a useful translation candidate while still preserving the original table structure and column count.";
+  const page = await createHarnessPage(browser, {
+    html: `<main><table><tbody><tr><th id="long-header">${longHeader}</th><td id="long-cell">${longCell}</td></tr></tbody></table></main>`
+  });
+  await runTranslation(page);
+
+  const summary = await page.evaluate(() => ({
+    headerParent: document.querySelector("#long-header .llm-bilingual-translation")?.parentElement.id || "",
+    cellParent: document.querySelector("#long-cell .llm-bilingual-translation")?.parentElement.id || "",
+    invalidParents: Array.from(document.querySelectorAll(".llm-bilingual-translation"))
+      .filter((node) => ["TR", "TBODY", "THEAD", "TFOOT", "TABLE"].includes(node.parentElement?.tagName)).length
+  }));
+  assert.strictEqual(summary.headerParent, "long-header");
+  assert.strictEqual(summary.cellParent, "long-cell");
+  assert.strictEqual(summary.invalidParents, 0);
+  await page.close();
+}
+
+async function testTableTranslationPreservesColumnStructure(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main><table id="content-table" style="width:900px;table-layout:fixed"><tbody><tr id="content-row">
+        <th style="width:240px">Definition</th>
+        <td id="content-cell">This deliberately long table-cell description contains more than one hundred and eighty characters, including background, terminology, examples, and practical guidance, so it remains eligible for translation without becoming a new column in the surrounding row.</td>
+      </tr></tbody></table></main>
+    `
+  });
+  const before = await page.evaluate(() => ({
+    cells: document.getElementById("content-row").cells.length,
+    widths: Array.from(document.getElementById("content-row").cells).map((cell) => cell.getBoundingClientRect().width)
+  }));
+  await runTranslation(page);
+  const after = await page.evaluate(() => ({
+    cells: document.getElementById("content-row").cells.length,
+    widths: Array.from(document.getElementById("content-row").cells).map((cell) => cell.getBoundingClientRect().width),
+    translationInsideCell: !!document.querySelector("#content-cell > .llm-bilingual-translation")
+  }));
+
+  assert.strictEqual(after.cells, before.cells);
+  assert.deepStrictEqual(after.widths.map(Math.round), before.widths.map(Math.round));
+  assert.strictEqual(after.translationInsideCell, true);
+  await page.close();
+}
+
+async function testListTranslationKeepsMarkerCheckboxAndPrimaryLinkStable(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main><ul><li id="task-item">
+        <input id="task-checkbox" type="checkbox">
+        <a id="task-link" href="/tasks/401">Review the pull request carefully and verify every visible behavior with an automated regression test.</a>
+        <button id="task-menu">More</button>
+      </li></ul></main>
+    `
+  });
+  const before = await page.evaluate(() => {
+    const checkbox = document.getElementById("task-checkbox").getBoundingClientRect();
+    const link = document.getElementById("task-link").getBoundingClientRect();
+    return {
+      checkbox: { x: checkbox.x, y: checkbox.y },
+      link: { x: link.x, y: link.y },
+      listStyleType: getComputedStyle(document.getElementById("task-item")).listStyleType
+    };
+  });
+  await runTranslation(page);
+  const after = await page.evaluate(() => {
+    const item = document.getElementById("task-item");
+    const checkbox = document.getElementById("task-checkbox").getBoundingClientRect();
+    const link = document.getElementById("task-link").getBoundingClientRect();
+    const translation = item.querySelector(":scope > .llm-bilingual-translation");
+    return {
+      checkbox: { x: checkbox.x, y: checkbox.y },
+      link: { x: link.x, y: link.y },
+      listStyleType: getComputedStyle(item).listStyleType,
+      sequence: Array.from(item.children).map((child) => child.id || "translation"),
+      translationInsideItem: !!translation
+    };
+  });
+
+  assert.deepStrictEqual(after.checkbox, before.checkbox);
+  assert.deepStrictEqual(after.link, before.link);
+  assert.strictEqual(after.listStyleType, before.listStyleType);
+  assert.strictEqual(after.translationInsideItem, true);
+  assert.deepStrictEqual(after.sequence, ["task-checkbox", "task-link", "translation", "task-menu"]);
   await page.close();
 }
 

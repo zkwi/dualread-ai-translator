@@ -14,6 +14,8 @@ assert.strictEqual(
 );
 
 assert.strictEqual(shared.getTranslationPlacement("li"), "inside");
+assert.strictEqual(shared.getTranslationPlacement("td"), "inside");
+assert.strictEqual(shared.getTranslationPlacement("th"), "inside");
 assert.strictEqual(shared.getTranslationPlacement("p"), "after");
 
 assert.ok(shared.getCandidateSelector().includes("p"));

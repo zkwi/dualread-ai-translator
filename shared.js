@@ -255,7 +255,7 @@
   }
 
   function getTranslationPlacement(tagName) {
-    return String(tagName || "").toLowerCase() === "li" ? "inside" : "after";
+    return ["li", "td", "th"].includes(String(tagName || "").toLowerCase()) ? "inside" : "after";
   }
 
   function getCandidateSelector() {

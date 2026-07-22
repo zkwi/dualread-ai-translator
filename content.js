@@ -264,8 +264,8 @@
       node.before(element);
     }
 
-    const placement = LLMTranslatorShared.getTranslationPlacement(element.tagName);
-    const context = getTranslationContext(element, placement);
+    const context = getTranslationContext(element);
+    const placement = context.placement;
     const insertionTarget = context.anchor || element;
     if (placement === "inside") {
       if (insertionTarget !== element) {
@@ -2427,8 +2427,8 @@
       return memoized;
     }
 
-    const placement = LLMTranslatorShared.getTranslationPlacement(element.tagName);
-    const context = getTranslationContext(element, placement);
+    const context = getTranslationContext(element);
+    const placement = context.placement;
     const insertionTarget = context.anchor;
     let node = findExistingTranslationNode(element, placement, insertionTarget);
 
@@ -2463,10 +2463,18 @@
     return node;
   }
 
-  function getTranslationContext(element, placement) {
+  function getTranslationContext(element, requestedPlacement = null) {
+    const placement = requestedPlacement || LLMTranslatorShared.getTranslationPlacement(element.tagName);
+    const tagName = element.tagName;
     return {
       anchor: getTranslationInsertionTarget(element, placement),
-      placement
+      placement,
+      strategy: tagName === "TD" || tagName === "TH"
+        ? "inside-cell"
+        : tagName === "LI" ? "inside-list" : "after-block",
+      host: placement === "inside" ? element : element.parentElement,
+      contentUnit: resolveContentUnit(element),
+      confidence: "high"
     };
   }
 
