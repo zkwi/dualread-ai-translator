@@ -26,30 +26,41 @@
 
 ## 样本页面
 
-| 类型 | URL | 重点 |
+自动化矩阵固定覆盖 16 个样本，每个样本同时运行 `1366×900` 桌面视口和 `390×844` 移动视口。
+
+| 样本 | URL | 重点 |
 | --- | --- | --- |
-| CNN live page | https://www.cnn.com/2026/06/28/world/live-news/iran-war-strikes-trump | 直播页、动态内容、广告、更新流 |
+| X status | https://x.com/pankajkumar_dev/status/2071237614414512179 | 流式译文、展开、滚动、同文重渲染、引用推文 |
 | Reddit feed | https://www.reddit.com/r/worldnews/hot/ | 无限滚动、帖子卡片、推荐区 |
 | Reddit thread | https://www.reddit.com/r/worldnews/comments/ | 评论折叠、嵌套回复、加载更多 |
 | Quora question | https://www.quora.com/What-is-artificial-intelligence | 答案折叠、登录墙、推荐流 |
-| X status | https://x.com/kimmonismus/status/2071162604601463049 | `main/article` 内联正文、引用推文、登录提示、作者/浏览量标签 |
-| Wikipedia article | https://en.wikipedia.org/wiki/Artificial_intelligence | 长正文、目录、引用 |
-| Hacker News list | https://news.ycombinator.com/news | 简洁列表页、短标题、站点导航 |
-| GitHub README | https://github.com/openai/openai-node | 文档、代码块、列表 |
+| LinkedIn posts | https://www.linkedin.com/company/openai/posts/?feedView=all | 登录墙、卡片流、动态重渲染 |
+| YouTube video | https://www.youtube.com/watch?v=dQw4w9WgXcQ | 视频页、标题和说明、复杂控件区 |
+| Wikipedia article | https://en.wikipedia.org/wiki/Artificial_intelligence | 长正文、目录、引用、RTL 兼容 |
+| GitHub README | https://github.com/openai/openai-node | 文档、代码块、列表、表格 |
+| Stack Overflow question | https://stackoverflow.com/questions/11227809/why-is-processing-a-sorted-array-faster-than-processing-an-unsorted-array | 问答、代码块、评论和侧栏 |
+| Hacker News list | https://news.ycombinator.com/news | 紧凑列表、短标题、站点导航 |
+| MDN article | https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver | 文档、代码、目录、嵌套导航 |
+| BBC home | https://www.bbc.com/ | 新闻卡片、网格、广告和导航 |
+| CNN live page | https://www.cnn.com/2026/06/28/world/live-news/iran-war-strikes-trump | 直播页、动态内容、广告、更新流 |
+| Reuters world | https://www.reuters.com/world/ | 新闻列表、风控页识别 |
+| Medium topic | https://medium.com/tag/artificial-intelligence | 文章卡片、登录墙、推荐流 |
+| Amazon search | https://www.amazon.com/s?k=noise+cancelling+headphones | 商品网格、价格和交互控件 |
 
 ## 当前自动化测试备注
 
-`test/e2e-content-samples.js` 使用 Playwright 注入当前 `shared.js` 和 `content.js`，并 mock 翻译接口。它主要验证页面 DOM 行为，不验证 Chrome popup/options 的真实扩展加载流程。
+`test/e2e-content-samples.js` 使用 Playwright 注入当前 `shared.js` 和 `content.js`，并 mock 翻译接口。它检查流式状态、滚动、展开、同文重渲染、重复请求、表格父子关系、控件重叠、水平位移和新增横向溢出；同时保存前后截图。日志只保存哈希、长度、状态和布局指标，不写入网页正文或完整译文。
 
-截至当前测试环境：
+结果分为四类：
 
-- CNN live page：可访问，能翻译正文，已跳过 `Live Updates` 这类短标签。
-- Reddit feed：当前网络环境返回 security block 页面，不能作为有效内容样本。
-- Quora question：当前网络环境返回 security verification 页面，已跳过，不产生翻译请求。
-- X status：可访问，能翻译主推文和引用推文正文，已跳过作者句柄和浏览量。
-- Wikipedia article：可访问，长正文翻译正常。
-- Hacker News list：可访问，列表页标题翻译正常。
-- 自动翻译、右键菜单、选中文本浮层、隐藏/显示译文和按钮禁用态主要通过本地 fixture 与 background 单测覆盖，真实页面建议再手工抽查。
+- `PASS`：页面可用且所有排版断言通过。
+- `BLOCKED`：站点登录墙、机器人验证或网络风控阻止有效页面加载，不视为产品通过。
+- `SKIP`：网络或页面加载失败，本轮没有形成有效结论。
+- `FAIL`：页面可用，但翻译或排版断言失败。
+
+2026-07-22 当前测试网络中，X、YouTube、Wikipedia、GitHub、Stack Overflow、Hacker News、MDN、BBC、CNN 和 Amazon 的桌面/移动端均可通过；Reddit feed、Reddit thread、Quora、LinkedIn、Reuters 和 Medium 被站点风控或登录墙阻断，明确记录为 `BLOCKED`。真实站点会随网络和页面结构变化，发布前仍需重新运行完整矩阵。
+
+自动翻译、右键菜单、选中文本浮层、隐藏/显示译文和按钮禁用态主要通过本地 fixture 与 background 单测覆盖，真实页面建议再手工抽查。
 
 ## 记录模板
 

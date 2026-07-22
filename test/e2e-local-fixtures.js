@@ -108,6 +108,10 @@ async function main() {
       await testDensityWorksInTranslationFirstMode(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "page-chrome") {
+      await testNestedMainNavigationAndHeaderStayUntranslated(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "viewport-prefetch") {
       await testViewportBufferPrefetchesNextScreenBeforeScroll(browser);
       return;
@@ -2316,6 +2320,25 @@ async function testDensityWorksInTranslationFirstMode(browser) {
   assert.strictEqual(summary.density, "compact");
   assert.ok(summary.sourceOpacity < 1);
   assert.ok(summary.overflow <= 0);
+  await page.close();
+}
+
+async function testNestedMainNavigationAndHeaderStayUntranslated(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main>
+        <nav><p id="nested-nav">This navigation description is long enough to look readable but remains page chrome and must stay untranslated.</p></nav>
+        <header><p id="nested-header">This mobile header description is also page chrome even when the website nests it inside the main element.</p></header>
+        <article><p id="article-body">The actual article paragraph should still be translated after nested navigation and header content are excluded.</p></article>
+      </main>
+    `
+  });
+  const result = await runTranslation(page);
+  assert.doesNotMatch(result.requestedTexts.join("\n"), /navigation description|mobile header description/);
+  assert.match(result.requestedTexts.join("\n"), /actual article paragraph/);
+  assert.strictEqual(await hasTranslationNear(page, "#nested-nav"), false);
+  assert.strictEqual(await hasTranslationNear(page, "#nested-header"), false);
+  assert.strictEqual(await hasTranslationNear(page, "#article-body"), true);
   await page.close();
 }
 

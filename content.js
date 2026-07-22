@@ -1409,6 +1409,7 @@
     if (!element) return true;
     if (element.closest(LLMTranslatorShared.getStrictBlockedContainerSelector())) return true;
     if (element.closest(SITE_HEURISTICS.blockedContentContainers.join(","))) return true;
+    if (element.closest("nav,header,footer,[role=\"banner\"],[role=\"navigation\"]")) return true;
 
     const softBlocked = element.closest(LLMTranslatorShared.getSoftBlockedContainerSelector());
     if (!softBlocked) return false;
