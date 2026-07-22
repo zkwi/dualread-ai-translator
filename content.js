@@ -99,6 +99,10 @@
 
   function getPreliminaryContentUnitKey(element) {
     const contentUnit = getPreliminaryContentUnit(element);
+    const permalink = getStableContentPermalink(contentUnit);
+    if (permalink) {
+      return `permalink-${LLMTranslatorShared.simpleHash(permalink)}`;
+    }
     let id = contentUnitIds.get(contentUnit);
     if (!id) {
       contentUnitCounter += 1;
@@ -106,6 +110,24 @@
       contentUnitIds.set(contentUnit, id);
     }
     return id;
+  }
+
+  function getStableContentPermalink(contentUnit) {
+    const selector = [
+      "a[href*='/status/']",
+      "a[href*='/comments/']",
+      "a[href*='/comment/']",
+      "a[href*='/posts/']"
+    ].join(",");
+    const link = contentUnit.matches?.(selector) ? contentUnit : contentUnit.querySelector?.(selector);
+    const href = String(link?.getAttribute?.("href") || "").trim();
+    if (!href) return "";
+    try {
+      const url = new URL(href, window.location.href);
+      return `${url.pathname}${url.search}`;
+    } catch (error) {
+      return href;
+    }
   }
 
   function getSourceFingerprint(text) {
@@ -183,6 +205,7 @@
 
   function bindTranslationRecord(record, element) {
     if (!record || !element) return record;
+    const previousSource = record.sourceElement;
     record.sourceElement = element;
     record.lastSeenAt = Date.now();
     translationRecordByElement.set(element, record);
@@ -195,7 +218,43 @@
     if (record.translationNode?.isConnected) {
       translationNodesByElement.set(element, record.translationNode);
     }
+    if (previousSource && previousSource !== element && record.translationNode) {
+      rebindTranslationRecordPlacement(record, element);
+    }
     return record;
+  }
+
+  function rebindTranslationRecordPlacement(record, element) {
+    const node = record.translationNode;
+    if (!node) return;
+
+    const oldContainer = node.parentElement;
+    if (node.isConnected
+      && node.parentElement === element.parentElement
+      && (element.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_PRECEDING)) {
+      node.before(element);
+    }
+
+    const placement = LLMTranslatorShared.getTranslationPlacement(element.tagName);
+    const context = getTranslationContext(element, placement);
+    const insertionTarget = context.anchor || element;
+    if (placement === "inside") {
+      if (insertionTarget !== element) {
+        if (insertionTarget.nextElementSibling !== node) insertionTarget.insertAdjacentElement("afterend", node);
+      } else if (node.parentElement !== element) {
+        element.appendChild(node);
+      }
+    } else if (insertionTarget.nextElementSibling !== node) {
+      insertionTarget.insertAdjacentElement("afterend", node);
+    }
+
+    clearUnusedTranslationLayoutMarker(oldContainer);
+    element.dataset.llmTranslatorPlacement = placement;
+    syncTranslationSlot(node, insertionTarget);
+    applyTranslationLayout(node, context);
+    node.dataset.llmTranslatorLocalTheme = detectElementTheme(element);
+    record.anchorElement = insertionTarget;
+    record.lastSeenAt = Date.now();
   }
 
   function getOrCreateTranslationRecord(element, text = getTranslationText(element)) {

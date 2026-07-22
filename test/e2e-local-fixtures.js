@@ -64,6 +64,12 @@ async function main() {
       await testRepeatedTweetReplacementKeepsOneActiveTranslation(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "translation-rebind") {
+      await testCompletedTranslationRebindsAfterSourceReplacement(browser);
+      await testTranslationRebindKeepsControlsAfterTranslation(browser);
+      await testArticleReplacementWithSamePermalinkReusesTranslation(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "viewport-prefetch") {
       await testViewportBufferPrefetchesNextScreenBeforeScroll(browser);
       return;
@@ -1562,9 +1568,9 @@ async function testReRenderedTweetDuringLoadingUsesOneRequest(browser) {
   await page.waitForTimeout(1100);
 
   const summary = await getTweetTranslationSummary(page);
-  assert.strictEqual(summary.requestCount, 1, `loading re-render should keep one request, got ${summary.requestCount}`);
-  assert.strictEqual(summary.nodeCount, 1, `loading re-render should keep one node, got ${summary.nodeCount}`);
-  assert.strictEqual(summary.doneCount, 1);
+  assert.strictEqual(summary.logicalRequestCount, 1, `loading re-render should keep one request, got ${summary.logicalRequestCount}`);
+  assert.strictEqual(summary.logicalNodeCount, 1, `loading re-render should keep one node, got ${summary.logicalNodeCount}`);
+  assert.strictEqual(summary.logicalDoneCount, 1);
   await page.close();
 }
 
@@ -1588,9 +1594,9 @@ async function testReRenderedTweetDuringStreamingUsesOneNode(browser) {
   await page.waitForTimeout(1100);
 
   const summary = await getTweetTranslationSummary(page);
-  assert.strictEqual(summary.requestCount, 1, `streaming re-render should keep one request, got ${summary.requestCount}`);
-  assert.strictEqual(summary.nodeCount, 1, `streaming re-render should keep one node, got ${summary.nodeCount}`);
-  assert.strictEqual(summary.doneCount, 1);
+  assert.strictEqual(summary.logicalRequestCount, 1, `streaming re-render should keep one request, got ${summary.logicalRequestCount}`);
+  assert.strictEqual(summary.logicalNodeCount, 1, `streaming re-render should keep one node, got ${summary.logicalNodeCount}`);
+  assert.strictEqual(summary.logicalDoneCount, 1);
   await page.close();
 }
 
@@ -1615,9 +1621,9 @@ async function testRepeatedTweetReplacementKeepsOneActiveTranslation(browser) {
   await page.waitForTimeout(1400);
 
   const summary = await getTweetTranslationSummary(page);
-  assert.strictEqual(summary.requestCount, 1, `ten re-renders should keep one request, got ${summary.requestCount}`);
-  assert.strictEqual(summary.nodeCount, 1, `ten re-renders should keep one node, got ${summary.nodeCount}`);
-  assert.strictEqual(summary.doneCount, 1);
+  assert.strictEqual(summary.logicalRequestCount, 1, `ten re-renders should keep one request, got ${summary.logicalRequestCount}`);
+  assert.strictEqual(summary.logicalNodeCount, 1, `ten re-renders should keep one node, got ${summary.logicalNodeCount}`);
+  assert.strictEqual(summary.logicalDoneCount, 1);
   await page.close();
 }
 
@@ -1633,11 +1639,126 @@ async function replaceTweetSource(page) {
 }
 
 async function getTweetTranslationSummary(page) {
-  return page.evaluate(() => ({
-    requestCount: window.__mockItems.length,
-    nodeCount: document.querySelectorAll("#tweet-article .llm-bilingual-translation").length,
-    doneCount: document.querySelectorAll("#tweet-article .llm-bilingual-translation.is-done").length
-  }));
+  return page.evaluate(() => {
+    const sourceText = document.querySelector("#tweet-article [data-testid=\"tweetText\"]")?.textContent.trim() || "";
+    const sourceHash = window.LLMTranslatorShared.simpleHash(sourceText);
+    const logicalNodes = Array.from(document.querySelectorAll("#tweet-article .llm-bilingual-translation"))
+      .filter((node) => node.dataset.llmSourceHash === sourceHash);
+    return {
+      requestCount: window.__mockItems.length,
+      logicalRequestCount: window.__mockItems.filter((text) => String(text).trim() === sourceText).length,
+      nodeCount: document.querySelectorAll("#tweet-article .llm-bilingual-translation").length,
+      logicalNodeCount: logicalNodes.length,
+      doneCount: document.querySelectorAll("#tweet-article .llm-bilingual-translation.is-done").length,
+      logicalDoneCount: logicalNodes.filter((node) => node.classList.contains("is-done")).length
+    };
+  });
+}
+
+async function testCompletedTranslationRebindsAfterSourceReplacement(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main>
+        <article id="tweet-article">
+          <a href="/example/status/201">Permalink</a>
+          <div data-testid="tweetText">A completed translation should move behind the replacement source element after a React update.</div>
+          <div id="tweet-controls">Reply · Repost · Like</div>
+        </article>
+      </main>
+    `
+  });
+  await runTranslation(page);
+  await page.evaluate(() => {
+    const oldSource = document.querySelector("[data-testid=\"tweetText\"]");
+    const freshSource = document.createElement("div");
+    freshSource.dataset.testid = "tweetText";
+    freshSource.textContent = oldSource.textContent;
+    oldSource.remove();
+    document.getElementById("tweet-controls").before(freshSource);
+  });
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(700);
+
+  const order = await page.evaluate(() => {
+    const source = document.querySelector("[data-testid=\"tweetText\"]");
+    return {
+      nextIsTranslation: source.nextElementSibling?.classList.contains("llm-bilingual-translation"),
+      logicalRequestCount: window.__mockItems.filter((text) => String(text).trim() === source.textContent.trim()).length
+    };
+  });
+  assert.strictEqual(order.nextIsTranslation, true, "translation should be rebound directly after the new source");
+  assert.strictEqual(order.logicalRequestCount, 1);
+  await page.close();
+}
+
+async function testTranslationRebindKeepsControlsAfterTranslation(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main>
+        <article id="tweet-article">
+          <a href="/example/status/202">Permalink</a>
+          <div data-testid="tweetText">Rebinding must preserve the source, translation, and controls reading order inside the content unit.</div>
+          <div id="tweet-controls">Reply · Repost · Like</div>
+        </article>
+      </main>
+    `
+  });
+  await runTranslation(page);
+  await page.evaluate(() => {
+    const article = document.getElementById("tweet-article");
+    const oldSource = article.querySelector("[data-testid=\"tweetText\"]");
+    const freshSource = document.createElement("div");
+    freshSource.dataset.testid = "tweetText";
+    freshSource.textContent = oldSource.textContent;
+    article.appendChild(freshSource);
+    oldSource.remove();
+  });
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(700);
+
+  const sequence = await page.evaluate(() => {
+    const source = document.querySelector("[data-testid=\"tweetText\"]");
+    const sourceHash = window.LLMTranslatorShared.simpleHash(source.textContent.trim());
+    return Array.from(document.getElementById("tweet-article").children)
+      .filter((element) => element === source
+        || element.id === "tweet-controls"
+        || element.dataset.llmSourceHash === sourceHash)
+      .map((element) => element.id || (element === source ? "source" : "translation"));
+  });
+  assert.deepStrictEqual(sequence, ["source", "translation", "tweet-controls"]);
+  await page.close();
+}
+
+async function testArticleReplacementWithSamePermalinkReusesTranslation(browser) {
+  const page = await createHarnessPage(browser, {
+    html: `
+      <main>
+        <article id="tweet-article">
+          <a href="/example/status/203">Permalink</a>
+          <div data-testid="tweetText">Replacing the complete article should reuse its logical translation when the permalink remains stable.</div>
+          <div class="controls">Reply · Repost · Like</div>
+        </article>
+      </main>
+    `
+  });
+  await runTranslation(page);
+  await page.evaluate(() => {
+    document.getElementById("tweet-article").outerHTML = `
+      <article id="tweet-article">
+        <a href="/example/status/203">Permalink</a>
+        <div data-testid="tweetText">Replacing the complete article should reuse its logical translation when the permalink remains stable.</div>
+        <div class="controls">Reply · Repost · Like</div>
+      </article>
+    `;
+  });
+  await page.evaluate(() => window.__sendContentMessage({ action: "scan_current_area" }));
+  await page.waitForTimeout(700);
+
+  const summary = await getTweetTranslationSummary(page);
+  assert.strictEqual(summary.logicalRequestCount, 1, "same permalink should reuse the completed translation request");
+  assert.strictEqual(summary.logicalNodeCount, 1, "same permalink should reattach the existing translation node");
+  assert.strictEqual(summary.logicalDoneCount, 1);
+  await page.close();
 }
 
 async function testAutoTranslationWaitsForDynamicEnglishContentWithTargetLocale(browser) {
