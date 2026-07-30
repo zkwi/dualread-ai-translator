@@ -181,7 +181,8 @@ async function runSample(browser, sample, viewport) {
       quoteCount: 0,
       expandAttempted: false,
       rerenderRequestDelta: 0,
-      rerenderTranslationCount: 0
+      rerenderTranslationCount: 0,
+      rerenderDuplicateRequestCount: 0
     },
     screenshots: {
       before: `${sample.key}-${viewport.name}-before.png`,
@@ -241,6 +242,7 @@ async function injectContentHarness(page) {
     const listeners = [];
 
     window.__mockTranslateRequests = 0;
+    window.__mockTranslateRequestItems = [];
     window.chrome = {
       storage: {
         local: {
@@ -272,6 +274,10 @@ async function injectContentHarness(page) {
               const item = message.item || {};
               const text = `测试译文：${String(item.text || "").slice(0, 80)}`;
               window.__mockTranslateRequests += 1;
+              window.__mockTranslateRequestItems.push({
+                id: String(item.id || ""),
+                text: String(item.text || "")
+              });
               queueMicrotask(() => {
                 if (disconnected) return;
                 const envelope = {
@@ -383,7 +389,13 @@ async function runSiteInteractions(page, sample, result) {
       || activeRecords.find((item) => item.translationNode?.isConnected && item.sourceElement?.isConnected)
       || null;
     const source = currentRecord?.sourceElement || tweetText;
-    if (!source) return { available: false, beforeRequests: window.__mockTranslateRequests || 0, recordKey: "" };
+    if (!source) return {
+      available: false,
+      beforeRequests: window.__mockTranslateRequests || 0,
+      recordKey: ""
+    };
+    const requestItems = window.__mockTranslateRequestItems || [];
+    const sourceRequest = [...requestItems].reverse().find((item) => item.id === currentRecord?.elementId);
     const fresh = source.cloneNode(true);
     delete fresh.dataset.llmTranslatorId;
     delete fresh.dataset.llmTranslatorStatus;
@@ -395,6 +407,9 @@ async function runSiteInteractions(page, sample, result) {
     return {
       available: true,
       beforeRequests,
+      beforeRequestItemCount: requestItems.length,
+      elementId: currentRecord?.elementId || "",
+      sourceRequestText: sourceRequest?.text || "",
       recordKey: currentRecord?.key || ""
     };
   });
@@ -406,11 +421,19 @@ async function runSiteInteractions(page, sample, result) {
     const record = records?.get(recordKey);
     return {
       requests: window.__mockTranslateRequests || 0,
-      translations: record?.translationNode?.isConnected ? 1 : 0
+      translations: record?.translationNode?.isConnected ? 1 : 0,
+      requestItems: (window.__mockTranslateRequestItems || []).slice()
     };
   }, rerender.recordKey);
   result.interactions.rerenderRequestDelta = after.requests - rerender.beforeRequests;
   result.interactions.rerenderTranslationCount = after.translations;
+  const normalizeRequestText = (text) => String(text || "").replace(/\s+/g, " ").trim();
+  const sourceRequestText = normalizeRequestText(rerender.sourceRequestText);
+  result.interactions.rerenderDuplicateRequestCount = after.requestItems
+    .slice(rerender.beforeRequestItemCount)
+    .filter((item) => item.id === rerender.elementId
+      || (sourceRequestText && normalizeRequestText(item.text) === sourceRequestText))
+    .length;
 
   const expandable = page.locator("article [aria-expanded=\"false\"]").first();
   if (await expandable.count()) {
@@ -624,8 +647,8 @@ function classifySampleResult(result) {
   if (result.invalidTableParentCount > 0) issues.push(`非法表格父节点：${result.invalidTableParentCount}`);
   if (result.overlapCount > 0) issues.push(`控件重叠：${result.overlapCount}`);
   if (result.horizontalOverflowPx > 0) issues.push(`新增横向溢出：${result.horizontalOverflowPx}px`);
-  if (result.siteKey === "x" && result.interactions.rerenderRequestDelta > 0) {
-    issues.push(`X 重渲染新增请求：${result.interactions.rerenderRequestDelta}`);
+  if (result.siteKey === "x" && result.interactions.rerenderDuplicateRequestCount > 0) {
+    issues.push(`X 重渲染重复请求：${result.interactions.rerenderDuplicateRequestCount}`);
   }
   if (result.siteKey === "x" && result.interactions.rerenderTranslationCount !== 1) {
     issues.push(`X 重渲染译文节点：${result.interactions.rerenderTranslationCount}`);

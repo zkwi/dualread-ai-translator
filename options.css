@@ -529,6 +529,18 @@ textarea::placeholder {
   line-height: 1.4;
 }
 
+.custom-endpoint-fields {
+  margin: 18px 0;
+}
+
+.custom-endpoint-fields[hidden] {
+  display: none;
+}
+
+.custom-endpoint-fields label {
+  margin-bottom: 0;
+}
+
 .thinking-settings {
   display: flex;
   flex-direction: column;

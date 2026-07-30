@@ -228,7 +228,7 @@
     "message": "高级设置"
   },
   "optionsAdvancedSettingsDescMinimal": {
-    "message": "界面、自定义接口、Thinking、提示词、并发和维护"
+    "message": "界面、提示词、并发和维护"
   },
   "optionsApiKeyHelp": {
     "message": "只保存在本机 Chrome 扩展存储中，不会上传到本项目服务器。"

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.1
+
+- Grouped the custom Chat Completions endpoint, API Key, Thinking controls, and connection test inside one API connection card.
+- Showed the endpoint field only for the Custom provider without automatically expanding Advanced settings.
+- Updated responsive layout coverage, localized Advanced settings descriptions, and setup documentation for the consolidated connection flow.
+- Bumped the content script version so pages with 0.11.0 already injected request a clear reload after the extension update.
+
 ## 0.11.0
 
 - Replaced DOM-node-only deduplication with logical translation records, so streaming and completed translations survive React-style source replacement without duplicate requests or detached output.

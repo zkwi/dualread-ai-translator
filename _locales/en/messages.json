@@ -228,7 +228,7 @@
     "message": "Advanced settings"
   },
   "optionsAdvancedSettingsDescMinimal": {
-    "message": "Interface, custom endpoint, Thinking, prompt, concurrency, and maintenance"
+    "message": "Interface, prompt, concurrency, and maintenance"
   },
   "optionsApiKeyHelp": {
     "message": "Stored only in local Chrome extension storage. It is not sent to this project."

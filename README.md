@@ -70,11 +70,11 @@ Local     http://localhost:8000/v1/chat/completions
 
 Settings are saved automatically. The project does not include or require any developer-owned API key.
 
-The settings page shows only API connection, translation languages, auto-translate, and display controls by default. Interface language, custom endpoint, Thinking override, prompt, concurrency, and maintenance actions live in a collapsed **Advanced settings** section, which opens automatically for the Custom provider.
+The settings page keeps provider, model, API Key, custom endpoint, Thinking controls, and API testing together in **API connection**. The custom endpoint field appears only for the Custom provider. Interface language, prompt, concurrency, and maintenance actions live in the collapsed **Advanced settings** section.
 
 The interface follows the browser language by default and can be changed in Advanced settings, while translation languages remain independent. You can translate English to Simplified Chinese, Japanese to Traditional Chinese, or any other provider-supported direction.
 
-Strongly recommended: keep **disable controllable thinking** enabled from **Advanced settings**. Thinking/reasoning mode can make translation much slower. **Auto select** does not hard-code providers from the URL or model name. Clicking **Test API** probes the supported control shape and saves the result. Changing the API URL or model requires another test; no extra Thinking field is sent before that test succeeds.
+Strongly recommended: keep **disable controllable thinking** enabled in **API connection**. Thinking/reasoning mode can make translation much slower. **Auto select** does not hard-code providers from the URL or model name. Clicking **Test API** probes the supported control shape and saves the result. Changing the API URL or model requires another test; no extra Thinking field is sent before that test succeeds.
 
 ## Usage
 

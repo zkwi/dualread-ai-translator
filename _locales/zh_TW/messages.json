@@ -228,7 +228,7 @@
     "message": "進階設定"
   },
   "optionsAdvancedSettingsDescMinimal": {
-    "message": "界面、自訂介面、Thinking、提示詞、並發和維護"
+    "message": "界面、提示詞、並發和維護"
   },
   "optionsApiKeyHelp": {
     "message": "只儲存在本機 Chrome 擴充功能儲存中，不會上傳到本專案伺服器。"

@@ -42,7 +42,7 @@ const fields = {
 const messageEl = document.getElementById("message");
 const providerHintEl = document.getElementById("providerHint");
 const thinkingHintEl = document.getElementById("thinkingHint");
-const advancedSettingsEl = document.getElementById("advancedSettings");
+const customEndpointFieldsEl = document.getElementById("customEndpointFields");
 const saveStateEl = document.getElementById("saveState");
 const setupStatusEl = document.getElementById("setupStatus");
 const languageStatusEl = document.getElementById("languageStatus");
@@ -442,9 +442,8 @@ function applyProviderPreset(provider) {
 }
 
 function revealCustomEndpoint(provider) {
-  if (provider === "custom" && advancedSettingsEl) {
-    advancedSettingsEl.open = true;
-  }
+  if (!customEndpointFieldsEl) return;
+  customEndpointFieldsEl.hidden = provider !== "custom";
 }
 
 async function applyUiLanguage(uiLanguage) {

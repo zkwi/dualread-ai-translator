@@ -51,6 +51,14 @@
         </label>
       </div>
 
+      <div id="customEndpointFields" class="custom-endpoint-fields" hidden>
+        <label>
+          <span data-i18n="optionsApiUrl">Chat Completions API 地址</span>
+          <input id="apiUrl" placeholder="https://api.openai.com/v1/chat/completions">
+          <small class="field-help" data-i18n="optionsApiUrlHelp">选择自定义服务商时需要填写；内置服务商会自动配置。</small>
+        </label>
+      </div>
+
       <label>
         API Key
         <span class="secret-row">
@@ -59,6 +67,27 @@
         </span>
         <small class="field-help" data-i18n="optionsApiKeyHelp">只保存在本机 Chrome 扩展存储中，不会上传到本项目服务器。</small>
       </label>
+
+      <div class="thinking-settings">
+        <label class="checkbox compact-checkbox">
+          <input id="disableThinking" type="checkbox">
+          <span data-i18n="optionsDisableThinking">推荐开启：自动关闭可控思考模式</span>
+        </label>
+
+        <label>
+          <span data-i18n="optionsThinkingStrategy">关闭思考方式</span>
+          <select id="thinkingStrategy">
+            <option value="auto" data-i18n="thinkingStrategyAuto">测试 API 时自动探测</option>
+            <option value="dashscope_enable_thinking" data-i18n="thinkingStrategyDashscope">enable_thinking: false</option>
+            <option value="thinking_disabled" data-i18n="thinkingStrategyDisabledObject">thinking.type: disabled</option>
+            <option value="openrouter_reasoning_low" data-i18n="thinkingStrategyOpenRouterLow">OpenRouter reasoning_effort: low</option>
+            <option value="openrouter_reasoning_minimal" data-i18n="thinkingStrategyOpenRouterMinimal">OpenRouter reasoning minimal</option>
+            <option value="qwen_chat_template_kwargs" data-i18n="thinkingStrategyQwenTemplate">Qwen chat_template_kwargs</option>
+            <option value="omit" data-i18n="thinkingStrategyOmit">不发送思考参数</option>
+          </select>
+          <small id="thinkingHint" class="field-help" data-i18n="thinkingHintAuto">测试 API 时会自动探测可用的关闭思考参数。</small>
+        </label>
+      </div>
 
       <div class="actions">
         <p id="message" role="status" aria-live="polite" data-i18n="optionsAutoSaveMessage">设置会自动保存。</p>
@@ -142,7 +171,7 @@
       <summary>
         <span>
           <strong data-i18n="optionsAdvancedSettings">高级设置</strong>
-          <small data-i18n="optionsAdvancedSettingsDescMinimal">界面、自定义接口、Thinking、提示词、并发和维护</small>
+          <small data-i18n="optionsAdvancedSettingsDescMinimal">界面、提示词、并发和维护</small>
         </span>
       </summary>
 
@@ -160,38 +189,6 @@
         </select>
         <small class="field-help" data-i18n="optionsUiLanguageHelp">只影响插件界面和提示，不影响翻译源语言或目标语言。</small>
       </label>
-
-      <div class="section-head compact">
-        <h2 data-i18n="optionsCustomEndpoint">自定义接口</h2>
-        <span>Endpoint</span>
-      </div>
-
-      <label>
-        <span data-i18n="optionsApiUrl">Chat Completions API 地址</span>
-        <input id="apiUrl" placeholder="https://api.openai.com/v1/chat/completions">
-        <small class="field-help" data-i18n="optionsApiUrlHelp">选择自定义服务商时需要填写；内置服务商会自动配置。</small>
-      </label>
-
-      <div class="thinking-settings">
-        <label class="checkbox compact-checkbox">
-          <input id="disableThinking" type="checkbox">
-          <span data-i18n="optionsDisableThinking">推荐开启：自动关闭可控思考模式</span>
-        </label>
-
-        <label>
-          <span data-i18n="optionsThinkingStrategy">关闭思考方式</span>
-          <select id="thinkingStrategy">
-            <option value="auto" data-i18n="thinkingStrategyAuto">测试 API 时自动探测</option>
-            <option value="dashscope_enable_thinking" data-i18n="thinkingStrategyDashscope">enable_thinking: false</option>
-            <option value="thinking_disabled" data-i18n="thinkingStrategyDisabledObject">thinking.type: disabled</option>
-            <option value="openrouter_reasoning_low" data-i18n="thinkingStrategyOpenRouterLow">OpenRouter reasoning_effort: low</option>
-            <option value="openrouter_reasoning_minimal" data-i18n="thinkingStrategyOpenRouterMinimal">OpenRouter reasoning minimal</option>
-            <option value="qwen_chat_template_kwargs" data-i18n="thinkingStrategyQwenTemplate">Qwen chat_template_kwargs</option>
-            <option value="omit" data-i18n="thinkingStrategyOmit">不发送思考参数</option>
-          </select>
-          <small id="thinkingHint" class="field-help" data-i18n="thinkingHintAuto">测试 API 时会自动探测可用的关闭思考参数。</small>
-        </label>
-      </div>
 
       <div class="section-head compact">
         <h2 data-i18n="optionsPrompt">提示词</h2>

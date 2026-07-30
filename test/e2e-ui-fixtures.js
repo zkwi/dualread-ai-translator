@@ -14,6 +14,10 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
 
   try {
+    if (process.env.TEST_FILTER === "options-connection-layout") {
+      await testOptionsGroupsConnectionSettingsTogether(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "streaming-settings") {
       await testOptionsOnlyShowsEssentialSettings(browser);
       await testOptionsEnterRunsApiTestWhenReady(browser);
@@ -64,6 +68,7 @@ async function main() {
     await testOptionsCanChangeInterfaceLanguage(browser);
     await testOptionsEnglishMicrocopyIsUserFacing(browser);
     await testOptionsLayoutDoesNotOverflow(browser);
+    await testOptionsGroupsConnectionSettingsTogether(browser);
     await testOptionsOnlyShowsEssentialSettings(browser);
     await testOptionsPreservesHiddenStoredSettings(browser);
     await testOptionsDisplayModeAutoSaves(browser);
@@ -803,7 +808,6 @@ async function testOptionsChangeEventSavesApiKey(browser) {
 async function testOptionsProviderPresetUpdatesConnection(browser) {
   const page = await createOptionsPage(browser);
 
-  await page.click("#advancedSettings summary");
   await page.selectOption("#thinkingStrategy", "dashscope_enable_thinking");
   await page.selectOption("#provider", "deepseek");
   await page.waitForFunction(() => document.getElementById("apiUrl").value === "https://api.deepseek.com/chat/completions");
@@ -826,7 +830,6 @@ async function testOptionsHelpTextUpdates(browser) {
 async function testOptionsProviderThinkingHints(browser) {
   const page = await createOptionsPage(browser);
 
-  await page.click("#advancedSettings summary");
   await page.waitForFunction(() => document.getElementById("thinkingHint").textContent.includes("不会添加"));
   assert.strictEqual(await page.locator("#disableThinking").isChecked(), true);
   assert.strictEqual(await page.locator("#disableThinking").isDisabled(), false);
@@ -1025,10 +1028,38 @@ async function testOptionsLayoutDoesNotOverflow(browser) {
   }
 }
 
+async function testOptionsGroupsConnectionSettingsTogether(browser) {
+  const page = await createOptionsPage(browser, {
+    settings: {
+      provider: "custom",
+      apiUrl: "https://example.com/v1/chat/completions",
+      apiKey: "saved-key",
+      model: "custom-model"
+    }
+  });
+
+  await page.waitForFunction(() => document.getElementById("provider").value === "custom");
+  assert.strictEqual(await page.locator(".setup-section #apiUrl").count(), 1);
+  assert.strictEqual(await page.locator(".setup-section #disableThinking").count(), 1);
+  assert.strictEqual(await page.locator(".setup-section #thinkingStrategy").count(), 1);
+  assert.strictEqual(await page.locator(".advanced-section #apiUrl").count(), 0);
+  assert.strictEqual(await page.locator("#customEndpointFields").isVisible(), true);
+  assert.strictEqual(await page.locator("#advancedSettings").getAttribute("open"), null);
+
+  await page.selectOption("#provider", "openai");
+  assert.strictEqual(await page.locator("#customEndpointFields").isVisible(), false);
+  assert.strictEqual(await page.locator(".setup-section #thinkingStrategy").isVisible(), true);
+
+  await page.selectOption("#provider", "custom");
+  assert.strictEqual(await page.locator("#customEndpointFields").isVisible(), true);
+  assert.strictEqual(await page.locator("#advancedSettings").getAttribute("open"), null);
+  await page.close();
+}
+
 async function testOptionsOnlyShowsEssentialSettings(browser) {
   const page = await createOptionsPage(browser);
 
-  for (const id of ["provider", "model", "apiKey", "test", "sourceLanguage", "targetLanguage", "autoTranslate", "displayMode"]) {
+  for (const id of ["provider", "model", "apiUrl", "apiKey", "disableThinking", "thinkingStrategy", "test", "sourceLanguage", "targetLanguage", "autoTranslate", "displayMode"]) {
     assert.strictEqual(await page.locator(`#${id}`).count(), 1, `${id} should remain available`);
   }
   for (const id of ["save", "costProfile", "viewportOnly", "apiTimeoutMs", "maxElementsPerScan", "maxTextLength", "maxRequestsPerPage", "maxCharsPerPage", "cacheTtlDays", "maxCacheEntries"]) {
@@ -1036,7 +1067,7 @@ async function testOptionsOnlyShowsEssentialSettings(browser) {
   }
   assert.strictEqual(await page.locator("[data-language-preset]").count(), 0);
   assert.strictEqual(await page.locator(".setup-steps").count(), 0);
-  for (const id of ["uiLanguage", "apiUrl", "disableThinking", "thinkingStrategy", "translationPrompt", "maxConcurrentBatches", "clearCache", "reset"]) {
+  for (const id of ["uiLanguage", "translationPrompt", "maxConcurrentBatches", "clearCache", "reset"]) {
     assert.strictEqual(await page.locator(`#${id}`).count(), 1, `${id} should remain in advanced settings`);
   }
   await page.close();
@@ -1085,7 +1116,7 @@ async function testOptionsAdvancedSettingsCanExpand(browser) {
   await page.click("#advancedSettings summary");
   assert.strictEqual(await page.locator("#advancedSettings").getAttribute("open"), null);
   await page.selectOption("#provider", "custom");
-  await page.waitForFunction(() => document.getElementById("advancedSettings").open === true);
+  assert.strictEqual(await page.locator("#advancedSettings").getAttribute("open"), null);
   assert.strictEqual(await page.locator("#apiUrl").isVisible(), true);
   await page.close();
 }
