@@ -226,7 +226,7 @@ async function streamTranslationToPort(port, message, controller, isConnected) {
   };
 
   try {
-    const settings = await getSettings();
+    const settings = withOpenCodeSession(await getSettings(), message.sessionId);
     validateSettings(settings);
     if (!item.id || !item.text.trim()) {
       throw new Error(t("errorNoTranslationResult", [], "没有获取到译文。"));
@@ -800,7 +800,7 @@ async function translateBatch(items) {
     return { ok: true, results: [], meta: { cacheHits: 0, requested: 0 } };
   }
 
-  const settings = await getSettings();
+  const settings = withOpenCodeSession(await getSettings());
   validateSettings(settings);
 
   // 按文本块内部换行拆分缓存，批量请求仍高效，重复段落也能单独命中缓存。
@@ -1017,10 +1017,10 @@ function getEmptyStats() {
 async function testApi(settings) {
   const mergedSettings = { ...DEFAULT_SETTINGS, ...(settings || {}) };
   validateSettings(mergedSettings);
-  const testSettings = {
+  const testSettings = withOpenCodeSession({
     ...mergedSettings,
     apiTimeoutMs: Math.min(getApiTimeoutMs(mergedSettings), API_TEST_TIMEOUT_MS)
-  };
+  });
 
   const configuredStrategy = LLMTranslatorShared.normalizeThinkingStrategy(testSettings.thinkingStrategy);
   if (testSettings.disableThinking !== true || configuredStrategy !== THINKING_STRATEGIES.AUTO) {
@@ -1179,6 +1179,23 @@ async function clearTranslationCache() {
   return { ok: true, count: cacheKeys.length };
 }
 
+function withOpenCodeSession(settings, sessionId) {
+  const url = new URL(LLMTranslatorShared.normalizeChatCompletionsUrl(settings.apiUrl));
+  // 同时支持官方端点与 Bifrost 的 OpenCode provider/model 路由。
+  const provider = String(settings.model || "").split("/")[0];
+  if (url.hostname !== "opencode.ai" && !/(?:^|-)opencode(?:-go)?$/i.test(provider)) return settings;
+  return { ...settings, openCodeSessionId: sessionId || crypto.randomUUID() };
+}
+
+function buildApiHeaders(settings) {
+  const headers = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${settings.apiKey}`
+  };
+  if (settings.openCodeSessionId) headers["x-opencode-session"] = settings.openCodeSessionId;
+  return headers;
+}
+
 // 当前翻译协议：单段纯文本，优先 SSE，端点不支持时降级为非流式。
 async function requestPlainTranslation(settings, text, options = {}) {
   const url = LLMTranslatorShared.normalizeChatCompletionsUrl(settings.apiUrl);
@@ -1193,10 +1210,7 @@ async function requestPlainTranslation(settings, text, options = {}) {
   if (!body.stream) {
     const response = await fetchWithOneRetry(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${settings.apiKey}`
-      },
+      headers: buildApiHeaders(settings),
       body: JSON.stringify(body)
     }, settings);
     await throwForPlainTranslationHttpError(response);
@@ -1217,10 +1231,7 @@ async function requestPlainTranslation(settings, text, options = {}) {
   try {
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${settings.apiKey}`
-      },
+      headers: buildApiHeaders(settings),
       body: JSON.stringify(body),
       signal: controller.signal
     });
@@ -1351,10 +1362,7 @@ async function requestTranslations(settings, items) {
   const body = buildChatCompletionBody(settings, prompt, { skipThinkingControl });
   let response = await fetchWithOneRetry(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${settings.apiKey}`
-    },
+    headers: buildApiHeaders(settings),
     body: JSON.stringify(body)
   }, settings);
 
@@ -1365,10 +1373,7 @@ async function requestTranslations(settings, items) {
       const fallbackBody = buildChatCompletionBody(settings, prompt, { skipThinkingControl: true });
       response = await fetchWithOneRetry(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${settings.apiKey}`
-        },
+        headers: buildApiHeaders(settings),
         body: JSON.stringify(fallbackBody)
       }, settings);
       if (response.ok) {

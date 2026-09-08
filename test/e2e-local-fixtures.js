@@ -25,6 +25,8 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
 
   try {
+    await testTranslationSessionLifetime(browser);
+    if (process.env.TEST_FILTER === "opencode-session") return;
     await testStreamingTranslationUpdatesBeforeResponseCompletes(browser);
     if (process.env.TEST_FILTER === "streaming") return;
     if (process.env.TEST_FILTER === "streaming-core") {
@@ -3481,6 +3483,47 @@ async function selectTextInElement(page, selector) {
     selection.removeAllRanges();
     selection.addRange(range);
   }, selector);
+}
+
+async function testTranslationSessionLifetime(browser) {
+  const options = { html: "<p>First English paragraph for translation.</p><p>Second English paragraph for translation.</p>" };
+  const page = await createHarnessPage(browser, options);
+  const otherPage = await createHarnessPage(browser, options);
+  try {
+    await runTranslation(page, 100);
+    await page.waitForFunction(() => window.__streamRequests.length >= 2);
+    const sessions = await page.evaluate(() => window.__streamRequests.map((request) => request.sessionId));
+    assert.match(sessions[0], /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.ok(sessions.every((session) => session === sessions[0]));
+
+    await page.evaluate(() => {
+      window.__llmBilingualTranslator.translationPort.disconnect();
+      const paragraph = document.createElement("p");
+      paragraph.textContent = "New paragraph after reconnecting the background port.";
+      document.body.append(paragraph);
+    });
+    await runTranslation(page, 100);
+    await page.waitForFunction(() => window.__streamRequests.length >= 3);
+    assert.strictEqual(await page.evaluate(() => window.__streamRequests.at(-1).sessionId), sessions[0]);
+
+    await runTranslation(otherPage, 100);
+    await otherPage.waitForFunction(() => window.__streamRequests.length >= 2);
+    assert.notStrictEqual(await otherPage.evaluate(() => window.__streamRequests[0].sessionId), sessions[0]);
+
+    await page.evaluate(() => window.__sendContentMessage({ action: "clear_translation" }));
+    await page.evaluate(() => {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = "Fresh text for the next translation task.";
+      document.body.append(paragraph);
+    });
+    await runTranslation(page, 100);
+    await page.waitForFunction((previous) => window.__streamRequests.at(-1).sessionId !== previous, sessions[0]);
+    assert.notStrictEqual(await page.evaluate(() => window.__streamRequests.at(-1).sessionId), sessions[0]);
+    assert.ok(await page.locator(".llm-bilingual-translation.is-done").count() > 0);
+  } finally {
+    await page.close();
+    await otherPage.close();
+  }
 }
 
 async function createHarnessPage(browser, options = {}) {

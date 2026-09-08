@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.11.1";
+  const CONTENT_SCRIPT_VERSION = "0.11.2";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -31,6 +31,7 @@
     counter: 0,
     settings: null,
     runId: 0,
+    sessionId: "",
     pageLanguageContext: null,
     mutationObserver: null,
     mutationScanTimer: null,
@@ -475,6 +476,15 @@
     return error?.message || String(error || "") || t("errorUnknown", [], "未知错误");
   }
 
+  function createTranslationSessionId() {
+    // 普通 HTTP 网页也可用 getRandomValues，不依赖安全上下文中的 randomUUID。
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+
   async function startTranslation(options = {}) {
     if (state.active) {
       setTranslationVisibility(true);
@@ -485,6 +495,7 @@
     }
 
     state.runId += 1;
+    state.sessionId = createTranslationSessionId();
     state.settings = options.settings || await chrome.runtime.sendMessage({ action: "get_settings" });
     await applyUiLanguageFromSettings(state.settings);
     const pageLanguageContext = refreshPageLanguageContext(state.settings);
@@ -2043,6 +2054,7 @@
           type: "translate",
           requestId,
           runId: streamRunId,
+          sessionId: state.sessionId,
           item: { id, text: getTranslationText(element) }
         });
       } catch (error) {

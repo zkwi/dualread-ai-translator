@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.2
+
+- Send OpenCode session headers for direct and Bifrost connections, preserving page translation sessions across paragraphs and reconnections and API test sessions across probes and retries.
+- Document the existing DeepSeek Flash thinking-disable option and cover session isolation, retry paths, and browser task lifetimes.
+
 ## 0.11.1
 
 - Grouped the custom Chat Completions endpoint, API Key, Thinking controls, and connection test inside one API connection card.

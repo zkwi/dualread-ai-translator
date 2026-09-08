@@ -39,6 +39,9 @@ async function main() {
   await testApiFallsBackToPlainNonStreamingWhenStreamUnsupported();
   await testApiAcceptsJsonWhenProxyIgnoresStreaming();
   await testStreamingPortEmitsDeltaBeforeDone();
+  await testOpenCodeSessionSurvivesReconnectAndSeparatesTasks();
+  await testOpenCodeApiProbeAndFallbackReuseSession();
+  await testOtherProvidersDoNotSendOpenCodeSession();
   await testApiUsesShortTimeoutForConnectionCheck();
   await testGetSettingsUpgradesLegacyDefaultPrompt();
   await testGetSettingsUpgradesLegacyDefaultTimeout();
@@ -85,6 +88,7 @@ async function main() {
 async function testTranslateBatchRetriesOneServerError() {
   const fetchCalls = [];
   const context = createBackgroundContext({
+    storage: { model: "workbuddy-opencode-go/deepseek-v4-flash" },
     fetch: async (url, options) => {
       fetchCalls.push({ url, options });
       if (fetchCalls.length === 1) {
@@ -123,6 +127,8 @@ async function testTranslateBatchRetriesOneServerError() {
 
   assert.strictEqual(response.ok, true);
   assert.strictEqual(fetchCalls.length, 2, "A transient 500 should be retried once.");
+  assert.ok(fetchCalls[0].options.headers["x-opencode-session"]);
+  assert.strictEqual(fetchCalls[0].options.headers["x-opencode-session"], fetchCalls[1].options.headers["x-opencode-session"]);
   assert.strictEqual(response.results.length, 1);
   assert.strictEqual(response.results[0].id, "item-1");
   assert.strictEqual(response.results[0].text, "你好，世界。");
@@ -132,6 +138,7 @@ async function testTranslateBatchRetriesOneServerError() {
 async function testTranslateBatchSplitsNetworkFailedBatch() {
   const fetchCalls = [];
   const context = createBackgroundContext({
+    storage: { model: "workbuddy-opencode-go/deepseek-v4-flash" },
     fetch: async (url, options) => {
       fetchCalls.push({ url, options });
       const body = JSON.parse(options.body);
@@ -166,6 +173,9 @@ async function testTranslateBatchSplitsNetworkFailedBatch() {
     { id: "item-2", text: "译文：Second Reddit comment paragraph." }
   ]);
   assert.strictEqual(fetchCalls.length, 4, "整批网络失败后应重试原批次一次，再拆成单段请求。");
+  const sessionId = fetchCalls[0].options.headers["x-opencode-session"];
+  assert.ok(sessionId);
+  assert.ok(fetchCalls.every((call) => call.options.headers["x-opencode-session"] === sessionId));
 }
 
 async function testTranslateBatchDoesNotSplitNonNetworkTypeError() {
@@ -817,7 +827,7 @@ async function testTranslateBatchRetriesWithoutUnsupportedThinkingParameter() {
   const context = createBackgroundContext({
     storage: {
       provider: "custom",
-      apiUrl: "https://opencode.example/v1/chat/completions",
+      apiUrl: "https://opencode.ai/zen/go/v1/chat/completions",
       model: "deepseek-v4-flash",
       disableThinking: true,
       thinkingStrategy: "thinking_disabled"
@@ -851,6 +861,8 @@ async function testTranslateBatchRetriesWithoutUnsupportedThinkingParameter() {
   assert.strictEqual(fetchCalls.length, 2);
   assert.deepStrictEqual(JSON.parse(fetchCalls[0].options.body).thinking, { type: "disabled" });
   assert.strictEqual(JSON.parse(fetchCalls[1].options.body).thinking, undefined);
+  assert.ok(fetchCalls[0].options.headers["x-opencode-session"]);
+  assert.strictEqual(fetchCalls[0].options.headers["x-opencode-session"], fetchCalls[1].options.headers["x-opencode-session"]);
 
   const secondResponse = await sendRuntimeMessage(context, {
     action: "translate_batch",
@@ -1178,6 +1190,75 @@ async function testStreamingPortEmitsDeltaBeforeDone() {
   assert.strictEqual(doneMessage.text, "先显示");
   assert.strictEqual(doneMessage.requestId, "request-1");
   assert.strictEqual(doneMessage.runId, 7);
+}
+
+async function testOpenCodeSessionSurvivesReconnectAndSeparatesTasks() {
+  const calls = [];
+  const context = createBackgroundContext({
+    storage: {
+      model: "workbuddy-opencode-go/deepseek-v4-flash",
+      thinkingStrategy: "thinking_disabled"
+    },
+    fetch: async (url, options) => {
+      calls.push(options);
+      return createSseResponse("译文");
+    }
+  });
+  loadBackground(context);
+  const firstSession = require("crypto").randomUUID();
+  const nextSession = require("crypto").randomUUID();
+  for (const [index, sessionId] of [firstSession, firstSession, nextSession].entries()) {
+    const port = createMockRuntimePort("llm-translation-stream");
+    context.runtimeConnectListener(port);
+    port.send({ type: "translate", requestId: `request-${index}`, runId: index,
+      sessionId, item: { id: `item-${index}`, text: `Uncached paragraph ${index}.` } });
+    await waitFor(() => port.postedMessages.some((message) => message.type === "done" || message.type === "error"));
+    assert.ok(port.postedMessages.some((message) => message.type === "done"));
+    port.disconnect();
+  }
+  assert.deepStrictEqual(calls.map((call) => call.headers["x-opencode-session"]), [firstSession, firstSession, nextSession]);
+  for (const call of calls) assert.deepStrictEqual(JSON.parse(call.body).thinking, { type: "disabled" });
+}
+
+async function testOpenCodeApiProbeAndFallbackReuseSession() {
+  const calls = [];
+  const context = createBackgroundContext({
+    fetch: async (url, options) => {
+      calls.push(options);
+      const body = JSON.parse(options.body);
+      if (body.thinking || body.stream) return {
+        ok: false, status: 400,
+        text: async () => body.thinking ? "unsupported field thinking" : "stream is unsupported"
+      };
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "你好" } }] }) };
+    }
+  });
+  loadBackground(context);
+  const settings = { apiUrl: "https://opencode.ai/zen/go/v1", apiKey: "test-key",
+    model: "deepseek-v4-flash", disableThinking: true, thinkingStrategy: "auto" };
+  const first = await sendRuntimeMessage(context, { action: "test_api", settings });
+  assert.strictEqual(first.ok, true);
+  assert.strictEqual(calls.length, 3);
+  const sessionId = calls[0].headers["x-opencode-session"];
+  assert.match(sessionId, /^[0-9a-f-]{36}$/);
+  assert.ok(calls.every((call) => call.headers["x-opencode-session"] === sessionId));
+  const second = await sendRuntimeMessage(context, { action: "test_api", settings });
+  assert.strictEqual(second.ok, true);
+  assert.notStrictEqual(calls[3].headers["x-opencode-session"], sessionId);
+  assert.strictEqual((await context.chrome.storage.local.get(null)).openCodeSessionId, undefined);
+}
+
+async function testOtherProvidersDoNotSendOpenCodeSession() {
+  const calls = [];
+  const context = createBackgroundContext({
+    fetch: async (url, options) => { calls.push(options); return createSseResponse("你好"); }
+  });
+  loadBackground(context);
+  const response = await sendRuntimeMessage(context, { action: "test_api", settings: {
+    apiUrl: "https://opencode.ai.example/v1", apiKey: "test-key", model: "deepseek-v4-flash"
+  } });
+  assert.strictEqual(response.ok, true);
+  assert.strictEqual(calls[0].headers["x-opencode-session"], undefined);
 }
 
 async function testApiUsesShortTimeoutForConnectionCheck() {
@@ -2221,6 +2302,8 @@ function createBackgroundContext(options = {}) {
     setTimeout,
     clearTimeout,
     AbortController,
+    URL,
+    crypto: require("crypto").webcrypto,
     TextDecoder,
     ReadableStream,
     fetch: options.fetch || createLocaleFetch(),

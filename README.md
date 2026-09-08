@@ -76,6 +76,14 @@ The interface follows the browser language by default and can be changed in Adva
 
 Strongly recommended: keep **disable controllable thinking** enabled in **API connection**. Thinking/reasoning mode can make translation much slower. **Auto select** does not hard-code providers from the URL or model name. Clicking **Test API** probes the supported control shape and saves the result. Changing the API URL or model requires another test; no extra Thinking field is sent before that test succeeds.
 
+### OpenCode / Bifrost
+
+Select Custom and enter your gateway's Chat Completions endpoint, gateway key, and model (for example, `workbuddy-opencode-go/deepseek-v4-flash`). Direct OpenCode connections use the official endpoint and an unprefixed model name.
+
+The `opencode.ai` host and model routes whose provider prefix ends in `opencode` or `opencode-go` automatically receive `x-opencode-session`. Paragraphs, scrolling, and reconnections share the current page translation session. Restarting translation or opening another page creates a new session. Each API test has its own session, reused across parameter probes and retries. Legacy batch messages receive one session per batch task.
+
+For DeepSeek Flash, keep **disable controllable thinking** enabled and select `thinking.type: disabled`, then test the API. Unchecking the control or omitting the parameter does not actively disable thinking. Reload the extension and target pages after updating the code.
+
 ## Usage
 
 - **Start translation**: translate visible and nearby readable content.

@@ -76,6 +76,14 @@ DashScope https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
 
 强烈建议在 **API 连接** 中保持 **自动关闭可控思考模式** 开启。思考 / 推理模式会让翻译明显变慢。默认的 **自动选择** 不根据服务商名称写死参数；点击 **测试 API** 时会尝试通用控制参数并保存可用结果。API 地址或模型变化后需要重新测试，测试前不会发送额外 Thinking 参数。
 
+### OpenCode / Bifrost
+
+选择“自定义”，填写网关的 Chat Completions 地址、自己的网关 Key 和模型，例如 `workbuddy-opencode-go/deepseek-v4-flash`。直连 OpenCode 时填写其官方接口地址及未加供应商前缀的模型名。
+
+官方 `opencode.ai` 端点以及供应商前缀以 `opencode` 或 `opencode-go` 结尾的模型路由会自动发送 `x-opencode-session`。同次网页翻译的各段、滚动和连接重建复用会话；重新开始翻译或打开其他页面使用新会话。API 测试单独创建会话，参数探测与重试复用该会话。旧版批量消息按每次批量任务分配会话。
+
+DeepSeek Flash 可勾选“自动关闭可控思考模式”，将关闭方式设为 `thinking.type: disabled`，然后测试 API。取消勾选或选择“不发送思考参数”不会主动关闭思考。修改代码后需重新加载扩展和目标网页。
+
 ## 使用
 
 - **开始翻译**：翻译当前可见区域及附近正文。
