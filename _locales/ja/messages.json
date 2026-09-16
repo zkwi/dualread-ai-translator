@@ -92,6 +92,9 @@
   "errorTranslationFailed": {
     "message": "翻訳に失敗しました。"
   },
+  "errorTranslationPortClosed": {
+    "message": "翻訳の接続が切断されました。クリックで再試行してください。"
+  },
   "errorTranslationStartFailed": {
     "message": "翻訳を開始できませんでした。"
   },

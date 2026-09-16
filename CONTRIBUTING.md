@@ -17,7 +17,7 @@ npm test
 npm run test:samples
 ```
 
-`npm run audit:public` scans publishable files for common API keys, absolute local paths, personal emails, private keys, and unsafe artifacts. It also verifies that `manifest.json`, `package.json`, `package-lock.json`, and `content.js` declare the same version, and that every locale message is still referenced by code. `npm test` covers syntax checks, unit tests, UI fixtures, local content-script fixtures, and an extension load smoke test. `npm run test:samples` opens real sample sites with mock translations, so it can be slower or affected by site blocking.
+`npm run audit:public` scans publishable files for common API keys, absolute local paths, personal emails, private keys, and unsafe artifacts. It also verifies that `manifest.json`, `package.json`, `package-lock.json`, and `content.js` declare the same version, and checks the locale files: no unreferenced keys, no key-derived placeholder text in `en`/`ja`, no simplified characters in `zh_TW`, and matching `$1` substitutions across all four languages. `npm test` covers syntax checks, unit tests, UI fixtures, local content-script fixtures, and an extension load smoke test. `npm run test:samples` opens real sample sites with mock translations, so it can be slower or affected by site blocking.
 
 GitHub Actions runs everything except `npm run test:samples` on every push and pull request; see `.github/workflows/ci.yml`. A pull request that fails CI will not be reviewed until it is green.
 
@@ -28,6 +28,7 @@ GitHub Actions runs everything except `npm run test:samples` on every push and p
 - Add comments only when they explain why a behavior exists, especially for browser quirks or cost-control decisions.
 - Do not commit API keys, `.env`, `.npmrc`, private keys, archives, CRX files, or generated `test-results/` output.
 - Do not decide UI state by matching localized text. Pass an explicit state value instead, or English and Japanese will show the wrong state.
+- Edit `_locales/*/messages.json` by hand; they are the source of truth. Do not generate them from source code.
 
 ## Before Sharing Publicly
 

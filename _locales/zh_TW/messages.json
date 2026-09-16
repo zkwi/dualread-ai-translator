@@ -90,7 +90,10 @@
     "message": "無法解析模型傳回的 JSON：$1"
   },
   "errorTranslationFailed": {
-    "message": "翻譯連線已断開，請點擊重試。"
+    "message": "翻譯失敗。"
+  },
+  "errorTranslationPortClosed": {
+    "message": "翻譯連線已中斷，請點擊重試。"
   },
   "errorTranslationStartFailed": {
     "message": "翻譯啟動失敗。"
@@ -180,7 +183,7 @@
     "message": "API 測試失敗。"
   },
   "messageApiTestFallback": {
-    "message": "API 可用，但不支援流式输出，将使用非流式翻譯。測試譯文：$1"
+    "message": "API 可用，但不支援流式輸出，將使用非流式翻譯。測試譯文：$1"
   },
   "messageApiTestSuccess": {
     "message": "API 可用，測試譯文：$1"
@@ -219,16 +222,16 @@
     "message": "正在測試 API..."
   },
   "noticeSelectionAlreadyTarget": {
-    "message": "選取文字已是目標語言，无需翻譯。"
+    "message": "選取文字已是目標語言，無需翻譯。"
   },
   "noticeTranslationAlreadyActive": {
-    "message": "翻譯已開启。可捲動頁面或點擊擴充功能裡的“只翻譯目前螢幕”。"
+    "message": "翻譯已開啟。可捲動頁面或點擊擴充功能裡的“只翻譯目前螢幕”。"
   },
   "optionsAdvancedSettings": {
     "message": "進階設定"
   },
   "optionsAdvancedSettingsDescMinimal": {
-    "message": "界面、提示詞、並發和維護"
+    "message": "介面、提示詞、並發和維護"
   },
   "optionsApiKeyHelp": {
     "message": "只儲存在本機 Chrome 擴充功能儲存中，不會上傳到本專案伺服器。"
@@ -237,7 +240,7 @@
     "message": "Chat Completions API 位址"
   },
   "optionsApiUrlHelp": {
-    "message": "選擇自訂服務商時需要填寫；内置服務商會自動配置。"
+    "message": "選擇自訂服務商時需要填寫；內建服務商會自動配置。"
   },
   "optionsAutoSave": {
     "message": "自動儲存"
@@ -261,10 +264,10 @@
     "message": "選擇服務商，填寫 API Key，然後測試連線。"
   },
   "optionsDisableThinking": {
-    "message": "推荐開启：自動關閉可控思考模式"
+    "message": "推薦開啟：自動關閉可控思考模式"
   },
   "optionsLanguageDesc": {
-    "message": "預設英译中；如果頁面已是目標語言，會自動跳過。"
+    "message": "預設英譯中；如果頁面已是目標語言，會自動跳過。"
   },
   "optionsLanguageStatusInitial": {
     "message": "目前方向：英語 -> 簡體中文。"
@@ -273,13 +276,13 @@
     "message": "維護操作"
   },
   "optionsMaxConcurrentBatches": {
-    "message": "同時翻譯段落数"
+    "message": "同時翻譯段落數"
   },
   "optionsMaxConcurrentHelp": {
-    "message": "建议 2；介面稳定時可设為 3。"
+    "message": "建議 2；介面穩定時可設為 3。"
   },
   "optionsModelHelp": {
-    "message": "選擇服務商後會自動填入推荐模型，也可以手动修改。"
+    "message": "選擇服務商後會自動填入推薦模型，也可以手動修改。"
   },
   "optionsModelName": {
     "message": "模型名稱"
@@ -348,22 +351,22 @@
     "message": "翻譯提示詞"
   },
   "optionsUiLanguage": {
-    "message": "界面語言"
+    "message": "介面語言"
   },
   "optionsUiLanguageHelp": {
-    "message": "只影响擴充功能界面和提示，不影响翻譯源語言或目標語言。"
+    "message": "只影響擴充功能介面和提示，不影響翻譯源語言或目標語言。"
   },
   "popupActionHintInitial": {
     "message": "點擊開始翻譯，譯文會顯示在原文下方。"
   },
   "popupActive": {
-    "message": "已開启。"
+    "message": "已開啟。"
   },
   "popupActiveHint": {
-    "message": "捲動頁面時會繼續补翻譯；只想看原文時可点“隱藏譯文”。"
+    "message": "捲動頁面時會繼續補翻譯；只想看原文時可點“隱藏譯文”。"
   },
   "popupActiveWithCount": {
-    "message": "已開启。"
+    "message": "已開啟，發現 $1 個候選文字區塊。"
   },
   "popupApiPending": {
     "message": "待配置 API"
@@ -372,7 +375,7 @@
     "message": "自動翻譯已關閉，目前已顯示的譯文不會被清除。"
   },
   "popupAutoEnabledUnsupportedStatus": {
-    "message": "自動翻譯已開启；目前頁面不支援翻譯，打開普通外文網頁後會自動生效。"
+    "message": "自動翻譯已開啟；目前頁面不支援翻譯，打開普通外文網頁後會自動生效。"
   },
   "popupAutoStartFailed": {
     "message": "自動翻譯啟動失敗。"
@@ -387,7 +390,7 @@
     "message": "自動翻譯未啟動：請先在設定頁填寫 API Key 和模型名稱。"
   },
   "popupBadgeIdle": {
-    "message": "待机"
+    "message": "待機"
   },
   "popupBadgeSkipped": {
     "message": "已跳過"
@@ -417,7 +420,7 @@
     "message": "請先填寫 API Key 和模型。"
   },
   "popupConfigNoticeTitle": {
-    "message": "还不能翻譯"
+    "message": "還不能翻譯"
   },
   "popupConfirmClearTranslations": {
     "message": "清除目前頁面已顯示的譯文？本機快取不會被清除。"
@@ -429,7 +432,7 @@
     "message": "已切換為對照顯示。"
   },
   "popupDisplayModeSavedButNotApplied": {
-    "message": "顯示方式已儲存，但目前頁面暫時無法立即应用。"
+    "message": "顯示方式已儲存，但目前頁面暫時無法立即應用。"
   },
   "popupDisplayModeSavedForNormalPages": {
     "message": "顯示方式已儲存，打開普通網頁後生效。"
@@ -438,7 +441,7 @@
     "message": "已切換為譯文優先顯示。"
   },
   "popupEnablingAuto": {
-    "message": "正在開启自動翻譯..."
+    "message": "正在開啟自動翻譯..."
   },
   "popupGoSettings": {
     "message": "去設定"
@@ -453,7 +456,7 @@
     "message": "正在隱藏譯文..."
   },
   "popupIdleHint": {
-    "message": "点“開始翻譯”处理目前網頁；只想补目前视野内內容可点“只翻譯目前螢幕”。"
+    "message": "點“開始翻譯”處理目前網頁；只想補目前視野內內容可點“只翻譯目前螢幕”。"
   },
   "popupIdleStatus": {
     "message": "預設保留原文，並在原文下方顯示譯文。"
@@ -462,7 +465,7 @@
     "message": "語言"
   },
   "popupLoadFailedHint": {
-    "message": "可以打開設定檢查配置，或重新載入擴充功能後再试。"
+    "message": "可以打開設定檢查配置，或重新載入擴充功能後再試。"
   },
   "popupOpenSettings": {
     "message": "打開設定"
@@ -483,7 +486,7 @@
     "message": "正在顯示譯文..."
   },
   "popupSkippedTargetLanguageHint": {
-    "message": "无需整頁翻譯；如需翻譯少量外文，可選取文字後使用右键翻譯。"
+    "message": "無需整頁翻譯；如需翻譯少量外文，可選取文字後使用右鍵翻譯。"
   },
   "popupSkippedTargetLanguageStatus": {
     "message": "已跳過：目前頁面已是目標語言。"
@@ -504,19 +507,19 @@
     "message": "清除失敗。"
   },
   "popupStatusLoading": {
-    "message": "讀取目前頁面状态..."
+    "message": "讀取目前頁面狀態..."
   },
   "popupStatusNoTab": {
-    "message": "沒有找到目前标签頁。"
+    "message": "沒有找到目前分頁。"
   },
   "popupStatusProcessing": {
-    "message": "处理中..."
+    "message": "處理中..."
   },
   "popupStatusScanFailed": {
     "message": "掃描失敗。"
   },
   "popupStatusScanningArea": {
-    "message": "正在掃描目前区域..."
+    "message": "正在掃描目前區域..."
   },
   "popupStatusVisibilityFailed": {
     "message": "切換顯示失敗。"
@@ -540,13 +543,13 @@
     "message": "點擊“去設定”完成連線配置，測試通過後再回到網頁翻譯。"
   },
   "popupUnconfiguredStatus": {
-    "message": "还不能翻譯：請先填寫 API Key 和模型名稱。"
+    "message": "還不能翻譯：請先填寫 API Key 和模型名稱。"
   },
   "popupUnsupportedConfiguredHint": {
-    "message": "自動翻譯和顯示方式會作為全局設定儲存，打開外文網頁後生效。"
+    "message": "自動翻譯和顯示方式會作為全域設定儲存，打開外文網頁後生效。"
   },
   "popupUnsupportedHint": {
-    "message": "Chrome 設定頁、擴充功能頁和新标签頁不能注入翻譯腳本。"
+    "message": "Chrome 設定頁、擴充功能頁和新分頁不能注入翻譯腳本。"
   },
   "popupUnsupportedPageStatus": {
     "message": "目前頁面不支援翻譯：請打開普通網頁（http/https）。"
@@ -561,16 +564,16 @@
     "message": "用於自訂 OpenAI-compatible 服務；測試 API 時會探測可用的 Thinking 控制參數。"
   },
   "providerHintDashscope": {
-    "message": "使用阿裡云 DashScope 相容模式；Thinking 能力以測試 API 的結果為准。"
+    "message": "使用阿里雲 DashScope 相容模式；Thinking 能力以測試 API 的結果為準。"
   },
   "providerHintDeepseek": {
-    "message": "使用 DeepSeek 官方 OpenAI-compatible 介面；Thinking 能力以測試 API 的結果為准。"
+    "message": "使用 DeepSeek 官方 OpenAI-compatible 介面；Thinking 能力以測試 API 的結果為準。"
   },
   "providerHintLocal": {
-    "message": "適合本機代理、vLLM、SGLang 等相容服務；Thinking 能力以測試 API 的結果為准。"
+    "message": "適合本機代理、vLLM、SGLang 等相容服務；Thinking 能力以測試 API 的結果為準。"
   },
   "providerHintOpenai": {
-    "message": "使用 OpenAI 官方 Chat Completions 介面；Thinking 能力以測試 API 的結果為准。"
+    "message": "使用 OpenAI 官方 Chat Completions 介面；Thinking 能力以測試 API 的結果為準。"
   },
   "providerHintOpenaiShort": {
     "message": "使用 OpenAI 官方 Chat Completions 介面。"
@@ -627,7 +630,7 @@
     "message": "複製失敗"
   },
   "selectionCopyFailedStatus": {
-    "message": "複製失敗，請手动選擇譯文複製。"
+    "message": "複製失敗，請手動選擇譯文複製。"
   },
   "selectionCopyTranslation": {
     "message": "複製譯文"
@@ -636,7 +639,7 @@
     "message": "錯誤"
   },
   "selectionErrorText": {
-    "message": "沒有取得到譯文。"
+    "message": "翻譯失敗：$1"
   },
   "selectionNoCopyText": {
     "message": "沒有可複製的譯文"
@@ -654,22 +657,22 @@
     "message": "譯文"
   },
   "setupErrorText": {
-    "message": "$1 修改連線信息後可重新測試。"
+    "message": "$1 修改連線資訊後可重新測試。"
   },
   "setupErrorTitle": {
     "message": "API 測試失敗"
   },
   "setupMissingText": {
-    "message": "补齐後會自動儲存，然後點擊“測試 API”。"
+    "message": "補齊後會自動儲存，然後點擊“測試 API”。"
   },
   "setupMissingTitle": {
-    "message": "还差 $1"
+    "message": "還差 $1"
   },
   "setupReadyText": {
     "message": "按 Enter 或點擊“測試 API”，確認服務可用。"
   },
   "setupReadyTitle": {
-    "message": "配置看起来完整"
+    "message": "配置看起來完整"
   },
   "setupSuccessText": {
     "message": "可以回到網頁，點擊擴充功能開始翻譯。"
@@ -696,7 +699,7 @@
     "message": "快取"
   },
   "statCacheTitle": {
-    "message": "直接从本機快取讀取的數量"
+    "message": "直接從本機快取讀取的數量"
   },
   "statFailed": {
     "message": "失敗"
@@ -708,7 +711,7 @@
     "message": "請求"
   },
   "statRequestsTitle": {
-    "message": "本頁实际請求 API 的段落數量"
+    "message": "本頁實際請求 API 的段落數量"
   },
   "statSkipped": {
     "message": "跳過"
@@ -726,7 +729,7 @@
     "message": "已關閉"
   },
   "statusEnabled": {
-    "message": "已開启"
+    "message": "已開啟"
   },
   "summaryWithDot": {
     "message": "$1 · $2"
@@ -735,34 +738,34 @@
     "message": "必要配置"
   },
   "thinkingHintAuto": {
-    "message": "强烈建议保持開启；測試 API 時會自動探測可用的關閉思考參數。"
+    "message": "強烈建議保持開啟；測試 API 時會自動探測可用的關閉思考參數。"
   },
   "thinkingHintAutoPending": {
     "message": "自動模式會在測試 API 時探測可用參數；測試前不會加入額外思考參數。"
   },
   "thinkingHintAutoResolved": {
-    "message": "推荐保持開启：$1"
+    "message": "推薦保持開啟：$1"
   },
   "thinkingHintDashscope": {
-    "message": "請求体會加入 enable_thinking: false。"
+    "message": "請求主體會加入 enable_thinking: false。"
   },
   "thinkingHintDisabled": {
-    "message": "不推荐：不會加入關閉思考參數，推理模型可能明显变慢。"
+    "message": "不推薦：不會加入關閉思考參數，推理模型可能明顯變慢。"
   },
   "thinkingHintDisabledObject": {
-    "message": "請求体會加入 thinking: { type: \"disabled\" }。"
+    "message": "請求主體會加入 thinking: { type: \"disabled\" }。"
   },
   "thinkingHintNone": {
     "message": "不會加入額外思考參數。"
   },
   "thinkingHintOpenRouterLow": {
-    "message": "請求体會加入 reasoning_effort: \"low\"。"
+    "message": "請求主體會加入 reasoning_effort: \"low\"。"
   },
   "thinkingHintOpenRouterMinimal": {
-    "message": "請求体會加入 reasoning: { effort: \"minimal\", exclude: true }。"
+    "message": "請求主體會加入 reasoning: { effort: \"minimal\", exclude: true }。"
   },
   "thinkingHintSelfHosted": {
-    "message": "請求体會加入 chat_template_kwargs.enable_thinking = false。"
+    "message": "請求主體會加入 chat_template_kwargs.enable_thinking = false。"
   },
   "thinkingStrategyAuto": {
     "message": "自動選擇"
@@ -789,7 +792,7 @@
     "message": "自動：$1"
   },
   "thinkingSummaryDisabled": {
-    "message": "未關閉思考，可能变慢"
+    "message": "未關閉思考，可能變慢"
   },
   "thinkingSummaryInitial": {
     "message": "讀取加速設定..."
@@ -801,10 +804,10 @@
     "message": "自動：等待測試 API"
   },
   "tooltipAutoTranslate": {
-    "message": "儲存為全局開关，打開外文網頁時自動開始翻譯。"
+    "message": "儲存為全域開關，打開外文網頁時自動開始翻譯。"
   },
   "tooltipAutoTranslateGlobalOnly": {
-    "message": "會儲存為全局設定，打開普通外文網頁後生效。"
+    "message": "會儲存為全域設定，打開普通外文網頁後生效。"
   },
   "tooltipClearTranslations": {
     "message": "移除目前頁面已插入的譯文，本機快取不會被清除。"
@@ -813,22 +816,22 @@
     "message": "目前頁面不可用。"
   },
   "tooltipHideTranslations": {
-    "message": "临時隱藏頁面上的譯文，不會清除快取。"
+    "message": "臨時隱藏頁面上的譯文，不會清除快取。"
   },
   "tooltipNeedConfig": {
     "message": "請先在設定頁填寫 API Key 和模型名稱。"
   },
   "tooltipNoTranslations": {
-    "message": "目前頁面还沒有譯文。"
+    "message": "目前頁面還沒有譯文。"
   },
   "tooltipScanCurrentScreen": {
-    "message": "只处理目前可視區域附近內容，適合控制 token 消耗。"
+    "message": "只處理目前可視區域附近內容，適合控制 token 消耗。"
   },
   "tooltipShowTranslations": {
     "message": "重新顯示已隱藏的譯文。"
   },
   "tooltipStartTranslation": {
-    "message": "翻譯目前網頁，捲動時會繼續处理目前螢幕附近內容。"
+    "message": "翻譯目前網頁，捲動時會繼續處理目前螢幕附近內容。"
   },
   "tooltipStopTranslation": {
     "message": "停止繼續翻譯，已顯示的譯文會保留。"
@@ -837,7 +840,7 @@
     "message": "目前頁面不是普通網頁，無法注入翻譯腳本。"
   },
   "uiLanguageAuto": {
-    "message": "跟随浏览器"
+    "message": "跟隨瀏覽器"
   },
   "uiLanguageEn": {
     "message": "English"

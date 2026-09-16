@@ -2031,7 +2031,7 @@
         if (state.active && request.runId === state.runId) {
           setError(
             request.record.sourceElement,
-            t("errorTranslationFailed", [], "翻译连接已断开，请点击重试。"),
+            t("errorTranslationPortClosed", [], "翻译连接已断开，请点击重试。"),
             request.record
           );
         }

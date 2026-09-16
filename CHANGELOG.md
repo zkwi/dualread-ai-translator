@@ -9,8 +9,13 @@
 - Told the reader to refresh the page when the extension was reloaded mid-session, instead of printing `Extension context invalidated` into the translation block.
 - Matched context-menu page notices to dark pages.
 - Fixed the settings save-state badge showing "Saved" during saving and maintenance actions in English and Japanese, and stopped reporting an empty translation stream as a failed *test* request.
+- Restored the missing `$1` substitutions in the Chinese UI: the popup again reports how many text blocks were found, and a failed selection translation again shows the provider error instead of a generic "no translation" line.
+- Separated the dropped-connection message from the generic failure message, which had made every Chinese translation error read as a connection problem.
+- Rewrote 45 Traditional Chinese messages that still contained simplified characters or Simplified-Chinese wording.
 - Added GitHub Actions CI for the publication audit, unit tests, browser fixtures, layout matrix, and extension smoke test; added issue/PR templates and a security policy.
-- Made `npm run audit:public` verify that the four version numbers stay in sync and that every locale message is still referenced by code.
+- Made `npm run audit:public` verify that the four version numbers stay in sync, that every locale message is still referenced by code, that `zh_TW` holds no simplified characters, and that `$1` substitutions match across all four languages.
+- Removed `scripts/generate-locales.js`. It rebuilt all four locale files from regex guesses and an incomplete character table, which is how the substitution and Traditional Chinese defects above were introduced; the locale files are now maintained by hand and guarded by the audit.
+- Replaced the hand-listed `npm run check` file chain with a walker, so a newly added script or test is syntax-checked without editing `package.json`.
 - Bumped the content script version so pages with 0.11.2 already injected request a clear reload after the extension update.
 
 ## 0.11.2

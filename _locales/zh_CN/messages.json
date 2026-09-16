@@ -90,6 +90,9 @@
     "message": "无法解析模型返回的 JSON：$1"
   },
   "errorTranslationFailed": {
+    "message": "翻译失败。"
+  },
+  "errorTranslationPortClosed": {
     "message": "翻译连接已断开，请点击重试。"
   },
   "errorTranslationStartFailed": {
@@ -363,7 +366,7 @@
     "message": "滚动页面时会继续补翻译；只想看原文时可点“隐藏译文”。"
   },
   "popupActiveWithCount": {
-    "message": "已开启。"
+    "message": "已开启，发现 $1 个候选文本块。"
   },
   "popupApiPending": {
     "message": "待配置 API"
@@ -636,7 +639,7 @@
     "message": "错误"
   },
   "selectionErrorText": {
-    "message": "没有获取到译文。"
+    "message": "翻译失败：$1"
   },
   "selectionNoCopyText": {
     "message": "没有可复制的译文"
