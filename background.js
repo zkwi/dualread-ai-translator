@@ -226,8 +226,9 @@ async function streamTranslationToPort(port, message, controller, isConnected) {
   };
 
   try {
-    const settings = withOpenCodeSession(await getSettings(), message.sessionId);
-    validateSettings(settings);
+    const baseSettings = await getSettings();
+    validateSettings(baseSettings);
+    const settings = withOpenCodeSession(baseSettings, message.sessionId);
     if (!item.id || !item.text.trim()) {
       throw new Error(t("errorNoTranslationResult", [], "没有获取到译文。"));
     }
@@ -469,9 +470,40 @@ async function showPageNotice(tab, text, isError = false) {
   }
 }
 
+// 该函数通过 chrome.scripting 注入页面执行，不能引用后台作用域里的其他函数。
 function renderPageNotice(text, isError) {
   const existing = document.querySelector(".llm-bilingual-page-notice");
   if (existing) existing.remove();
+
+  const isDark = (() => {
+    // content script 已注入时直接复用它检测到的页面主题，否则按页面背景亮度判断。
+    const marked = document.documentElement.getAttribute("data-llm-translator-theme");
+    if (marked === "dark" || marked === "light") return marked === "dark";
+
+    for (const element of [document.body, document.documentElement]) {
+      const color = element && window.getComputedStyle(element).backgroundColor;
+      const parts = String(color || "").match(/[\d.]+/g);
+      if (!parts || parts.length < 3) continue;
+      if (parts.length >= 4 && Number(parts[3]) === 0) continue;
+      const [red, green, blue] = parts.slice(0, 3).map(Number);
+      return (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255 < 0.45;
+    }
+    return false;
+  })();
+
+  const palette = isDark
+    ? {
+      color: isError ? "#fca5a5" : "#dbeafe",
+      background: isError ? "#3a1114" : "#111b2a",
+      border: isError ? "#7f1d1d" : "#334155",
+      accent: isError ? "#f87171" : "#5da3ff"
+    }
+    : {
+      color: isError ? "#991b1b" : "#1e3a8a",
+      background: isError ? "#fff1f2" : "#eff6ff",
+      border: isError ? "#fecdd3" : "#bfdbfe",
+      accent: isError ? "#ef4444" : "#2563eb"
+    };
 
   const notice = document.createElement("div");
   notice.className = `llm-bilingual-page-notice${isError ? " is-error" : ""}`;
@@ -484,14 +516,16 @@ function renderPageNotice(text, isError) {
   notice.style.maxWidth = "min(420px, calc(100vw - 32px))";
   notice.style.padding = "12px 14px";
   notice.style.borderRadius = "8px";
-  notice.style.boxShadow = "0 14px 32px rgba(15, 23, 42, 0.18)";
+  notice.style.boxShadow = isDark
+    ? "0 14px 32px rgba(0, 0, 0, 0.42)"
+    : "0 14px 32px rgba(15, 23, 42, 0.18)";
   notice.style.font = "15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
   notice.style.whiteSpace = "normal";
   notice.style.wordBreak = "break-word";
-  notice.style.color = isError ? "#991b1b" : "#1e3a8a";
-  notice.style.background = isError ? "#fff1f2" : "#eff6ff";
-  notice.style.border = `1px solid ${isError ? "#fecdd3" : "#bfdbfe"}`;
-  notice.style.borderLeft = `4px solid ${isError ? "#ef4444" : "#2563eb"}`;
+  notice.style.color = palette.color;
+  notice.style.background = palette.background;
+  notice.style.border = `1px solid ${palette.border}`;
+  notice.style.borderLeft = `4px solid ${palette.accent}`;
 
   document.documentElement.appendChild(notice);
   window.setTimeout(() => notice.remove(), 5000);
@@ -659,6 +693,9 @@ async function translateSelection(tab, selectionText) {
     return { ok: true, skipped: true, reason: "target-language" };
   }
 
+  // 选中文本可能要等数秒，先给出可见的进行中反馈，避免右键后页面毫无变化。
+  await sendSelectionCardMessage(tab, { originalText, loading: true });
+
   try {
     const response = await translateBatch([{ id: "selection", text: originalText }]);
     const result = response.results?.[0];
@@ -676,6 +713,17 @@ async function translateSelection(tab, selectionText) {
       error: error.message
     });
     return { ok: false, error: error.message };
+  }
+}
+
+async function sendSelectionCardMessage(tab, payload) {
+  try {
+    await chrome.tabs.sendMessage(tab.id, {
+      action: "show_selection_translation",
+      ...payload
+    });
+  } catch (error) {
+    console.warn("Failed to update selection translation card:", error);
   }
 }
 
@@ -800,8 +848,9 @@ async function translateBatch(items) {
     return { ok: true, results: [], meta: { cacheHits: 0, requested: 0 } };
   }
 
-  const settings = withOpenCodeSession(await getSettings());
-  validateSettings(settings);
+  const baseSettings = await getSettings();
+  validateSettings(baseSettings);
+  const settings = withOpenCodeSession(baseSettings);
 
   // 按文本块内部换行拆分缓存，批量请求仍高效，重复段落也能单独命中缓存。
   const segmentPlan = createSegmentCachePlan(items);
@@ -1081,6 +1130,19 @@ function validateSettings(settings) {
   if (!settings.model) {
     throw new Error(t("errorModelMissing", [], "请先在选项页填写模型名称。"));
   }
+
+  if (!isSupportedApiUrl(settings.apiUrl)) {
+    throw new Error(t("errorApiUrlInvalid", [], "API 地址不是有效的 http/https 链接，请在设置页检查。"));
+  }
+}
+
+function isSupportedApiUrl(apiUrl) {
+  try {
+    const url = new URL(LLMTranslatorShared.normalizeChatCompletionsUrl(apiUrl));
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch (error) {
+    return false;
+  }
 }
 
 async function getCachedResults(settings, items) {
@@ -1180,10 +1242,16 @@ async function clearTranslationCache() {
 }
 
 function withOpenCodeSession(settings, sessionId) {
-  const url = new URL(LLMTranslatorShared.normalizeChatCompletionsUrl(settings.apiUrl));
   // 同时支持官方端点与 Bifrost 的 OpenCode provider/model 路由。
+  let hostname = "";
+  try {
+    hostname = new URL(LLMTranslatorShared.normalizeChatCompletionsUrl(settings.apiUrl)).hostname;
+  } catch (error) {
+    // 无效地址由 validateSettings 给出明确提示，这里只跳过会话头。
+    return settings;
+  }
   const provider = String(settings.model || "").split("/")[0];
-  if (url.hostname !== "opencode.ai" && !/(?:^|-)opencode(?:-go)?$/i.test(provider)) return settings;
+  if (hostname !== "opencode.ai" && !/(?:^|-)opencode(?:-go)?$/i.test(provider)) return settings;
   return { ...settings, openCodeSessionId: sessionId || crypto.randomUUID() };
 }
 
@@ -1212,7 +1280,7 @@ async function requestPlainTranslation(settings, text, options = {}) {
       method: "POST",
       headers: buildApiHeaders(settings),
       body: JSON.stringify(body)
-    }, settings);
+    }, settings, options.signal);
     await throwForPlainTranslationHttpError(response);
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content;
@@ -1254,6 +1322,8 @@ async function requestPlainTranslation(settings, text, options = {}) {
       return requestPlainTranslation(settings, text, { ...options, stream: false, fallback: true });
     }
     if (error?.name === "AbortError") {
+      // 调用方取消（停止翻译、滚动到新区域）不应报成超时。
+      if (options.signal?.aborted) throw error;
       const seconds = String(Math.round(timeoutMs / 1000));
       const timeoutError = new Error(t("errorApiTimeout", [seconds], `API 请求超时（${seconds} 秒）。`));
       timeoutError.name = "TimeoutError";
@@ -1305,7 +1375,13 @@ async function consumeChatCompletionStream(response, onDelta) {
       return;
     }
 
-    const data = JSON.parse(payload);
+    // 网关可能插入非 JSON 心跳或在末尾截断数据行，单个坏块不应中断整段翻译。
+    let data = null;
+    try {
+      data = JSON.parse(payload);
+    } catch (error) {
+      return;
+    }
     const delta = data?.choices?.[0]?.delta?.content;
     if (typeof delta !== "string" || delta.length === 0) return;
     translatedText += delta;
@@ -1331,7 +1407,7 @@ async function consumeChatCompletionStream(response, onDelta) {
 
   const cleanText = translatedText.trim();
   if (!cleanText) {
-    throw new Error(t("errorTestNoTranslation", [], "测试请求没有返回译文。"));
+    throw new Error(t("errorNoTranslationResult", [], "没有获取到译文。"));
   }
   return cleanText;
 }
@@ -1491,19 +1567,19 @@ function createThinkingControlCacheKey(settings) {
   return `${url}\n${model}\n${strategy}`;
 }
 
-async function fetchWithOneRetry(url, options, settings) {
+async function fetchWithOneRetry(url, options, settings, externalSignal = null) {
   let lastError = null;
   const timeoutMs = getApiTimeoutMs(settings);
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const response = await fetchWithTimeout(url, options, timeoutMs);
+      const response = await fetchWithTimeout(url, options, timeoutMs, externalSignal);
       if (response.ok || !isRetriableStatus(response.status) || attempt === 1) {
         return response;
       }
     } catch (error) {
       lastError = error;
-      if (isTimeoutError(error)) {
+      if (isTimeoutError(error) || isAbortError(error)) {
         throw error;
       }
       if (attempt === 1) {
@@ -1515,14 +1591,22 @@ async function fetchWithOneRetry(url, options, settings) {
   throw lastError || new Error(t("errorApiRequestGeneric", [], "API 请求失败。"));
 }
 
-async function fetchWithTimeout(url, options, timeoutMs) {
+async function fetchWithTimeout(url, options, timeoutMs, externalSignal = null) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const abortFromCaller = () => controller.abort();
+  if (externalSignal?.aborted) {
+    controller.abort();
+  } else {
+    externalSignal?.addEventListener?.("abort", abortFromCaller, { once: true });
+  }
 
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
     if (error?.name === "AbortError") {
+      // 调用方主动取消时保留 AbortError，只有真正超时才改写成超时提示。
+      if (externalSignal?.aborted) throw error;
       const seconds = String(Math.round(timeoutMs / 1000));
       const timeoutError = new Error(t("errorApiTimeout", [seconds], `API 请求超时（${seconds} 秒）。`));
       timeoutError.name = "TimeoutError";
@@ -1531,7 +1615,12 @@ async function fetchWithTimeout(url, options, timeoutMs) {
     throw error;
   } finally {
     clearTimeout(timeoutId);
+    externalSignal?.removeEventListener?.("abort", abortFromCaller);
   }
+}
+
+function isAbortError(error) {
+  return error?.name === "AbortError";
 }
 
 function getApiTimeoutMs(settings) {

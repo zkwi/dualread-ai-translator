@@ -68,6 +68,9 @@
   "errorApiTimeout": {
     "message": "API 请求超时（$1 秒）。"
   },
+  "errorApiUrlInvalid": {
+    "message": "API 地址不是有效的 http/https 链接，请在设置页检查。"
+  },
   "errorMissingParagraphTranslation": {
     "message": "模型未返回该段落的译文。"
   },
@@ -85,9 +88,6 @@
   },
   "errorParseJson": {
     "message": "无法解析模型返回的 JSON：$1"
-  },
-  "errorTestNoTranslation": {
-    "message": "测试请求没有返回译文。"
   },
   "errorTranslationFailed": {
     "message": "翻译连接已断开，请点击重试。"
@@ -259,9 +259,6 @@
   },
   "optionsConnectionDesc": {
     "message": "选择服务商，填写 API Key，然后测试连接。"
-  },
-  "optionsCustomEndpoint": {
-    "message": "自定义接口"
   },
   "optionsDisableThinking": {
     "message": "推荐开启：自动关闭可控思考模式"
@@ -587,6 +584,9 @@
   "saveStateMaintenance": {
     "message": "维护中"
   },
+  "saveStateMaintenanceFailed": {
+    "message": "维护失败"
+  },
   "saveStateSaveFailed": {
     "message": "保存失败"
   },
@@ -646,6 +646,9 @@
   },
   "selectionSourceLabel": {
     "message": "原文"
+  },
+  "selectionTranslating": {
+    "message": "正在翻译选中文本..."
   },
   "selectionTranslationLabel": {
     "message": "译文"

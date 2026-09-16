@@ -1,5 +1,5 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "0.11.2";
+  const CONTENT_SCRIPT_VERSION = "0.11.3";
   const existingTranslatorState = window.__llmBilingualTranslator;
   if (existingTranslatorState) {
     if (existingTranslatorState.version === CONTENT_SCRIPT_VERSION) {
@@ -474,6 +474,15 @@
 
   function formatContentError(error) {
     return error?.message || String(error || "") || t("errorUnknown", [], "未知错误");
+  }
+
+  // 扩展重新加载后旧 content script 会失去运行时连接，原始报错对用户没有意义。
+  function formatRuntimeError(error) {
+    const message = error?.message || String(error || "");
+    if (/extension context invalidated|context invalidated|receiving end does not exist|message port closed/i.test(message)) {
+      return t("contentReloadRequired", [], "翻译插件已更新，请刷新页面后继续使用。");
+    }
+    return message || t("errorTranslationFailed", [], "翻译失败。");
   }
 
   function createTranslationSessionId() {
@@ -2059,7 +2068,7 @@
         });
       } catch (error) {
         if (state.active && streamRunId === state.runId) {
-          setError(element, error?.message || t("errorTranslationFailed", [], "翻译失败。"));
+          setError(element, formatRuntimeError(error));
         }
         settleStreamRequest(requestId);
       }
@@ -2907,7 +2916,7 @@
       enqueueElement(element);
       flushQueue();
     } catch (error) {
-      setError(element, error?.message || t("errorTranslationFailed", [], "翻译失败。"));
+      setError(element, formatRuntimeError(error));
     }
   }
 
@@ -3136,6 +3145,18 @@
       .llm-bilingual-selection-card.is-error .llm-bilingual-selection-card__result {
         color: var(--llm-translator-error-text) !important;
       }
+      .llm-bilingual-selection-card.is-loading .llm-bilingual-selection-card__result {
+        color: #53647a !important;
+        animation: llmTranslatorLoadingPulse 1.25s ease-in-out infinite !important;
+      }
+      :root[data-llm-translator-theme="dark"] .llm-bilingual-selection-card.is-loading .llm-bilingual-selection-card__result {
+        color: #cbd5e1 !important;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .llm-bilingual-selection-card.is-loading .llm-bilingual-selection-card__result {
+          animation: none !important;
+        }
+      }
       .llm-bilingual-selection-card__status {
         min-height: 18px !important;
         margin: 10px 0 0 0 !important;
@@ -3227,8 +3248,9 @@
     injectStyles();
     document.querySelectorAll(".llm-bilingual-selection-card").forEach((node) => closeSelectionCard(node));
 
+    const isLoading = request.loading === true && !request.error && !request.translatedText;
     const card = document.createElement("section");
-    card.className = `llm-bilingual-selection-card${request.error ? " is-error" : ""}`;
+    card.className = `llm-bilingual-selection-card${request.error ? " is-error" : ""}${isLoading ? " is-loading" : ""}`;
     card.setAttribute("role", "dialog");
     card.setAttribute("aria-label", t("selectionCardAria", [], "选中文本翻译"));
 
@@ -3275,9 +3297,14 @@
 
     const result = document.createElement("p");
     result.className = "llm-bilingual-selection-card__result";
+    result.setAttribute("aria-busy", isLoading ? "true" : "false");
     result.textContent = request.error
       ? t("selectionErrorText", [request.error], `翻译失败：${request.error}`)
-      : (request.notice || request.translatedText || t("errorNoTranslationResult", [], "没有获取到译文。"));
+      : (request.notice
+        || request.translatedText
+        || (isLoading
+          ? t("selectionTranslating", [], "正在翻译选中文本...")
+          : t("errorNoTranslationResult", [], "没有获取到译文。")));
 
     const status = document.createElement("p");
     status.className = "llm-bilingual-selection-card__status";

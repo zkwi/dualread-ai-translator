@@ -24,6 +24,10 @@ test/           共享/后台单测、浏览器 fixture、扩展 smoke 和真实
 4. background 先查段落缓存；未命中则请求纯文本 SSE。
 5. 每个 `delta` 立即更新页面中的“翻译中”占位，完成后保存缓存。
 6. 端点明确不支持流式时，该 API/模型在当前 service worker 生命周期内降级为单段非流式请求。
+7. SSE 中的非 JSON 心跳、注释行和末尾截断块被逐行跳过，单个坏块不会终止整段翻译。
+8. 停止翻译或视口跳转会通过 Port 发送 `cancel`；流式和非流式请求都接收该取消信号，取消不会被报成超时。
+
+请求发出前先校验 API Key、模型和 API 地址协议，地址非 http/https 时给出明确提示，而不是抛出底层 `Invalid URL`。
 
 `maxConcurrentBatches` 是历史存储键，当前语义为“同时翻译段落数”。`batchSize` 和 `maxCharsPerBatch` 仅为旧存储及兼容代码保留，不参与正文调度。
 

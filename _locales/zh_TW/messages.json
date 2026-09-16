@@ -68,6 +68,9 @@
   "errorApiTimeout": {
     "message": "API 請求超時（$1 秒）。"
   },
+  "errorApiUrlInvalid": {
+    "message": "API 位址不是有效的 http/https 連結，請在設定頁檢查。"
+  },
   "errorMissingParagraphTranslation": {
     "message": "模型未傳回該段落的譯文。"
   },
@@ -85,9 +88,6 @@
   },
   "errorParseJson": {
     "message": "無法解析模型傳回的 JSON：$1"
-  },
-  "errorTestNoTranslation": {
-    "message": "測試請求沒有傳回譯文。"
   },
   "errorTranslationFailed": {
     "message": "翻譯連線已断開，請點擊重試。"
@@ -259,9 +259,6 @@
   },
   "optionsConnectionDesc": {
     "message": "選擇服務商，填寫 API Key，然後測試連線。"
-  },
-  "optionsCustomEndpoint": {
-    "message": "自訂介面"
   },
   "optionsDisableThinking": {
     "message": "推荐開启：自動關閉可控思考模式"
@@ -587,6 +584,9 @@
   "saveStateMaintenance": {
     "message": "維護中"
   },
+  "saveStateMaintenanceFailed": {
+    "message": "維護失敗"
+  },
   "saveStateSaveFailed": {
     "message": "儲存失敗"
   },
@@ -646,6 +646,9 @@
   },
   "selectionSourceLabel": {
     "message": "原文"
+  },
+  "selectionTranslating": {
+    "message": "正在翻譯選取文字..."
   },
   "selectionTranslationLabel": {
     "message": "譯文"

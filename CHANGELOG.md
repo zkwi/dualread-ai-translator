@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.11.3
+
+- Kept a paragraph translating when a gateway injects a non-JSON heartbeat or a truncated chunk into the SSE stream, instead of failing the whole paragraph on one bad chunk.
+- Cancelled in-flight non-streaming requests when translation stops or the reader scrolls to a different area, so stopped work no longer keeps consuming tokens.
+- Reported an invalid API URL with a clear message in the popup, page, and settings instead of a raw `Invalid URL` error.
+- Showed a progress card immediately after right-click translation of selected text, rather than leaving the page unchanged until the response arrives.
+- Told the reader to refresh the page when the extension was reloaded mid-session, instead of printing `Extension context invalidated` into the translation block.
+- Matched context-menu page notices to dark pages.
+- Fixed the settings save-state badge showing "Saved" during saving and maintenance actions in English and Japanese, and stopped reporting an empty translation stream as a failed *test* request.
+- Added GitHub Actions CI for the publication audit, unit tests, browser fixtures, layout matrix, and extension smoke test; added issue/PR templates and a security policy.
+- Made `npm run audit:public` verify that the four version numbers stay in sync and that every locale message is still referenced by code.
+- Bumped the content script version so pages with 0.11.2 already injected request a clear reload after the extension update.
+
 ## 0.11.2
 
 - Send OpenCode session headers for direct and Bifrost connections, preserving page translation sessions across paragraphs and reconnections and API test sessions across probes and retries.
