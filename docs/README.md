@@ -5,8 +5,9 @@
 ## 当前说明
 
 - [架构说明](architecture.md)：运行时组件、正文流式链路、Thinking 探测、缓存和兼容边界。
-- [开发与验证](development.md)：本地开发、测试命令、真实页面验证和发布检查。
+- [开发与验证](development.md)：本地开发、测试命令、持续集成、真实页面验证和发布检查。
 - [真实页面清单](../test-pages.md)：BBC、CNN、Reddit、X、Quora 等页面的手工验收点。
+- [贡献说明](../CONTRIBUTING.md) 与 [安全说明](../SECURITY.md)：协作约定、密钥泄露处理和漏洞上报口径。
 
 ## 架构决策
 

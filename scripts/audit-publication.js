@@ -196,6 +196,64 @@ for (const htmlFile of ["popup.html", "options.html"]) {
   }
 }
 
+assertVersionsAreInSync();
+assertLocaleKeysAreUsed();
+
+// 发布检查要求手工同步 4 处版本号，这里改成自动核对，避免漏改造成 content script 版本判断失效。
+function assertVersionsAreInSync() {
+  const sources = [
+    ["manifest.json", readJson("manifest.json").version],
+    ["package.json", readJson("package.json").version],
+    ["package-lock.json", readJson("package-lock.json").version],
+    ["package-lock.json (packages root)", readJson("package-lock.json").packages?.[""]?.version],
+    ["content.js", readContentScriptVersion()]
+  ];
+
+  const expected = sources[0][1];
+  for (const [name, version] of sources.slice(1)) {
+    if (version !== expected) {
+      failures.push(`${name}: version "${version}" does not match manifest.json "${expected}"`);
+    }
+  }
+}
+
+function readContentScriptVersion() {
+  const source = fs.readFileSync(path.join(ROOT, "content.js"), "utf8");
+  return source.match(/CONTENT_SCRIPT_VERSION\s*=\s*"([^"]+)"/)?.[1] || "";
+}
+
+// 未被代码引用的文案会在四种语言里同时腐烂，发布前直接拦下。
+function assertLocaleKeysAreUsed() {
+  const sourceFiles = [
+    "manifest.json",
+    "popup.html",
+    "options.html",
+    "popup.js",
+    "options.js",
+    "background.js",
+    "content.js",
+    "shared.js"
+  ];
+  const used = new Set(["htmlLang"]);
+
+  for (const file of sourceFiles) {
+    const source = fs.readFileSync(path.join(ROOT, file), "utf8");
+    for (const match of source.matchAll(/data-i18n(?:-[\w-]+)?="([^"]+)"/g)) used.add(match[1]);
+    for (const match of source.matchAll(/\bt\("([^"]+)"/g)) used.add(match[1]);
+    for (const match of source.matchAll(/\bi18n\("([^"]+)"/g)) used.add(match[1]);
+    for (const match of source.matchAll(/__MSG_([A-Za-z0-9_]+)__/g)) used.add(match[1]);
+  }
+
+  for (const locale of ["zh_CN", "zh_TW", "en", "ja"]) {
+    const messages = readJson(path.join("_locales", locale, "messages.json"));
+    for (const key of Object.keys(messages)) {
+      if (!used.has(key)) {
+        failures.push(`_locales/${locale}/messages.json:${key}: locale message is not referenced by any source file`);
+      }
+    }
+  }
+}
+
 const manifest = readJson("manifest.json");
 if (manifest.default_locale !== "en") {
   failures.push("manifest.json: default_locale should be en so unsupported browser locales fall back to the English open-source UI");

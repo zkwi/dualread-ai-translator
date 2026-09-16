@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest an improvement to reading, translation quality, or cost control
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        DualRead is a small, no-build extension. Proposals that keep the project simple
+        and improve real reading sessions are the easiest to accept.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What reading problem does this solve
+      description: Describe the page or workflow where the current behavior gets in the way.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Including existing settings that partly solve it.
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Project constraints
+      options:
+        - label: This does not require a build step or a bundler.
+        - label: This does not require a project-owned server or analytics.
+        - label: This does not hard-code provider behavior by URL or model name.

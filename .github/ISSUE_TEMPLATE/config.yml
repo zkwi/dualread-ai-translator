@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Privacy and data handling
+    url: https://github.com/zkwi/dualread-ai-translator/blob/main/PRIVACY.md
+    about: What stays local and what is sent to your configured API endpoint.
+  - name: Security policy
+    url: https://github.com/zkwi/dualread-ai-translator/blob/main/SECURITY.md
+    about: How to report a security issue and what to do if an API Key leaks.

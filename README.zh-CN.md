@@ -144,6 +144,8 @@ npm run audit:public        # 扫描可发布文件中的密钥、本地路径�
 node scripts/generate-locales.js
 ```
 
+GitHub Actions 在每次 push 和 Pull Request 上运行发布审计、单测、浏览器 fixture、排版回归矩阵和扩展 smoke。`npm run test:samples` 依赖真实站点，只在本地执行。
+
 文档入口见 [docs/README.md](docs/README.md)，开发说明见 [docs/development.md](docs/development.md)，手工测试页面见 [test-pages.md](test-pages.md)。
 
 ## 开源发布检查
@@ -163,6 +165,7 @@ Chrome 翻译插件、AI 网页翻译、网页对照翻译、双语网页翻译�
 
 - [English README](README.md)
 - [隐私说明](PRIVACY.md)
+- [安全说明](SECURITY.md)
 - [贡献说明](CONTRIBUTING.md)
 - [更新日志](CHANGELOG.md)
 - [许可证](LICENSE)

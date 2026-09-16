@@ -1,0 +1,75 @@
+name: Bug report
+description: Report a translation, layout, or extension problem
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste a real API Key, account name, or private page content.**
+        Redact screenshots and API responses before uploading them.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: A public URL is the most useful reproduction. If the page is private, describe its structure instead.
+      placeholder: |
+        1. Open https://example.com/article
+        2. Click "Start translation" in the popup
+        3. Scroll down one screen
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part is affected
+      options:
+        - Translation quality or missing paragraphs
+        - Layout of the inserted translation
+        - API connection or Thinking control
+        - Popup or options page
+        - Auto translation / language detection
+        - Right-click selection translation
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      description: Shown on the extension card in chrome://extensions/
+      placeholder: "0.11.2"
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: "Chrome 140 on Windows 11"
+    validations:
+      required: true
+
+  - type: input
+    id: provider
+    attributes:
+      label: Provider and model
+      description: Provider preset and model name only — no API Key.
+      placeholder: "DeepSeek / deepseek-v4-flash"
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console or service worker errors
+      description: From the page console or the extension service worker. Remove keys and personal URLs first.
+      render: text
