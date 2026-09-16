@@ -140,9 +140,10 @@ npm run test:all
 常用脚本：
 
 ```bash
-npm run audit:public        # 扫描可发布文件中的密钥、本地路径和不安全产物
-node scripts/generate-locales.js
+npm run audit:public        # 扫描密钥、本地路径、版本漂移和文案问题
 ```
+
+界面文案位于 `_locales/{zh_CN,zh_TW,en,ja}/messages.json`，由人工维护。`npm run test:shared` 会在任一语言缺少 key 时失败，`npm run audit:public` 会拦截未被引用的 key、未翻译的兜底文案、`$1` 占位符不一致，以及繁体文件里残留的简体字。
 
 GitHub Actions 在每次 push 和 Pull Request 上运行发布审计、单测、浏览器 fixture、排版回归矩阵和扩展 smoke。`npm run test:samples` 依赖真实站点，只在本地执行。
 

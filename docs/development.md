@@ -45,6 +45,8 @@ Remove-Item Env:TEST_FILTER
 
 可用值见该文件 `main()` 开头的分支，例如 `streaming`、`layout-adapter`、`translation-records`、`selection-card`。
 
+Reddit、Quora 等站点可能在测试网络返回验证页。样本会标记 `siteBlocked=true`，这表示站点未提供正文，不等同于抽取逻辑通过或失败。
+
 ## 持续集成
 
 `.github/workflows/ci.yml` 在 push 到 `main`、Pull Request 和手动触发时运行：
@@ -53,8 +55,6 @@ Remove-Item Env:TEST_FILTER
 - `browser`：安装 Chromium 后用 `xvfb-run` 运行 `test:ui`、`test:local`、`test:layout`、`test:smoke`；扩展 smoke 必须加载真实 MV3 扩展，不能用无界面模式。
 
 `npm run test:samples` 依赖真实站点，结果受网络和验证页影响，不进 CI，发布前本地执行。
-
-Reddit、Quora 等站点可能在测试网络返回验证页。样本会标记 `siteBlocked=true`，这表示站点未提供正文，不等同于抽取逻辑通过或失败。
 
 ## 修改原则
 
@@ -76,7 +76,16 @@ Reddit、Quora 等站点可能在测试网络返回验证页。样本会标记 `
 
 ## 文案与本地化
 
-UI 文案位于 `_locales/{zh_CN,zh_TW,en,ja}/messages.json`。新增 `data-i18n` 或 `t("key")` 后，四种语言必须都有对应 key；`npm run test:shared` 会检查覆盖，`npm run audit:public` 会反向拦截已无人引用的 key。
+UI 文案位于 `_locales/{zh_CN,zh_TW,en,ja}/messages.json`，四个文件人工维护，是文案的唯一来源。新增 `data-i18n` 或 `t("key")` 后，四种语言都要补齐，`zh_TW` 写真正的繁体用语而不是简体转写。
+
+自动检查覆盖以下情况：
+
+- `npm run test:shared`：代码里用到的 key 在四种语言都存在。
+- `npm run audit:public`：没有无人引用的 key；`en`/`ja` 不是由 key 名推导出的占位文案；`zh_TW` 不含简体字；四种语言的 `$1` 占位符数量一致。
+
+最后一项很关键：`$1` 丢失时不会报错，只会静默吞掉错误详情或计数。0.11.3 之前 `selectionErrorText` 和 `popupActiveWithCount` 的中文文案就因此丢了参数。
+
+不要用代码生成 `messages.json`。旧的生成脚本按正则从源码里猜中文兜底，遇到模板字符串会抓错相邻文案，并用不完整的字表做简繁转换，反而污染了已校对的译文。
 
 状态文案不要按语言内容判断：徽标、提示等状态必须由调用方显式传入状态值，否则英文和日文界面会显示错误状态。
 

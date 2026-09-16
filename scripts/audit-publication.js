@@ -122,6 +122,14 @@ const simplifiedTraditionalResidues = [
   "目标", "产生", "暂", "滚动", "连接", "最长", "时间", "调大",
   "这里", "本机"
 ];
+// 逐字兜底：词表只覆盖已知短语，单字残留（例如“英译中”“已断开”“右键”）此前逃过检查。
+// 字符集只收录两岸字形不同的简体字，不含同形字，避免误报正常繁体文案。
+const simplifiedOnlyCharacters = Array.from(
+  "个为义于产优会传储写击删务参发吗围坏块复对并开当扩扫护择换时暂条检没测滚"
+  + "盖确称简级组经结继续维缓网脚范获认访词该语误请读败贴载过连适选链错闭问隐"
+  + "韩页项预额验断译设议稳动变态华临从体关内处应无显机来标样浏点状现签荐补"
+  + "视览试输还际随齐启将数响键区准实强云节权类线笔订阶进单"
+);
 
 function humanizeLocaleKey(key) {
   return key
@@ -174,9 +182,33 @@ if (fs.existsSync(zhTwFile)) {
   const messages = JSON.parse(fs.readFileSync(zhTwFile, "utf8"));
   for (const [key, value] of Object.entries(messages)) {
     const message = value?.message || "";
-    const residue = simplifiedTraditionalResidues.find((word) => message.includes(word));
+    const residue = simplifiedTraditionalResidues.find((word) => message.includes(word))
+      || simplifiedOnlyCharacters.find((character) => message.includes(character));
     if (residue) {
       failures.push(`${relative(zhTwFile)}:${key}: Traditional Chinese message still contains simplified text "${residue}"`);
+    }
+  }
+}
+
+assertSubstitutionsMatchAcrossLocales();
+
+// 文案里的 $1 数量必须四种语言一致，否则某些语言会静默丢掉错误详情或计数。
+function assertSubstitutionsMatchAcrossLocales() {
+  const baseline = readJson(path.join("_locales", "zh_CN", "messages.json"));
+  const readSubstitutions = (message) => Array.from(
+    new Set(String(message || "").match(/\$\d/g) || [])
+  ).sort().join(",");
+
+  for (const locale of ["zh_TW", "en", "ja"]) {
+    const messages = readJson(path.join("_locales", locale, "messages.json"));
+    for (const [key, value] of Object.entries(baseline)) {
+      const expected = readSubstitutions(value?.message);
+      const actual = readSubstitutions(messages[key]?.message);
+      if (expected !== actual) {
+        failures.push(
+          `_locales/${locale}/messages.json:${key}: substitutions "${actual || "none"}" do not match zh_CN "${expected || "none"}"`
+        );
+      }
     }
   }
 }

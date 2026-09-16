@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "audit:public": "node scripts/audit-publication.js",
-    "check": "npm run audit:public && node --check shared.js && node --check background.js && node --check content.js && node --check popup.js && node --check options.js && node --check scripts/generate-locales.js && node --check scripts/audit-publication.js && node --check test/shared.test.js && node --check test/background.test.js && node --check test/content-samples-config.test.js && node --check test/e2e-local-fixtures.js && node --check test/e2e-layout-matrix.js && node --check test/fixtures/layout-sites.js && node --check test/helpers/layout-assertions.js && node --check test/e2e-ui-fixtures.js && node --check test/e2e-content-samples.js && node --check test/extension-smoke.js",
+    "check": "npm run audit:public && node scripts/check-syntax.js",
     "test:shared": "node test/shared.test.js",
     "test:background": "node test/background.test.js",
     "test:samples:config": "node test/content-samples-config.test.js",

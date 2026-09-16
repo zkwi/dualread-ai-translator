@@ -140,9 +140,10 @@ npm run test:all
 Useful scripts:
 
 ```bash
-npm run audit:public        # scan publishable files for keys, local paths, and unsafe artifacts
-node scripts/generate-locales.js
+npm run audit:public        # scan for keys, local paths, version drift, and locale problems
 ```
+
+UI strings live in `_locales/{zh_CN,zh_TW,en,ja}/messages.json` and are edited by hand. `npm run test:shared` fails when a key is missing from any locale, and `npm run audit:public` rejects unused keys, untranslated fallbacks, mismatched `$1` substitutions, and simplified characters left in the Traditional Chinese file.
 
 GitHub Actions runs the publication audit, unit tests, browser fixtures, the layout matrix, and the extension smoke test on every push and pull request. Real-site samples (`npm run test:samples`) stay local because they depend on live pages.
 

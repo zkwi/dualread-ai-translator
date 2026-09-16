@@ -92,6 +92,9 @@
   "errorTranslationFailed": {
     "message": "Translation failed."
   },
+  "errorTranslationPortClosed": {
+    "message": "The translation connection dropped. Click to retry."
+  },
   "errorTranslationStartFailed": {
     "message": "Could not start translation."
   },
