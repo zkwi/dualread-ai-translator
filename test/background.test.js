@@ -39,6 +39,9 @@ async function main() {
   await testApiFallsBackToPlainNonStreamingWhenStreamUnsupported();
   await testApiAcceptsJsonWhenProxyIgnoresStreaming();
   await testStreamingPortEmitsDeltaBeforeDone();
+  await testStreamingPortIgnoresMalformedSseChunks();
+  await testStreamingPortCancelAbortsNonStreamingRequest();
+  await testTranslateBatchRejectsInvalidApiUrl();
   await testOpenCodeSessionSurvivesReconnectAndSeparatesTasks();
   await testOpenCodeApiProbeAndFallbackReuseSession();
   await testOtherProvidersDoNotSendOpenCodeSession();
@@ -1192,6 +1195,126 @@ async function testStreamingPortEmitsDeltaBeforeDone() {
   assert.strictEqual(doneMessage.runId, 7);
 }
 
+async function testStreamingPortIgnoresMalformedSseChunks() {
+  const encoder = new TextEncoder();
+  const chunks = [
+    ": keep-alive\n\n",
+    "data: not-json\n\n",
+    "data: {\"choices\":[{\"delta\":{\"content\":\"完整\"}}]}\n\n",
+    "data: {\"choices\":[{\"delta\":{\"conte\n\n",
+    "data: {\"choices\":[{\"delta\":{\"content\":\"译文\"}}]}\n\ndata: [DONE]\n\n"
+  ];
+  const context = createBackgroundContext({
+    fetch: async () => ({
+      ok: true,
+      status: 200,
+      headers: { get: () => "text/event-stream" },
+      body: new ReadableStream({
+        start(controller) {
+          // 网关心跳、非 JSON 事件和截断块都不应中断整段翻译。
+          chunks.forEach((chunk) => controller.enqueue(encoder.encode(chunk)));
+          controller.close();
+        }
+      })
+    })
+  });
+
+  loadBackground(context);
+  const port = createMockRuntimePort("llm-translation-stream");
+  context.runtimeConnectListener(port);
+  port.send({
+    type: "translate",
+    requestId: "request-malformed",
+    runId: 3,
+    item: { id: "item-1", text: "Keep streaming despite bad chunks." }
+  });
+
+  await waitFor(() => port.postedMessages.some((message) => message.type === "done"));
+  const doneMessage = port.postedMessages.find((message) => message.type === "done");
+  assert.strictEqual(doneMessage.text, "完整译文");
+  assert.strictEqual(port.postedMessages.some((message) => message.type === "error"), false);
+}
+
+async function testStreamingPortCancelAbortsNonStreamingRequest() {
+  const signals = [];
+  let release = null;
+  const context = createBackgroundContext({
+    fetch: async (url, options) => {
+      signals.push(options.signal);
+      // 第一次响应按非流式 JSON 返回，让该 API/模型在本次生命周期内降级为非流式。
+      if (signals.length === 1) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => "application/json" },
+          async json() {
+            return { choices: [{ message: { content: "第一段译文" } }] };
+          }
+        };
+      }
+
+      await new Promise((resolve) => {
+        release = resolve;
+        options.signal?.addEventListener?.("abort", () => resolve(), { once: true });
+      });
+      if (options.signal?.aborted) {
+        const abortError = new Error("The user aborted a request.");
+        abortError.name = "AbortError";
+        throw abortError;
+      }
+      return createJsonResponse([{ id: "item-2", text: "未取消" }]);
+    }
+  });
+
+  loadBackground(context);
+  const port = createMockRuntimePort("llm-translation-stream");
+  context.runtimeConnectListener(port);
+  port.send({
+    type: "translate",
+    requestId: "request-warmup",
+    runId: 1,
+    item: { id: "item-1", text: "Fall back to a non-streaming request." }
+  });
+  await waitFor(() => port.postedMessages.some((message) => message.type === "done"));
+
+  port.send({
+    type: "translate",
+    requestId: "request-cancel",
+    runId: 1,
+    item: { id: "item-2", text: "Cancel this non-streaming request." }
+  });
+  await waitFor(() => signals.length === 2);
+
+  port.send({ type: "cancel", requestId: "request-cancel" });
+  await waitFor(() => signals[1].aborted === true);
+  release?.();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.strictEqual(
+    port.postedMessages.some((message) => message.requestId === "request-cancel"),
+    false,
+    "取消后不应继续回传结果或错误"
+  );
+}
+
+async function testTranslateBatchRejectsInvalidApiUrl() {
+  const context = createBackgroundContext({
+    storage: { apiUrl: "api.example.com/v1" },
+    fetch: async () => {
+      throw new Error("invalid API URL should not reach the network");
+    }
+  });
+
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "translate_batch",
+    items: [{ id: "item-1", text: "Hello world." }]
+  });
+
+  assert.strictEqual(response.ok, false);
+  assert.match(response.error, /http\/https/);
+}
+
 async function testOpenCodeSessionSurvivesReconnectAndSeparatesTasks() {
   const calls = [];
   const context = createBackgroundContext({
@@ -2176,11 +2299,16 @@ async function testContextMenuTranslatesSelectedText() {
   });
 
   assert.strictEqual(fetchCalls.length, 1);
-  assert.strictEqual(tabMessages.length, 1);
+  assert.strictEqual(tabMessages.length, 2, "选中翻译应先给出进行中反馈，再回填译文");
   assert.strictEqual(tabMessages[0].tabId, 22);
   assert.strictEqual(tabMessages[0].message.action, "show_selection_translation");
   assert.strictEqual(tabMessages[0].message.originalText, "This is selected text.");
-  assert.strictEqual(tabMessages[0].message.translatedText, "这是一段选中文字。");
+  assert.strictEqual(tabMessages[0].message.loading, true);
+  assert.strictEqual(tabMessages[0].message.translatedText, undefined);
+  assert.strictEqual(tabMessages[1].tabId, 22);
+  assert.strictEqual(tabMessages[1].message.action, "show_selection_translation");
+  assert.strictEqual(tabMessages[1].message.originalText, "This is selected text.");
+  assert.strictEqual(tabMessages[1].message.translatedText, "这是一段选中文字。");
 }
 
 async function testContextMenuSelectionReportsMissingApiKey() {

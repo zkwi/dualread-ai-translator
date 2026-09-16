@@ -1,6 +1,6 @@
 {
   "name": "dualread-ai-translator",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "description": "Open-source Chrome MV3 extension for AI bilingual webpage translation with OpenAI-compatible providers.",
   "license": "MIT",
   "private": true,
@@ -28,6 +28,9 @@
     "test:samples": "npx --yes --package playwright node test/e2e-content-samples.js",
     "test": "npm run check && npm run test:shared && npm run test:background && npm run test:samples:config && npm run test:ui && npm run test:local && npm run test:layout && npm run test:smoke",
     "test:all": "npm test && npm run test:samples"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "devDependencies": {
     "playwright": "^1.61.1"

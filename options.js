@@ -362,11 +362,11 @@ async function clearCache() {
   await runOptionAction(async () => {
     const response = await chrome.runtime.sendMessage({ action: "clear_cache" });
     if (!response.ok) {
-      showMessage(response.error || t("messageClearCacheFailed", [], "清空缓存失败。"), true);
+      showMessage(response.error || t("messageClearCacheFailed", [], "清空缓存失败。"), true, "maintenance");
       return;
     }
 
-    showMessage(t("messageClearCacheDone", [String(response.count)], `已清空 ${response.count} 条缓存。`));
+    showMessage(t("messageClearCacheDone", [String(response.count)], `已清空 ${response.count} 条缓存。`), false, "maintenance");
   });
 }
 
@@ -398,7 +398,7 @@ function showMessage(text, isError = false, state = "") {
   messageEl.textContent = text;
   messageEl.title = text.length > 160 ? text : "";
   messageEl.classList.toggle("is-error", isError);
-  updateSaveState(isError ? getErrorStateText(state) : getSaveStateText(text, state), isError ? "error" : state);
+  updateSaveState(isError ? getErrorStateText(state) : getSaveStateText(state), isError ? "error" : state);
   updateActionAvailability();
 }
 
@@ -417,15 +417,17 @@ function updateSaveState(text, state = "") {
   }
 }
 
-function getSaveStateText(text, state) {
+// 状态徽标只依赖调用方传入的 state，不再按中文文案猜测，否则英文/日文界面会显示错误状态。
+function getSaveStateText(state) {
   if (state === "testing") return t("saveStateTesting", [], "测试中");
-  if (state === "saving" || /正在|稍后/.test(text)) return t("saveStateSaving", [], "保存中");
-  if (/清空/.test(text)) return t("saveStateMaintenance", [], "维护中");
+  if (state === "saving") return t("saveStateSaving", [], "保存中");
+  if (state === "maintenance") return t("saveStateMaintenance", [], "维护中");
   return t("saveStateSaved", [], "已保存");
 }
 
 function getErrorStateText(state) {
   if (state === "testing") return t("saveStateTestFailed", [], "测试失败");
+  if (state === "maintenance") return t("saveStateMaintenanceFailed", [], "维护失败");
   return t("saveStateSaveFailed", [], "保存失败");
 }
 

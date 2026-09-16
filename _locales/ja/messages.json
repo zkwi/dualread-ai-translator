@@ -68,6 +68,9 @@
   "errorApiTimeout": {
     "message": "API リクエストが $1 秒でタイムアウトしました。"
   },
+  "errorApiUrlInvalid": {
+    "message": "API URL が有効な http/https リンクではありません。設定で確認してください。"
+  },
   "errorMissingParagraphTranslation": {
     "message": "この段落の訳文がモデルから返りませんでした。"
   },
@@ -85,9 +88,6 @@
   },
   "errorParseJson": {
     "message": "モデルの JSON レスポンスを解析できません：$1"
-  },
-  "errorTestNoTranslation": {
-    "message": "テストリクエストから訳文が返りませんでした。"
   },
   "errorTranslationFailed": {
     "message": "翻訳に失敗しました。"
@@ -259,9 +259,6 @@
   },
   "optionsConnectionDesc": {
     "message": "サービスを選び、API Key を入力して接続をテストします。"
-  },
-  "optionsCustomEndpoint": {
-    "message": "カスタム接続先"
   },
   "optionsDisableThinking": {
     "message": "強く推奨：制御可能な思考モードを自動で無効化"
@@ -587,6 +584,9 @@
   "saveStateMaintenance": {
     "message": "メンテナンス中"
   },
+  "saveStateMaintenanceFailed": {
+    "message": "メンテナンス失敗"
+  },
   "saveStateSaveFailed": {
     "message": "保存失敗"
   },
@@ -646,6 +646,9 @@
   },
   "selectionSourceLabel": {
     "message": "原文"
+  },
+  "selectionTranslating": {
+    "message": "選択したテキストを翻訳しています..."
   },
   "selectionTranslationLabel": {
     "message": "訳文"

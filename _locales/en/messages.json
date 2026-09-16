@@ -68,6 +68,9 @@
   "errorApiTimeout": {
     "message": "API request timed out after $1 seconds."
   },
+  "errorApiUrlInvalid": {
+    "message": "The API URL is not a valid http/https link. Check it in settings."
+  },
   "errorMissingParagraphTranslation": {
     "message": "The model did not return a translation for this paragraph."
   },
@@ -85,9 +88,6 @@
   },
   "errorParseJson": {
     "message": "Could not parse the model JSON response: $1"
-  },
-  "errorTestNoTranslation": {
-    "message": "The test request did not return a translation."
   },
   "errorTranslationFailed": {
     "message": "Translation failed."
@@ -259,9 +259,6 @@
   },
   "optionsConnectionDesc": {
     "message": "Choose a provider, enter an API Key, then test the connection."
-  },
-  "optionsCustomEndpoint": {
-    "message": "Custom endpoint"
   },
   "optionsDisableThinking": {
     "message": "Strongly recommended: disable controllable thinking"
@@ -587,6 +584,9 @@
   "saveStateMaintenance": {
     "message": "Maintenance"
   },
+  "saveStateMaintenanceFailed": {
+    "message": "Maintenance failed"
+  },
   "saveStateSaveFailed": {
     "message": "Save failed"
   },
@@ -646,6 +646,9 @@
   },
   "selectionSourceLabel": {
     "message": "Original"
+  },
+  "selectionTranslating": {
+    "message": "Translating the selected text..."
   },
   "selectionTranslationLabel": {
     "message": "Translation"

@@ -60,6 +60,10 @@ async function main() {
       await testClippedRedditPreviewUsesSingleSafeTranslationUnit(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "selection-card") {
+      await testShowsSelectionTranslationCard(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "translation-records") {
       await testReRenderedTweetDuringLoadingUsesOneRequest(browser);
       await testReRenderedTweetDuringStreamingUsesOneNode(browser);
@@ -3470,6 +3474,30 @@ async function testShowsSelectionTranslationCard(browser) {
   const noticeCardText = await page.locator(".llm-bilingual-selection-card").innerText();
   assert.ok(noticeCardText.includes("提示"));
   assert.ok(noticeCardText.includes("无需翻译"));
+
+  // 右键翻译要先出现进行中卡片，再被最终译文替换。
+  await page.evaluate(() => window.__sendContentMessage({
+    action: "show_selection_translation",
+    originalText: "This selection is still being translated.",
+    loading: true
+  }));
+  await page.waitForSelector(".llm-bilingual-selection-card.is-loading");
+  assert.strictEqual(await page.locator(".llm-bilingual-selection-card [data-action='copy']").isDisabled(), true);
+  assert.strictEqual(
+    await page.locator(".llm-bilingual-selection-card__result").getAttribute("aria-busy"),
+    "true"
+  );
+  assert.ok((await page.locator(".llm-bilingual-selection-card").innerText()).includes("正在翻译选中文本"));
+
+  await page.evaluate(() => window.__sendContentMessage({
+    action: "show_selection_translation",
+    originalText: "This selection is still being translated.",
+    translatedText: "这段选中文本翻译完成。"
+  }));
+  await page.waitForFunction(() => document.querySelectorAll(".llm-bilingual-selection-card.is-loading").length === 0);
+  assert.strictEqual(await page.locator(".llm-bilingual-selection-card").count(), 1);
+  assert.ok((await page.locator(".llm-bilingual-selection-card").innerText()).includes("这段选中文本翻译完成。"));
+  assert.strictEqual(await page.locator(".llm-bilingual-selection-card [data-action='copy']").isDisabled(), false);
 
   await page.close();
 }

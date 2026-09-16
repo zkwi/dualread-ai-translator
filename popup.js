@@ -489,7 +489,7 @@ function renderStats(stats) {
   statsEl.innerHTML = items
     .map(([label, value, title]) => (
       `<div class="stat" title="${escapeHtml(title)}" aria-label="${escapeHtml(t("statAria", [label, String(value), title], `${label}：${value}，${title}`))}">` +
-      `<strong>${value}</strong><span>${label}</span></div>`
+      `<strong>${escapeHtml(String(value))}</strong><span>${escapeHtml(label)}</span></div>`
     ))
     .join("");
 }
