@@ -144,6 +144,8 @@ npm run audit:public        # scan publishable files for keys, local paths, and 
 node scripts/generate-locales.js
 ```
 
+GitHub Actions runs the publication audit, unit tests, browser fixtures, the layout matrix, and the extension smoke test on every push and pull request. Real-site samples (`npm run test:samples`) stay local because they depend on live pages.
+
 Start with the [documentation index](docs/README.md). Development notes are in [docs/development.md](docs/development.md), and manual sample pages are listed in [test-pages.md](test-pages.md).
 
 ## Open Source Hygiene
@@ -163,6 +165,7 @@ Chrome extension, AI translator, bilingual webpage translation, webpage translat
 
 - [Simplified Chinese README](README.zh-CN.md)
 - [Privacy](PRIVACY.md)
+- [Security](SECURITY.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 - [License](LICENSE)

@@ -35,6 +35,25 @@ npm run test:samples
 Remove-Item Env:SAMPLE_KEYS
 ```
 
+`test/e2e-local-fixtures.js` 支持 `TEST_FILTER` 只跑一组用例，调试单个问题时比全量快很多：
+
+```powershell
+$env:TEST_FILTER="selection-card"
+node test/e2e-local-fixtures.js
+Remove-Item Env:TEST_FILTER
+```
+
+可用值见该文件 `main()` 开头的分支，例如 `streaming`、`layout-adapter`、`translation-records`、`selection-card`。
+
+## 持续集成
+
+`.github/workflows/ci.yml` 在 push 到 `main`、Pull Request 和手动触发时运行：
+
+- `audit-and-unit`：`npm run check`、`test:shared`、`test:background`、`test:samples:config`。
+- `browser`：安装 Chromium 后用 `xvfb-run` 运行 `test:ui`、`test:local`、`test:layout`、`test:smoke`；扩展 smoke 必须加载真实 MV3 扩展，不能用无界面模式。
+
+`npm run test:samples` 依赖真实站点，结果受网络和验证页影响，不进 CI，发布前本地执行。
+
 Reddit、Quora 等站点可能在测试网络返回验证页。样本会标记 `siteBlocked=true`，这表示站点未提供正文，不等同于抽取逻辑通过或失败。
 
 ## 修改原则
@@ -57,12 +76,14 @@ Reddit、Quora 等站点可能在测试网络返回验证页。样本会标记 `
 
 ## 文案与本地化
 
-UI 文案位于 `_locales/{zh_CN,zh_TW,en,ja}/messages.json`。新增 `data-i18n` 或 `t("key")` 后，四种语言必须都有对应 key；`npm run test:shared` 会检查覆盖。
+UI 文案位于 `_locales/{zh_CN,zh_TW,en,ja}/messages.json`。新增 `data-i18n` 或 `t("key")` 后，四种语言必须都有对应 key；`npm run test:shared` 会检查覆盖，`npm run audit:public` 会反向拦截已无人引用的 key。
+
+状态文案不要按语言内容判断：徽标、提示等状态必须由调用方显式传入状态值，否则英文和日文界面会显示错误状态。
 
 ## 发布检查
 
-1. 更新 `manifest.json`、`package.json`、`package-lock.json` 和 `content.js` 的版本号。
+1. 更新 `manifest.json`、`package.json`、`package-lock.json` 和 `content.js` 的版本号；四处必须一致，`npm run audit:public` 会核对。
 2. 在 `CHANGELOG.md` 顶部记录用户可感知变化。
 3. 运行 `npm test` 和 `npm run test:samples`。
-4. 运行 `npm run audit:public`，确认没有 API Key、本地绝对路径、压缩包或构建产物。
+4. 运行 `npm run audit:public`，确认没有 API Key、本地绝对路径、压缩包或构建产物，且没有未被引用的界面文案。
 5. 检查 `git status` 和完整 diff，只提交本版本相关内容。
