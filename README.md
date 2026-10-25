@@ -26,6 +26,7 @@ It is designed as a lightweight OpenAI-compatible web translator: bring your own
 - **Responsive reading styles**: adapt spacing for compact cards, mobile screens, and long articles while respecting RTL and vertical writing modes.
 - **Auto translate with language skip**: translate foreign-language pages automatically and skip pages already dominated by the target language.
 - **Right-click translation**: translate the current webpage or selected text from the context menu.
+- **AI study mode**: open an English page as a clean lesson for your level (CET-4, CET-6, B2, or C1), with key words and key sentences marked in bold and color, plus grammar notes, long-sentence breakdowns, paragraph notes, and a full translation.
 - **Responsive and cost-aware**: plain-text streaming per paragraph, small concurrency, per-page budgets, and local paragraph cache.
 - **Privacy-conscious**: no project server, no analytics, no bundled developer API key.
 
@@ -47,6 +48,8 @@ Default direction: English -> Simplified Chinese. The extension UI supports Simp
 3. Click **Load unpacked**.
 4. Select the `dualread-ai-translator` folder.
 5. After changing code, refresh the extension card and reload the target webpage.
+
+To update a Git checkout, run `git pull --ff-only` in the repository, reload the DualRead card at `chrome://extensions/`, and refresh the original webpage. No build or reinstall is needed; reloading preserves your API settings. If an existing lesson loses its connection, reopen study mode from the original page.
 
 ## Setup
 
@@ -92,8 +95,20 @@ For DeepSeek Flash, keep **disable controllable thinking** enabled and select `t
 - **Clear translations**: remove inserted translations from the current page.
 - **Right-click page**: translate the current page.
 - **Right-click selected text**: translate only the selected text.
+- **AI study mode**: click **AI study mode** in the popup, or right-click and choose **Read in AI study mode**.
 
 Page translation first checks the page language. Pages already in the target language are skipped; otherwise DualRead translates readable visible and nearby blocks, including short headings and labels. Selected-text translation remains available for small mixed-language snippets.
+
+### AI study mode
+
+Study mode sends the page text to your configured model once and opens the result in a new tab. The AI extracts the article from the page, copies it word for word, and writes the study notes; DualRead then marks the listed key words (bold on yellow, click for the meaning) and key sentences (bold with a blue band) in the article. Below the article you get key words and phrases, grammar points, long-sentence breakdowns, paragraph-by-paragraph notes in English and your language, and a full translation that can also be shown under each paragraph.
+
+- Choose CET-4, CET-6, B2, or C1 at the top of the reader. Each level is generated once per page and cached locally; switching back is instant, and **Regenerate** asks the AI again.
+- Select a passage first to study only that part. From the context menu a sentence or two is enough; the popup button needs about 80 characters, so a word left selected earlier is ignored. Otherwise DualRead reads the page's main article area, or the whole page when there is none.
+- The lesson prints cleanly (or saves as PDF) without the toolbar, keeping the highlights.
+- Long pages are cut to about 12,000 characters, and the reader says when only the first part was covered. Study mode currently supports English content only.
+- It uses the same API connection as translation. With DeepSeek Flash in non-thinking mode, a 900-word news article takes about 30 seconds and roughly 5,000 output tokens; the article appears within a second or two and the notes stream in after it. Keep thinking disabled (Test API in settings), or generation becomes much slower.
+- The notes are AI-generated and can contain mistakes, especially grammar labels. Check important points against a dictionary.
 
 ## FAQ
 
@@ -121,6 +136,7 @@ Yes. The interface follows the browser language by default, can be changed in Ad
 
 - API Key, settings, and translation cache are stored locally in Chrome extension storage.
 - Webpage text is sent only to the API endpoint configured by the user.
+- Study mode sends the selected text or the page's main text (up to about 12,000 characters), the page title, and the site name when you open it. The captured text stays in session storage and is cleared when the browser closes; finished lessons are cached locally (up to 20).
 - The extension does not run a project-owned server and does not include analytics.
 - Do not paste real API keys into issues, screenshots, or public bug reports.
 

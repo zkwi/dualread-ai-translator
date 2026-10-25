@@ -29,6 +29,9 @@
   "contentStoppedRetryUnavailable": {
     "message": "頁面翻譯已停止，請重新點擊擴充功能的開始翻譯。"
   },
+  "contextStudyMode": {
+    "message": "用 AI 學習模式閱讀"
+  },
   "contextTranslatePage": {
     "message": "翻譯目前頁面"
   },
@@ -88,6 +91,18 @@
   },
   "errorParseJson": {
     "message": "無法解析模型傳回的 JSON：$1"
+  },
+  "errorStudyCaptureFailed": {
+    "message": "無法讀取目前頁面的文字。"
+  },
+  "errorStudyNotEnglish": {
+    "message": "學習模式目前只支援英文內容。"
+  },
+  "errorStudySourceExpired": {
+    "message": "原網頁內容已失效，請回到原網頁重新開啟學習模式。"
+  },
+  "errorStudyTooShort": {
+    "message": "頁面上沒有足夠的文字可以精讀。"
   },
   "errorTranslationFailed": {
     "message": "翻譯失敗。"
@@ -530,6 +545,15 @@
   "popupStopping": {
     "message": "停止中..."
   },
+  "popupStudyMode": {
+    "message": "AI 學習模式"
+  },
+  "popupStudyOpening": {
+    "message": "正在讀取頁面文字..."
+  },
+  "popupStudyOpeningShort": {
+    "message": "開啟中..."
+  },
   "popupSummaryAria": {
     "message": "目前翻譯配置"
   },
@@ -731,6 +755,201 @@
   "statusEnabled": {
     "message": "已開啟"
   },
+  "studyCachedStatus": {
+    "message": "來自本機快取，點「重新產生」可重新請求 AI。"
+  },
+  "studyCountItems": {
+    "message": "$1 條"
+  },
+  "studyCountParagraphs": {
+    "message": "$1 段"
+  },
+  "studyDisclaimer": {
+    "message": "學習內容由 AI 產生，可能有誤，請搭配字典核對。"
+  },
+  "studyDoneStatus": {
+    "message": "已完成 · 耗時 $1 秒"
+  },
+  "studyErrorDisconnected": {
+    "message": "與擴充功能背景的連線中斷，請重新整理本頁或點「重新產生」重試。"
+  },
+  "studyErrorTitle": {
+    "message": "產生失敗"
+  },
+  "studyFooterModel": {
+    "message": "模型：$1"
+  },
+  "studyGotoVocab": {
+    "message": "查看詞彙表"
+  },
+  "studyLabelCore": {
+    "message": "主幹"
+  },
+  "studyLabelEn": {
+    "message": "EN"
+  },
+  "studyLabelExplain": {
+    "message": "講解"
+  },
+  "studyLabelGist": {
+    "message": "大意"
+  },
+  "studyLabelNotes": {
+    "message": "重點"
+  },
+  "studyLabelStructure": {
+    "message": "結構"
+  },
+  "studyLabelTranslation": {
+    "message": "譯文"
+  },
+  "studyLegendKey": {
+    "message": "關鍵句"
+  },
+  "studyLegendKeyHint": {
+    "message": "粗體 + 藍色底線"
+  },
+  "studyLegendTerm": {
+    "message": "重點詞彙"
+  },
+  "studyLegendTermHint": {
+    "message": "粗體 + 黃色底，點一下看釋義"
+  },
+  "studyLevelAria": {
+    "message": "英語程度"
+  },
+  "studyLevelB2": {
+    "message": "B2"
+  },
+  "studyLevelB2Title": {
+    "message": "CEFR B2，約雅思 6–6.5"
+  },
+  "studyLevelC1": {
+    "message": "C1"
+  },
+  "studyLevelC1Title": {
+    "message": "CEFR C1，約雅思 7–8"
+  },
+  "studyLevelCet4": {
+    "message": "四級"
+  },
+  "studyLevelCet4Title": {
+    "message": "中國大學英語四級考試，約 CEFR B1"
+  },
+  "studyLevelCet6": {
+    "message": "六級"
+  },
+  "studyLevelCet6Title": {
+    "message": "中國大學英語六級考試，約 CEFR B2"
+  },
+  "studyMeta": {
+    "message": "$1 個單字 · 約 $2 分鐘讀完 · $3 處重點詞彙 · $4 句關鍵句"
+  },
+  "studyMissingSection": {
+    "message": "AI 沒有回傳這一部分。"
+  },
+  "studyModeName": {
+    "message": "學習模式"
+  },
+  "studyNavAria": {
+    "message": "學習內容"
+  },
+  "studyNoArticleReturned": {
+    "message": "AI 沒有回傳正文，可以點「重新產生」再試一次。"
+  },
+  "studyNoContentHint": {
+    "message": "可以先在原網頁選取想精讀的段落，再按右鍵選擇「用 AI 學習模式閱讀」。"
+  },
+  "studyNoContentTitle": {
+    "message": "沒有找到可以精讀的正文"
+  },
+  "studyNotEnglishTitle": {
+    "message": "這部分內容不是英文"
+  },
+  "studyNoticeIncomplete": {
+    "message": "AI 輸出不完整，後面的內容可能缺漏。可按「重新產生」再試一次。"
+  },
+  "studyNoticeRepetition": {
+    "message": "AI 輸出出現重複，已自動停止。可以點「重新產生」再試一次。"
+  },
+  "studyNoticeStopped": {
+    "message": "已停止產生，點「重新產生」可以從頭再來。"
+  },
+  "studyNoticeThinking": {
+    "message": "目前連線可能沒有關閉思考模式，產生會明顯變慢。到設定頁點「測試 API」即可自動關閉。"
+  },
+  "studyNoticeTruncated": {
+    "message": "原文較長，這次只精讀了前一部分。"
+  },
+  "studyOpenSettings": {
+    "message": "打開設定"
+  },
+  "studyPageTitle": {
+    "message": "DualRead 學習模式"
+  },
+  "studyPendingSection": {
+    "message": "等待產生…"
+  },
+  "studyPopoverAria": {
+    "message": "詞彙釋義"
+  },
+  "studyProgressExtracting": {
+    "message": "正在從頁面文字中擷取正文"
+  },
+  "studyProgressSection": {
+    "message": "正在產生：$1 · 已用 $2 秒"
+  },
+  "studyProgressWaiting": {
+    "message": "正在連線 AI · 已用 $1 秒"
+  },
+  "studyRegenerate": {
+    "message": "重新產生"
+  },
+  "studyRetry": {
+    "message": "重試"
+  },
+  "studySectionArticle": {
+    "message": "正文"
+  },
+  "studySectionGrammar": {
+    "message": "重點文法"
+  },
+  "studySectionKey": {
+    "message": "關鍵句"
+  },
+  "studySectionParagraphs": {
+    "message": "中英詳解"
+  },
+  "studySectionParagraphsHint": {
+    "message": "逐段大意與重點"
+  },
+  "studySectionSentences": {
+    "message": "長難句結構"
+  },
+  "studySectionTranslation": {
+    "message": "全文翻譯"
+  },
+  "studySectionVocab": {
+    "message": "重點詞彙與片語"
+  },
+  "studyShowTranslation": {
+    "message": "段落下顯示譯文"
+  },
+  "studySourceLabel": {
+    "message": "來源"
+  },
+  "studySourceMissingTitle": {
+    "message": "原網頁內容已失效"
+  },
+  "studySourcePage": {
+    "message": "整頁文字，由 AI 擷取正文"
+  },
+  "studySourceSelection": {
+    "message": "選取的文字"
+  },
+  "studyStop": {
+    "message": "停止"
+  },
   "summaryWithDot": {
     "message": "$1 · $2"
   },
@@ -835,6 +1054,9 @@
   },
   "tooltipStopTranslation": {
     "message": "停止繼續翻譯，已顯示的譯文會保留。"
+  },
+  "tooltipStudyMode": {
+    "message": "在新分頁依英語程度精讀目前網頁：標出重點詞彙和關鍵句，附上文法、長難句和全文翻譯。"
   },
   "tooltipUnsupportedPage": {
     "message": "目前頁面不是普通網頁，無法注入翻譯腳本。"

@@ -29,6 +29,9 @@
   "contentStoppedRetryUnavailable": {
     "message": "ページ翻訳は停止しています。拡張機能のポップアップからもう一度開始してください。"
   },
+  "contextStudyMode": {
+    "message": "AI 学習モードで読む"
+  },
   "contextTranslatePage": {
     "message": "このページを翻訳"
   },
@@ -88,6 +91,18 @@
   },
   "errorParseJson": {
     "message": "モデルの JSON レスポンスを解析できません：$1"
+  },
+  "errorStudyCaptureFailed": {
+    "message": "このページのテキストを読み取れませんでした。"
+  },
+  "errorStudyNotEnglish": {
+    "message": "学習モードは現在、英語のコンテンツにのみ対応しています。"
+  },
+  "errorStudySourceExpired": {
+    "message": "元のページの内容は使用できなくなりました。元のページに戻って学習モードを開き直してください。"
+  },
+  "errorStudyTooShort": {
+    "message": "このページには精読できるだけのテキストがありません。"
   },
   "errorTranslationFailed": {
     "message": "翻訳に失敗しました。"
@@ -530,6 +545,15 @@
   "popupStopping": {
     "message": "停止中..."
   },
+  "popupStudyMode": {
+    "message": "AI 学習モード"
+  },
+  "popupStudyOpening": {
+    "message": "ページのテキストを読み取っています..."
+  },
+  "popupStudyOpeningShort": {
+    "message": "開いています..."
+  },
   "popupSummaryAria": {
     "message": "現在の翻訳設定"
   },
@@ -731,6 +755,201 @@
   "statusEnabled": {
     "message": "オン"
   },
+  "studyCachedStatus": {
+    "message": "ローカルキャッシュから表示しています。「再生成」で AI にもう一度依頼できます。"
+  },
+  "studyCountItems": {
+    "message": "$1 件"
+  },
+  "studyCountParagraphs": {
+    "message": "$1 段落"
+  },
+  "studyDisclaimer": {
+    "message": "学習内容は AI が生成したもので、誤りを含む場合があります。辞書で確認してください。"
+  },
+  "studyDoneStatus": {
+    "message": "完了（$1 秒）"
+  },
+  "studyErrorDisconnected": {
+    "message": "拡張機能との接続が切れました。このページを再読み込みするか、「再生成」を押してやり直してください。"
+  },
+  "studyErrorTitle": {
+    "message": "生成に失敗しました"
+  },
+  "studyFooterModel": {
+    "message": "モデル：$1"
+  },
+  "studyGotoVocab": {
+    "message": "語彙リストで見る"
+  },
+  "studyLabelCore": {
+    "message": "主節"
+  },
+  "studyLabelEn": {
+    "message": "EN"
+  },
+  "studyLabelExplain": {
+    "message": "解説"
+  },
+  "studyLabelGist": {
+    "message": "要旨"
+  },
+  "studyLabelNotes": {
+    "message": "ポイント"
+  },
+  "studyLabelStructure": {
+    "message": "構造"
+  },
+  "studyLabelTranslation": {
+    "message": "訳"
+  },
+  "studyLegendKey": {
+    "message": "重要文"
+  },
+  "studyLegendKeyHint": {
+    "message": "太字＋青いライン"
+  },
+  "studyLegendTerm": {
+    "message": "重要語句"
+  },
+  "studyLegendTermHint": {
+    "message": "太字＋黄背景、クリックで意味を表示"
+  },
+  "studyLevelAria": {
+    "message": "英語レベル"
+  },
+  "studyLevelB2": {
+    "message": "B2"
+  },
+  "studyLevelB2Title": {
+    "message": "CEFR B2（IELTS 6〜6.5 程度）"
+  },
+  "studyLevelC1": {
+    "message": "C1"
+  },
+  "studyLevelC1Title": {
+    "message": "CEFR C1（IELTS 7〜8 程度）"
+  },
+  "studyLevelCet4": {
+    "message": "CET-4"
+  },
+  "studyLevelCet4Title": {
+    "message": "中国の大学英語四級試験（CEFR B1 程度）"
+  },
+  "studyLevelCet6": {
+    "message": "CET-6"
+  },
+  "studyLevelCet6Title": {
+    "message": "中国の大学英語六級試験（CEFR B2 程度）"
+  },
+  "studyMeta": {
+    "message": "$1 語・約 $2 分で読めます・重要語句 $3 個・重要文 $4 文"
+  },
+  "studyMissingSection": {
+    "message": "AI はこの部分を返しませんでした。"
+  },
+  "studyModeName": {
+    "message": "学習モード"
+  },
+  "studyNavAria": {
+    "message": "学習内容"
+  },
+  "studyNoArticleReturned": {
+    "message": "AI が本文を返しませんでした。「再生成」でもう一度お試しください。"
+  },
+  "studyNoContentHint": {
+    "message": "元のページで精読したい段落を選択し、右クリックで「AI 学習モードで読む」を選んでください。"
+  },
+  "studyNoContentTitle": {
+    "message": "精読できる本文が見つかりません"
+  },
+  "studyNotEnglishTitle": {
+    "message": "この内容は英語ではありません"
+  },
+  "studyNoticeIncomplete": {
+    "message": "AI の出力が不完全なため、一部の内容が欠けている可能性があります。「再生成」を押してもう一度お試しください。"
+  },
+  "studyNoticeRepetition": {
+    "message": "AI の出力が同じ内容を繰り返したため停止しました。「再生成」でもう一度お試しください。"
+  },
+  "studyNoticeStopped": {
+    "message": "生成を停止しました。「再生成」で最初からやり直せます。"
+  },
+  "studyNoticeThinking": {
+    "message": "この接続では思考モードが有効なままの可能性があり、生成がかなり遅くなります。設定ページで「API をテスト」を押すと自動でオフにできます。"
+  },
+  "studyNoticeTruncated": {
+    "message": "原文が長いため、今回は前半だけを精読しています。"
+  },
+  "studyOpenSettings": {
+    "message": "設定を開く"
+  },
+  "studyPageTitle": {
+    "message": "DualRead 学習モード"
+  },
+  "studyPendingSection": {
+    "message": "生成待ち…"
+  },
+  "studyPopoverAria": {
+    "message": "語句の意味"
+  },
+  "studyProgressExtracting": {
+    "message": "ページのテキストから本文を抽出しています"
+  },
+  "studyProgressSection": {
+    "message": "生成中：$1・$2 秒経過"
+  },
+  "studyProgressWaiting": {
+    "message": "AI に接続中・$1 秒経過"
+  },
+  "studyRegenerate": {
+    "message": "再生成"
+  },
+  "studyRetry": {
+    "message": "再試行"
+  },
+  "studySectionArticle": {
+    "message": "本文"
+  },
+  "studySectionGrammar": {
+    "message": "重要文法"
+  },
+  "studySectionKey": {
+    "message": "重要文"
+  },
+  "studySectionParagraphs": {
+    "message": "段落ごとの解説"
+  },
+  "studySectionParagraphsHint": {
+    "message": "各段落の要旨とポイント"
+  },
+  "studySectionSentences": {
+    "message": "長文の構造"
+  },
+  "studySectionTranslation": {
+    "message": "全文翻訳"
+  },
+  "studySectionVocab": {
+    "message": "重要語句とフレーズ"
+  },
+  "studyShowTranslation": {
+    "message": "段落の下に訳文を表示"
+  },
+  "studySourceLabel": {
+    "message": "出典"
+  },
+  "studySourceMissingTitle": {
+    "message": "元のページの内容が失効しました"
+  },
+  "studySourcePage": {
+    "message": "ページ全体のテキスト（本文は AI が抽出）"
+  },
+  "studySourceSelection": {
+    "message": "選択したテキスト"
+  },
+  "studyStop": {
+    "message": "停止"
+  },
   "summaryWithDot": {
     "message": "$1・$2"
   },
@@ -835,6 +1054,9 @@
   },
   "tooltipStopTranslation": {
     "message": "新しい内容の翻訳を停止します。既存の訳文は表示されたままです。"
+  },
+  "tooltipStudyMode": {
+    "message": "新しいタブで英語レベルに合わせてこのページを精読します。重要語句と重要文を強調し、文法・長文の構造・全文翻訳を付けます。"
   },
   "tooltipUnsupportedPage": {
     "message": "通常の Web ページではないため、翻訳スクリプトを挿入できません。"

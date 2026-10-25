@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added AI study mode: the popup button or the **Read in AI study mode** context menu opens the current English page (or the selected text) in a new tab as a lesson for CET-4, CET-6, B2, or C1. The AI extracts the article and writes the notes in one streamed request; key words are marked bold on yellow with a click-for-meaning card, key sentences bold with a blue band, and the page adds key grammar, long-sentence breakdowns, paragraph notes, and a full translation that can also be shown under each paragraph.
+- Study mode reuses the API connection and detected Thinking control, sends at most about 12,000 characters plus the page title and site name, caches finished lessons per page and level (up to 20, cleared with the translation cache), cancels superseded requests, and stops when the model starts repeating itself. Right-clicking a sentence or two studies just that selection, and lessons print without the toolbar.
+- Incomplete lessons remain readable with a retry notice and are never cached as finished, including when a gateway ends the stream without a finish reason or the translation skips a paragraph. Existing incomplete cache entries are regenerated. Print styles keep section headings with their content and omit interactive focus outlines.
+- Tightened the popup's vertical spacing so it fits Chrome's 600px popup height in Chinese and Japanese; it previously needed a small scroll, and the English popup now overflows only by its bottom padding.
+
 ## 0.11.3
 
 - Kept a paragraph translating when a gateway injects a non-JSON heartbeat or a truncated chunk into the SSE stream, instead of failing the whole paragraph on one bad chunk.

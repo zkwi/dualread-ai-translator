@@ -29,6 +29,9 @@
   "contentStoppedRetryUnavailable": {
     "message": "页面翻译已停止，请重新点击插件的开始翻译。"
   },
+  "contextStudyMode": {
+    "message": "用 AI 学习模式阅读"
+  },
   "contextTranslatePage": {
     "message": "翻译当前页面"
   },
@@ -88,6 +91,18 @@
   },
   "errorParseJson": {
     "message": "无法解析模型返回的 JSON：$1"
+  },
+  "errorStudyCaptureFailed": {
+    "message": "无法读取当前页面的文字。"
+  },
+  "errorStudyNotEnglish": {
+    "message": "学习模式目前只支持英文内容。"
+  },
+  "errorStudySourceExpired": {
+    "message": "原网页内容已失效，请回到原网页重新打开学习模式。"
+  },
+  "errorStudyTooShort": {
+    "message": "页面上没有足够的文字可以精读。"
   },
   "errorTranslationFailed": {
     "message": "翻译失败。"
@@ -530,6 +545,15 @@
   "popupStopping": {
     "message": "停止中..."
   },
+  "popupStudyMode": {
+    "message": "AI 学习模式"
+  },
+  "popupStudyOpening": {
+    "message": "正在读取页面文字..."
+  },
+  "popupStudyOpeningShort": {
+    "message": "打开中..."
+  },
   "popupSummaryAria": {
     "message": "当前翻译配置"
   },
@@ -731,6 +755,201 @@
   "statusEnabled": {
     "message": "已开启"
   },
+  "studyCachedStatus": {
+    "message": "来自本地缓存，点「重新生成」可重新请求 AI。"
+  },
+  "studyCountItems": {
+    "message": "$1 条"
+  },
+  "studyCountParagraphs": {
+    "message": "$1 段"
+  },
+  "studyDisclaimer": {
+    "message": "学习内容由 AI 生成，可能有误，请结合词典核对。"
+  },
+  "studyDoneStatus": {
+    "message": "已完成 · 用时 $1 秒"
+  },
+  "studyErrorDisconnected": {
+    "message": "与扩展后台的连接中断，请刷新本页或点「重新生成」重试。"
+  },
+  "studyErrorTitle": {
+    "message": "生成失败"
+  },
+  "studyFooterModel": {
+    "message": "模型：$1"
+  },
+  "studyGotoVocab": {
+    "message": "查看词汇表"
+  },
+  "studyLabelCore": {
+    "message": "主干"
+  },
+  "studyLabelEn": {
+    "message": "EN"
+  },
+  "studyLabelExplain": {
+    "message": "讲解"
+  },
+  "studyLabelGist": {
+    "message": "大意"
+  },
+  "studyLabelNotes": {
+    "message": "要点"
+  },
+  "studyLabelStructure": {
+    "message": "结构"
+  },
+  "studyLabelTranslation": {
+    "message": "译文"
+  },
+  "studyLegendKey": {
+    "message": "关键句"
+  },
+  "studyLegendKeyHint": {
+    "message": "加粗 + 蓝色底线"
+  },
+  "studyLegendTerm": {
+    "message": "重点词汇"
+  },
+  "studyLegendTermHint": {
+    "message": "加粗 + 黄色底，点击看释义"
+  },
+  "studyLevelAria": {
+    "message": "英语级别"
+  },
+  "studyLevelB2": {
+    "message": "B2"
+  },
+  "studyLevelB2Title": {
+    "message": "CEFR B2，约雅思 6–6.5"
+  },
+  "studyLevelC1": {
+    "message": "C1"
+  },
+  "studyLevelC1Title": {
+    "message": "CEFR C1，约雅思 7–8"
+  },
+  "studyLevelCet4": {
+    "message": "四级"
+  },
+  "studyLevelCet4Title": {
+    "message": "大学英语四级，约 CEFR B1"
+  },
+  "studyLevelCet6": {
+    "message": "六级"
+  },
+  "studyLevelCet6Title": {
+    "message": "大学英语六级，约 CEFR B2"
+  },
+  "studyMeta": {
+    "message": "$1 词 · 约 $2 分钟读完 · $3 处重点词汇 · $4 句关键句"
+  },
+  "studyMissingSection": {
+    "message": "AI 没有返回这一部分。"
+  },
+  "studyModeName": {
+    "message": "学习模式"
+  },
+  "studyNavAria": {
+    "message": "学习内容"
+  },
+  "studyNoArticleReturned": {
+    "message": "AI 没有返回正文，可以点「重新生成」再试一次。"
+  },
+  "studyNoContentHint": {
+    "message": "可以先在原网页选中想精读的段落，再右键选择「用 AI 学习模式阅读」。"
+  },
+  "studyNoContentTitle": {
+    "message": "没有找到可以精读的正文"
+  },
+  "studyNotEnglishTitle": {
+    "message": "这部分内容不是英文"
+  },
+  "studyNoticeIncomplete": {
+    "message": "AI 输出不完整，后面的内容可能缺失。可以点「重新生成」重试。"
+  },
+  "studyNoticeRepetition": {
+    "message": "AI 输出出现重复，已自动停止。可以点「重新生成」再试一次。"
+  },
+  "studyNoticeStopped": {
+    "message": "已停止生成，点「重新生成」可以从头再来。"
+  },
+  "studyNoticeThinking": {
+    "message": "当前连接可能没有关闭思考模式，生成会明显变慢。到设置页点「测试 API」即可自动关闭。"
+  },
+  "studyNoticeTruncated": {
+    "message": "原文较长，这次只精读了前一部分。"
+  },
+  "studyOpenSettings": {
+    "message": "打开设置"
+  },
+  "studyPageTitle": {
+    "message": "DualRead 学习模式"
+  },
+  "studyPendingSection": {
+    "message": "等待生成…"
+  },
+  "studyPopoverAria": {
+    "message": "词汇释义"
+  },
+  "studyProgressExtracting": {
+    "message": "正在从页面文字中提取正文"
+  },
+  "studyProgressSection": {
+    "message": "正在生成：$1 · 已用 $2 秒"
+  },
+  "studyProgressWaiting": {
+    "message": "正在连接 AI · 已用 $1 秒"
+  },
+  "studyRegenerate": {
+    "message": "重新生成"
+  },
+  "studyRetry": {
+    "message": "重试"
+  },
+  "studySectionArticle": {
+    "message": "正文"
+  },
+  "studySectionGrammar": {
+    "message": "重点语法"
+  },
+  "studySectionKey": {
+    "message": "关键句"
+  },
+  "studySectionParagraphs": {
+    "message": "中英详解"
+  },
+  "studySectionParagraphsHint": {
+    "message": "逐段大意与要点"
+  },
+  "studySectionSentences": {
+    "message": "长难句结构"
+  },
+  "studySectionTranslation": {
+    "message": "全文翻译"
+  },
+  "studySectionVocab": {
+    "message": "重点词汇与词组"
+  },
+  "studyShowTranslation": {
+    "message": "段落下显示译文"
+  },
+  "studySourceLabel": {
+    "message": "来源"
+  },
+  "studySourceMissingTitle": {
+    "message": "原网页内容已失效"
+  },
+  "studySourcePage": {
+    "message": "整页文字，由 AI 提取正文"
+  },
+  "studySourceSelection": {
+    "message": "选中的文字"
+  },
+  "studyStop": {
+    "message": "停止"
+  },
   "summaryWithDot": {
     "message": "$1 · $2"
   },
@@ -835,6 +1054,9 @@
   },
   "tooltipStopTranslation": {
     "message": "停止继续翻译，已显示的译文会保留。"
+  },
+  "tooltipStudyMode": {
+    "message": "在新标签页按英语级别精读当前网页：标出重点词汇和关键句，附语法、长难句和全文翻译。"
   },
   "tooltipUnsupportedPage": {
     "message": "当前页面不是普通网页，无法注入翻译脚本。"

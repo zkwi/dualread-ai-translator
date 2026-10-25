@@ -6,6 +6,7 @@ DualRead AI does not run a project-owned server, does not include analytics, and
 
 - API Key and settings are stored in `chrome.storage.local`.
 - Translation cache is stored in `chrome.storage.local`.
+- Study mode lessons are cached in `chrome.storage.local` (up to 20). The page text captured for study mode is kept in `chrome.storage.session` and is cleared when the browser closes.
 - Popup/options state stays in the browser extension.
 
 ## What May Be Sent Out
@@ -14,13 +15,15 @@ When translation is triggered, selected webpage text is sent to the API endpoint
 
 The extension sends only the text blocks it decides to translate, plus the model, language settings, and translation prompt needed for the request. It does not intentionally send cookies, browsing history, or page screenshots.
 
+When you open AI study mode, the selected text, or the main text of the page when nothing is selected (up to about 12,000 characters), is sent once per English level together with the page title and site name. The full page URL is not sent.
+
 Provider behavior is controlled by the provider selected by the user. Review that provider's privacy policy if webpage text is sensitive.
 
 ## User Controls
 
 - Disable auto translation in the popup or options page.
 - Hide or clear inserted translations from the popup.
-- Clear local translation cache from the options page.
+- Clear local translation cache from the options page. This also removes cached study mode lessons.
 - Use a local OpenAI-compatible endpoint if webpage text should not be sent to a cloud provider.
 
 ## Security Notes

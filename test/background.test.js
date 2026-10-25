@@ -85,7 +85,357 @@ async function main() {
   await testContextMenuTranslatesSelectedText();
   await testContextMenuSelectionReportsMissingApiKey();
   await testContextMenuSelectionSkipsTargetLanguageText();
+  await testStudyModeCapturesPageAndOpensReader();
+  await testStudyModeRejectsUnusableSources();
+  await testStudyModeContextMenuShowsNoticeOnFailure();
+  await testStudyPortStreamsLessonAndReusesCache();
+  await testStudyPortDoesNotCacheIncompleteLessons();
+  await testStudyPortRegeneratesIncompleteCache();
+  await testStudyPortRetriesWithoutMaxTokens();
+  await testStudyPortStopsRepetitionLoop();
+  await testStudyPortReportsMissingSource();
+  await testStudyPortCancelAbortsRequest();
+  await testStudyPortAppliesDetectedThinkingControl();
   console.log("background tests passed");
+}
+
+const STUDY_ENGLISH_TEXT = "The city council opened a new public library on Monday, ending years of delays and campaigns by local residents.";
+const STUDY_LESSON = [
+  "@@TITLE",
+  "City opens new library",
+  "@@ARTICLE",
+  `¶1 ${STUDY_ENGLISH_TEXT}`,
+  "@@KEY",
+  `- ${STUDY_ENGLISH_TEXT}`,
+  "@@VOCAB",
+  "- ==council== n. 市议会",
+  "@@TRANSLATION",
+  "¶1 市议会周一开放了一座新的公共图书馆。",
+  "@@END"
+].join("\n");
+
+function createStudySession(overrides = {}) {
+  return {
+    "study_source:source-1": {
+      title: "City opens new library",
+      url: "https://example.com/news",
+      source: "page",
+      text: STUDY_ENGLISH_TEXT,
+      capturedAt: 1,
+      ...overrides
+    }
+  };
+}
+
+function createSseChunksResponse(chunks, options = {}) {
+  const encoder = new TextEncoder();
+  return {
+    ok: true,
+    status: 200,
+    headers: { get: () => "text/event-stream" },
+    body: new ReadableStream({
+      start(controller) {
+        options.signal?.addEventListener("abort", () => controller.error(new DOMException("Aborted", "AbortError")));
+        chunks.forEach((chunk) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)));
+        if (options.keepOpen) return;
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      }
+    })
+  };
+}
+
+async function startStudyPort(context, message) {
+  const port = createMockRuntimePort("llm-study-stream");
+  context.runtimeConnectListener(port);
+  port.send({ type: "start", requestId: "study-1", sourceId: "source-1", level: "cet6", ...message });
+  return port;
+}
+
+async function testStudyModeCapturesPageAndOpensReader() {
+  const context = createBackgroundContext({
+    executeScriptResult: { title: "City opens new library", url: "https://example.com/news", source: "page", text: STUDY_ENGLISH_TEXT }
+  });
+  loadBackground(context);
+
+  const response = await sendRuntimeMessage(context, {
+    action: "open_study_mode",
+    tab: { id: 5, index: 2, windowId: 1, url: "https://example.com/news", title: "Tab title" }
+  });
+
+  assert.strictEqual(response.ok, true, response.error);
+  assert.strictEqual(context.scriptingCalls.length, 1);
+  assert.strictEqual(context.scriptingCalls[0].func.name, "captureStudySourceInPage");
+  assert.deepStrictEqual(Array.from(context.scriptingCalls[0].args), [60000, 80]);
+  const stored = context.sessionStorage[`study_source:${response.sourceId}`];
+  assert.strictEqual(stored.text, STUDY_ENGLISH_TEXT);
+  assert.strictEqual(stored.source, "page");
+  assert.deepStrictEqual(Array.from(context.sessionStorage.study_source_ids), [response.sourceId]);
+  assert.strictEqual(context.createdTabs.length, 1);
+  assert.strictEqual(context.createdTabs[0].url, `locale://reader.html?source=${response.sourceId}`);
+  assert.strictEqual(context.createdTabs[0].index, 3, "阅读页应紧挨原网页打开");
+  assert.strictEqual(context.createdTabs[0].openerTabId, 5);
+  assert.ok(!("study_source_ids" in await context.chrome.storage.local.get(null)), "原文只放会话存储，不写入本地存储");
+}
+
+async function testStudyModeRejectsUnusableSources() {
+  const unconfigured = createBackgroundContext({
+    storage: { apiKey: "" },
+    executeScriptResult: { title: "T", url: "https://example.com", source: "page", text: STUDY_ENGLISH_TEXT }
+  });
+  loadBackground(unconfigured);
+  const missingKey = await sendRuntimeMessage(unconfigured, { action: "open_study_mode", tab: { id: 6, url: "https://example.com" } });
+  assert.strictEqual(missingKey.ok, false);
+  assert.match(missingKey.error, /API Key/);
+  assert.strictEqual(unconfigured.scriptingCalls.length, 0, "未配置时不应注入脚本读取页面");
+
+  const chinese = createBackgroundContext({
+    executeScriptResult: { title: "T", url: "https://example.com", source: "page", text: "咖啡是一种用烘焙过的咖啡豆制作的饮料，是世界上最流行的饮品之一。".repeat(3) }
+  });
+  loadBackground(chinese);
+  const notEnglish = await sendRuntimeMessage(chinese, { action: "open_study_mode", tab: { id: 7, url: "https://example.com" } });
+  assert.strictEqual(notEnglish.ok, false);
+  assert.match(notEnglish.error, /英文/);
+  assert.strictEqual(chinese.createdTabs.length, 0);
+
+  const short = createBackgroundContext({
+    executeScriptResult: { title: "T", url: "https://example.com", source: "page", text: "Too short." }
+  });
+  loadBackground(short);
+  const tooShort = await sendRuntimeMessage(short, { action: "open_study_mode", tab: { id: 8, url: "https://example.com" } });
+  assert.strictEqual(tooShort.ok, false);
+  assert.strictEqual(short.createdTabs.length, 0);
+
+  const unsupported = createBackgroundContext();
+  loadBackground(unsupported);
+  const fileUrl = await sendRuntimeMessage(unsupported, { action: "open_study_mode", tab: { id: 9, url: "file:///tmp/a.html" } });
+  assert.strictEqual(fileUrl.ok, false);
+  assert.strictEqual(unsupported.scriptingCalls.length, 0);
+}
+
+async function testStudyModeContextMenuShowsNoticeOnFailure() {
+  const context = createBackgroundContext({
+    executeScriptResult: { title: "T", url: "https://example.com", source: "selection", text: "这段文字是中文，学习模式不处理。".repeat(6) }
+  });
+  loadBackground(context);
+  await context.onInstalledListener();
+
+  const item = context.contextMenuItems.find((menuItem) => menuItem.id === "llm_study_mode");
+  assert.ok(item, "context menu should include the study mode item");
+  assert.deepStrictEqual(Array.from(item.contexts), ["page", "selection"]);
+
+  await context.contextMenuClickListener({ menuItemId: "llm_study_mode" }, { id: 31, url: "https://example.com/zh" });
+  const notice = context.scriptingCalls.find((call) => call.func?.name === "renderPageNotice");
+  assert.ok(notice, "学习模式打不开时应在页面上提示原因");
+  assert.match(notice.args[0], /英文/);
+  assert.strictEqual(notice.args[1], true);
+  assert.deepStrictEqual(Array.from(context.scriptingCalls[0].args), [60000, 80], "从页面空白处打开时沿用较长的选区门槛");
+
+  context.scriptingCalls.length = 0;
+  await context.contextMenuClickListener({ menuItemId: "llm_study_mode", selectionText: "Officials said the library would host classes." }, { id: 31, url: "https://example.com/zh" });
+  assert.deepStrictEqual(Array.from(context.scriptingCalls[0].args), [60000, 40], "对选区右键时，一两句话也按选区精读");
+}
+
+async function testStudyPortStreamsLessonAndReusesCache() {
+  const fetchCalls = [];
+  const midpoint = Math.floor(STUDY_LESSON.length / 2);
+  const context = createBackgroundContext({
+    sessionStorage: createStudySession(),
+    fetch: async (url, options) => {
+      fetchCalls.push({ url, options });
+      return createSseChunksResponse([
+        { choices: [{ delta: { content: STUDY_LESSON.slice(0, midpoint) } }] },
+        { choices: [{ delta: { content: STUDY_LESSON.slice(midpoint) } }] },
+        { choices: [{ delta: {}, finish_reason: "stop" }] }
+      ]);
+    }
+  });
+  loadBackground(context);
+
+  const port = await startStudyPort(context);
+  await waitFor(() => port.postedMessages.some((message) => message.type === "done"), 2000);
+  const types = port.postedMessages.map((message) => message.type);
+  assert.deepStrictEqual(types.filter((type) => type !== "delta"), ["source", "started", "done"]);
+  assert.ok(types.includes("delta"));
+  assert.ok(port.postedMessages.every((message) => message.requestId === "study-1"));
+  const done = port.postedMessages.find((message) => message.type === "done");
+  assert.strictEqual(done.text, STUDY_LESSON);
+  assert.strictEqual(done.finishReason, "stop");
+  assert.strictEqual(port.postedMessages.filter((message) => message.type === "delta").map((message) => message.delta).join(""), STUDY_LESSON);
+
+  const body = JSON.parse(fetchCalls[0].options.body);
+  assert.strictEqual(body.stream, true);
+  assert.strictEqual(body.max_tokens, 12000);
+  assert.strictEqual(body.messages[0].role, "system");
+  assert.match(body.messages[1].content, /CET-6/);
+  assert.match(body.messages[1].content, new RegExp(STUDY_ENGLISH_TEXT));
+  assert.strictEqual("thinking" in body, false, "未测试 API 时不发送额外 Thinking 参数");
+
+  const cacheKeys = Object.keys(await context.chrome.storage.local.get(null)).filter((key) => key.startsWith("llm_translator_cache:study:"));
+  assert.strictEqual(cacheKeys.length, 1);
+
+  const second = await startStudyPort(context, { requestId: "study-2" });
+  await waitFor(() => second.postedMessages.some((message) => message.type === "cached"));
+  assert.strictEqual(second.postedMessages.find((message) => message.type === "cached").text, STUDY_LESSON);
+  assert.strictEqual(fetchCalls.length, 1, "同一页同一级别再次打开应直接读缓存");
+
+  const refreshed = await startStudyPort(context, { requestId: "study-3", refresh: true });
+  await waitFor(() => refreshed.postedMessages.some((message) => message.type === "done"), 2000);
+  assert.strictEqual(fetchCalls.length, 2, "重新生成要跳过缓存");
+}
+
+async function testStudyPortDoesNotCacheIncompleteLessons() {
+  const cases = [
+    { text: STUDY_LESSON.replace("@@END", ""), finishReason: "" },
+    { text: STUDY_LESSON.replace("@@END", ""), finishReason: "stop" },
+    { text: STUDY_LESSON.replace("@@KEY", "\n¶2 A second paragraph.\n@@KEY"), finishReason: "stop" },
+    { text: STUDY_LESSON, finishReason: "length" }
+  ];
+  for (const { text, finishReason } of cases) {
+    let requests = 0;
+    const context = createBackgroundContext({
+      sessionStorage: createStudySession(),
+      fetch: async () => {
+        requests += 1;
+        return createSseChunksResponse([{ choices: [{ delta: { content: text }, finish_reason: finishReason }] }]);
+      }
+    });
+    loadBackground(context);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const port = await startStudyPort(context);
+      await waitFor(() => port.postedMessages.some((message) => message.type === "done" || message.type === "cached"));
+      assert.strictEqual(port.postedMessages.some((message) => message.type === "cached"), false, "再次打开不应复用半成品");
+      assert.strictEqual(port.postedMessages.find((message) => message.type === "done").text, text.trim(), "仍保留已生成内容供阅读");
+      const cacheKeys = Object.keys(await context.chrome.storage.local.get(null)).filter((key) => key.startsWith("llm_translator_cache:study:"));
+      assert.strictEqual(cacheKeys.length, 0, "缺少结束标记、漏译或达到输出上限的课程不能缓存");
+    }
+    assert.strictEqual(requests, 2);
+  }
+}
+
+async function testStudyPortRegeneratesIncompleteCache() {
+  const context = createBackgroundContext({
+    sessionStorage: createStudySession(),
+    fetch: async () => createSseChunksResponse([{ choices: [{ delta: { content: STUDY_LESSON } }] }])
+  });
+  loadBackground(context);
+  const settings = await context.getSettings();
+  const key = context.LLMStudyMode.createStudyCacheKey(settings, "cet6", STUDY_ENGLISH_TEXT, "page");
+  await context.chrome.storage.local.set({ [key]: { text: STUDY_LESSON.replace("@@END", ""), savedAt: Date.now() } });
+
+  const port = await startStudyPort(context);
+  await waitFor(() => port.postedMessages.some((message) => message.type === "done" || message.type === "cached"));
+  assert.strictEqual(port.postedMessages.some((message) => message.type === "cached"), false, "旧缓存中的半成品也要失效");
+  assert.strictEqual((await context.chrome.storage.local.get(key))[key].text, STUDY_LESSON);
+}
+
+async function testStudyPortRetriesWithoutMaxTokens() {
+  const bodies = [];
+  const context = createBackgroundContext({
+    sessionStorage: createStudySession(),
+    fetch: async (url, options) => {
+      bodies.push(JSON.parse(options.body));
+      if (bodies.length === 1) {
+        return {
+          ok: false,
+          status: 400,
+          async text() {
+            return "{\"error\":{\"message\":\"max_tokens is too large: 12000. This model supports at most 4096 completion tokens.\"}}";
+          }
+        };
+      }
+      return createSseChunksResponse([{ choices: [{ delta: { content: STUDY_LESSON } }] }]);
+    }
+  });
+  loadBackground(context);
+
+  const port = await startStudyPort(context);
+  await waitFor(() => port.postedMessages.some((message) => message.type === "done"), 2000);
+  assert.strictEqual(bodies.length, 2);
+  assert.strictEqual(bodies[0].max_tokens, 12000);
+  assert.strictEqual("max_tokens" in bodies[1], false, "服务商拒绝 max_tokens 时去掉它重试一次");
+}
+
+async function testStudyPortStopsRepetitionLoop() {
+  const looping = `@@TITLE\nT\n@@ARTICLE\n¶1 ${STUDY_ENGLISH_TEXT}\n@@VOCAB\n- ==clashes== n. 冲突；`;
+  const context = createBackgroundContext({
+    sessionStorage: createStudySession(),
+    fetch: async (url, options) => createSseChunksResponse([
+      { choices: [{ delta: { content: looping } }] },
+      ...Array.from({ length: 120 }, () => ({ choices: [{ delta: { content: "冲突；" } }] }))
+    ], { keepOpen: true, signal: options.signal })
+  });
+  loadBackground(context);
+
+  const port = await startStudyPort(context);
+  await waitFor(() => port.postedMessages.some((message) => message.type === "done"), 2000);
+  const done = port.postedMessages.find((message) => message.type === "done");
+  assert.strictEqual(done.repetition, true);
+  assert.ok(done.text.endsWith("n. 冲突；") && !done.text.endsWith("冲突；冲突；"), `复读部分应只保留一次：${done.text.slice(-30)}`);
+  const cacheKeys = Object.keys(await context.chrome.storage.local.get(null)).filter((key) => key.startsWith("llm_translator_cache:study:"));
+  assert.strictEqual(cacheKeys.length, 0, "复读中止的不完整课程不能写入缓存");
+}
+
+async function testStudyPortReportsMissingSource() {
+  const context = createBackgroundContext({
+    fetch: async () => {
+      throw new Error("missing source should not call API");
+    }
+  });
+  loadBackground(context);
+
+  const port = await startStudyPort(context);
+  await waitFor(() => port.postedMessages.some((message) => message.type === "error"));
+  const error = port.postedMessages.find((message) => message.type === "error");
+  assert.strictEqual(error.code, "source-missing");
+  assert.match(error.error, /重新打开学习模式/);
+}
+
+async function testStudyPortCancelAbortsRequest() {
+  let fetchSignal = null;
+  const context = createBackgroundContext({
+    sessionStorage: createStudySession(),
+    fetch: async (url, options) => {
+      fetchSignal = options.signal;
+      return createSseChunksResponse([{ choices: [{ delta: { content: "@@TITLE\n" } }] }], { keepOpen: true, signal: options.signal });
+    }
+  });
+  loadBackground(context);
+
+  const port = await startStudyPort(context);
+  await waitFor(() => fetchSignal !== null);
+  port.send({ type: "cancel", requestId: "study-1" });
+  await waitFor(() => fetchSignal.aborted);
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  assert.strictEqual(port.postedMessages.some((message) => message.type === "error" || message.type === "done"), false, "取消不应报成错误");
+
+  port.send({ type: "start", requestId: "study-2", sourceId: "source-1", level: "c1" });
+  await waitFor(() => port.postedMessages.some((message) => message.requestId === "study-2" && message.type === "started"));
+  port.disconnect();
+  await waitFor(() => fetchSignal.aborted);
+}
+
+async function testStudyPortAppliesDetectedThinkingControl() {
+  const bodies = [];
+  const context = createBackgroundContext({
+    storage: {
+      apiUrl: "https://api.deepseek.com/chat/completions",
+      model: "deepseek-v4-flash",
+      detectedThinkingStrategy: "thinking_disabled",
+      thinkingStrategyDetectionKey: "https://api.deepseek.com/chat/completions\ndeepseek-v4-flash"
+    },
+    sessionStorage: createStudySession(),
+    fetch: async (url, options) => {
+      bodies.push(JSON.parse(options.body));
+      return createSseChunksResponse([{ choices: [{ delta: { content: STUDY_LESSON } }] }]);
+    }
+  });
+  loadBackground(context);
+
+  const port = await startStudyPort(context, { level: "c1" });
+  await waitFor(() => port.postedMessages.some((message) => message.type === "done"), 2000);
+  assert.deepStrictEqual(bodies[0].thinking, { type: "disabled" }, "学习模式沿用连接测试探测到的非思考参数");
+  assert.match(bodies[0].messages[1].content, /CEFR C1/);
 }
 
 async function testTranslateBatchRetriesOneServerError() {
@@ -2424,6 +2774,7 @@ function createBackgroundContext(options = {}) {
 
   Object.assign(storage, options.storage || {});
   const tabsById = options.tabsById || {};
+  const sessionStorage = { ...(options.sessionStorage || {}) };
 
   const context = {
     console: options.console || console,
@@ -2446,10 +2797,14 @@ function createBackgroundContext(options = {}) {
     contextMenuClickListener: null,
     scriptingCalls: [],
     storageGetAllCount: 0,
-    importScripts(fileName) {
-      const source = fs.readFileSync(path.join(extensionDir, fileName), "utf8");
-      vm.runInContext(source, context, { filename: fileName });
+    importScripts(...fileNames) {
+      for (const fileName of fileNames) {
+        const source = fs.readFileSync(path.join(extensionDir, fileName), "utf8");
+        vm.runInContext(source, context, { filename: fileName });
+      }
     },
+    sessionStorage,
+    createdTabs: [],
     chrome: {
       runtime: {
         getURL(filePath) {
@@ -2525,11 +2880,20 @@ function createBackgroundContext(options = {}) {
           if (!tabsById[tabId]) throw new Error(`No mock tab for ${tabId}`);
           return tabsById[tabId];
         },
+        create: async (createProperties) => {
+          context.createdTabs.push(createProperties);
+          return { id: 900 + context.createdTabs.length, ...createProperties };
+        },
         sendMessage: options.sendMessage || (async () => ({ ok: true }))
       },
       scripting: {
-        executeScript: async (options) => {
-          context.scriptingCalls.push(options);
+        executeScript: async (injection) => {
+          context.scriptingCalls.push(injection);
+          if (injection.func && options.executeScriptResult !== undefined) {
+            if (options.executeScriptResult instanceof Error) throw options.executeScriptResult;
+            return [{ result: options.executeScriptResult }];
+          }
+          return undefined;
         }
       },
       storage: {
@@ -2561,6 +2925,20 @@ function createBackgroundContext(options = {}) {
           async remove(keys) {
             for (const key of Array.isArray(keys) ? keys : [keys]) {
               delete storage[key];
+            }
+          }
+        },
+        session: {
+          async get(keys) {
+            const list = Array.isArray(keys) ? keys : [keys];
+            return Object.fromEntries(list.filter((key) => key in sessionStorage).map((key) => [key, sessionStorage[key]]));
+          },
+          async set(updates) {
+            Object.assign(sessionStorage, updates);
+          },
+          async remove(keys) {
+            for (const key of Array.isArray(keys) ? keys : [keys]) {
+              delete sessionStorage[key];
             }
           }
         }

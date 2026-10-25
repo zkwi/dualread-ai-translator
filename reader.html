@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="studyPageTitle">DualRead 学习模式</title>
+  <link rel="stylesheet" href="reader.css">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-inner">
+      <div class="brand">
+        <img src="icons/icon32.png" alt="" width="22" height="22">
+        <strong>DualRead</strong>
+        <span data-i18n="studyModeName">学习模式</span>
+      </div>
+      <div class="level-tabs" role="group" aria-label="英语级别" data-i18n-aria-label="studyLevelAria">
+        <button type="button" data-level="cet4" aria-pressed="false" data-i18n="studyLevelCet4" data-i18n-title="studyLevelCet4Title">四级</button>
+        <button type="button" data-level="cet6" aria-pressed="false" data-i18n="studyLevelCet6" data-i18n-title="studyLevelCet6Title">六级</button>
+        <button type="button" data-level="b2" aria-pressed="false" data-i18n="studyLevelB2" data-i18n-title="studyLevelB2Title">B2</button>
+        <button type="button" data-level="c1" aria-pressed="false" data-i18n="studyLevelC1" data-i18n-title="studyLevelC1Title">C1</button>
+      </div>
+      <div class="toolbar-actions">
+        <label class="toggle">
+          <input type="checkbox" id="bilingualToggle">
+          <span data-i18n="studyShowTranslation">段落下显示译文</span>
+        </label>
+        <button type="button" class="action" id="actionButton" data-i18n="studyRegenerate">重新生成</button>
+      </div>
+    </div>
+    <div class="progress" id="progress" hidden>
+      <span id="progressText" aria-live="polite"></span>
+      <span class="bar"><span id="progressBar"></span></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="state-panel" id="statePanel" hidden>
+      <h2 id="stateTitle"></h2>
+      <p id="stateMessage"></p>
+      <div class="state-actions">
+        <button type="button" class="action" id="stateRetry" data-i18n="studyRetry">重试</button>
+        <button type="button" class="action secondary" id="stateSettings" data-i18n="studyOpenSettings">打开设置</button>
+      </div>
+    </section>
+
+    <article class="paper" id="paper">
+      <header class="article-head">
+        <p class="source" id="source"></p>
+        <h1 id="title"></h1>
+        <p class="meta" id="meta"></p>
+        <div class="legend">
+          <span><mark class="term" data-i18n="studyLegendTerm">重点词汇</mark> <span data-i18n="studyLegendTermHint">加粗 + 黄色底，点击看释义</span></span>
+          <span><strong class="key" data-i18n="studyLegendKey">关键句</strong> <span data-i18n="studyLegendKeyHint">加粗 + 蓝色底线</span></span>
+        </div>
+      </header>
+      <div class="notices" id="notices"></div>
+      <div class="article-body" id="article"></div>
+    </article>
+
+    <nav class="study-nav" id="studyNav" aria-label="学习内容" data-i18n-aria-label="studyNavAria"></nav>
+    <section class="study" id="study-VOCAB">
+      <h2><span data-i18n="studySectionVocab">重点词汇与词组</span> <small></small></h2>
+      <div class="vocab-grid" data-container></div>
+    </section>
+    <section class="study" id="study-GRAMMAR">
+      <h2><span data-i18n="studySectionGrammar">重点语法</span> <small></small></h2>
+      <div class="notes" data-container></div>
+    </section>
+    <section class="study" id="study-SENTENCES">
+      <h2><span data-i18n="studySectionSentences">长难句结构</span> <small></small></h2>
+      <div class="notes" data-container></div>
+    </section>
+    <section class="study" id="study-PARAGRAPHS">
+      <h2><span data-i18n="studySectionParagraphs">中英详解</span> <small data-i18n="studySectionParagraphsHint">逐段大意与要点</small></h2>
+      <div class="notes" data-container></div>
+    </section>
+    <section class="study translation" id="study-TRANSLATION">
+      <h2><span data-i18n="studySectionTranslation">全文翻译</span> <small></small></h2>
+      <div class="card" data-container></div>
+    </section>
+
+    <footer class="foot">
+      <p data-i18n="studyDisclaimer">学习内容由 AI 生成，可能有误，请结合词典核对。</p>
+      <p id="footStatus"></p>
+    </footer>
+  </main>
+
+  <div class="popover" id="popover" role="dialog" aria-label="词汇释义" data-i18n-aria-label="studyPopoverAria" hidden></div>
+
+  <script src="shared.js"></script>
+  <script src="study.js"></script>
+  <script src="reader.js"></script>
+</body>
+</html>

@@ -4,6 +4,7 @@ const http = require("http");
 const os = require("os");
 const path = require("path");
 const { chromium } = require("playwright");
+const { STUDY_LESSON } = require("./fixtures/study-lesson.js");
 
 const extensionDir = path.resolve(__dirname, "..");
 const manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, "manifest.json"), "utf8"));
@@ -52,6 +53,7 @@ async function main() {
     assert.match(await optionsPage.locator("[data-i18n='optionsSubtitle']").textContent(), /Bilingual webpage translation settings/);
     await configureAndTestApi(optionsPage, server.apiUrl);
     await translateFixturePage(optionsPage, page, fixtureUrl);
+    await openStudyModeForFixturePage(context, optionsPage, `http://127.0.0.1:${server.port}/study`, server);
 
     const popupPage = await context.newPage();
     await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
@@ -94,6 +96,45 @@ async function translateFixturePage(optionsPage, page, fixtureUrl) {
   assert.match(await page.locator(".llm-bilingual-translation.is-done").first().textContent(), /测试译文/);
 }
 
+// 走一遍真实链路：注入脚本抓取页面文字、会话存储、打开阅读页、Port 流式生成和渲染。
+async function openStudyModeForFixturePage(context, optionsPage, studyUrl, server) {
+  const articlePage = await context.newPage();
+  await articlePage.goto(studyUrl);
+  await articlePage.waitForSelector("article p");
+
+  const readerPromise = context.waitForEvent("page", {
+    predicate: (candidate) => candidate.url().includes("/reader.html"),
+    timeout: 10000
+  });
+  const response = await optionsPage.evaluate(async (url) => {
+    const [tab] = await chrome.tabs.query({ url });
+    return chrome.runtime.sendMessage({ action: "open_study_mode", tab });
+  }, studyUrl);
+  assert.strictEqual(response.ok, true, response.error || "open_study_mode failed");
+
+  const reader = await readerPromise;
+  await reader.waitForFunction(() => document.querySelectorAll(".vocab-card").length === 4, null, { timeout: 15000 });
+  assert.strictEqual(await reader.locator("#article mark.term").count(), 4);
+  assert.strictEqual(await reader.locator("#article strong.key").count(), 2);
+  assert.strictEqual(await reader.locator("#progress").isVisible(), false);
+
+  assert.strictEqual(server.studyRequests.length, 1);
+  const body = server.studyRequests[0];
+  assert.strictEqual(body.stream, true);
+  assert.strictEqual(body.max_tokens, 12000);
+  const prompt = body.messages[1].content;
+  assert.match(prompt, /Learner level: CET-6/);
+  assert.match(prompt, /The river cleanup began/);
+  assert.doesNotMatch(prompt, /Site menu/, "有足够长的 article 时只取 article，导航不应发给模型");
+
+  // 重新打开阅读页应命中本地课程缓存，不再请求 API。
+  await reader.reload();
+  await reader.waitForFunction(() => document.querySelectorAll(".vocab-card").length === 4, null, { timeout: 10000 });
+  assert.strictEqual(server.studyRequests.length, 1);
+  await reader.close();
+  await articlePage.close();
+}
+
 function getExtensionId(workerUrl) {
   const match = String(workerUrl || "").match(/^chrome-extension:\/\/([^/]+)\//);
   assert.ok(match, `Unexpected extension worker URL: ${workerUrl}`);
@@ -101,10 +142,20 @@ function getExtensionId(workerUrl) {
 }
 
 function createFixtureServer() {
+  const studyRequests = [];
   const server = http.createServer((request, response) => {
     if (request.method === "POST" && request.url === "/v1/chat/completions") {
       return readRequestBody(request).then((body) => {
         const requestBody = JSON.parse(body || "{}");
+        if (String(requestBody?.messages?.[0]?.content || "").includes("reading lesson")) {
+          studyRequests.push(requestBody);
+          response.writeHead(200, { "content-type": "text/event-stream; charset=utf-8" });
+          response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: STUDY_LESSON.slice(0, 300) } }] })}\n\n`);
+          response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: STUDY_LESSON.slice(300) } }] })}\n\n`);
+          response.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: "stop" }] })}\n\n`);
+          response.end("data: [DONE]\n\n");
+          return;
+        }
         if (requestBody.stream === true) {
           const sourceText = extractPlainTranslationText(requestBody);
           const translation = `测试译文：${sourceText.slice(0, 80)}`;
@@ -133,6 +184,22 @@ function createFixtureServer() {
       });
     }
 
+    if (request.url === "/study") {
+      const paragraph = "The river cleanup began on a cold morning, when volunteers gathered along the banks with gloves, bags and a list of the worst-hit spots.";
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      response.end(`
+        <!doctype html>
+        <html lang="en">
+          <head><title>River cleanup</title></head>
+          <body>
+            <nav>Site menu · Home · News · Sport</nav>
+            <article>${Array.from({ length: 10 }, () => `<p>${paragraph}</p>`).join("")}</article>
+          </body>
+        </html>
+      `);
+      return;
+    }
+
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(`
       <!doctype html>
@@ -153,6 +220,7 @@ function createFixtureServer() {
       resolve({
         port: server.address().port,
         apiUrl: `http://127.0.0.1:${server.address().port}/v1/chat/completions`,
+        studyRequests,
         close: () => new Promise((done) => server.close(done))
       });
     });

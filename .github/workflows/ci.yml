@@ -37,6 +37,9 @@ jobs:
       - name: Background tests
         run: npm run test:background
 
+      - name: Study mode helper tests
+        run: npm run test:study
+
       - name: Sample configuration tests
         run: npm run test:samples:config
 

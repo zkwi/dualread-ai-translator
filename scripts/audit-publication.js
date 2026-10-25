@@ -214,7 +214,7 @@ function assertSubstitutionsMatchAcrossLocales() {
 }
 
 const zhCnMessages = readJson(path.join("_locales", "zh_CN", "messages.json"));
-for (const htmlFile of ["popup.html", "options.html"]) {
+for (const htmlFile of ["popup.html", "options.html", "reader.html"]) {
   const fullPath = path.join(ROOT, htmlFile);
   if (!fs.existsSync(fullPath)) continue;
 
@@ -260,11 +260,14 @@ function assertLocaleKeysAreUsed() {
     "manifest.json",
     "popup.html",
     "options.html",
+    "reader.html",
     "popup.js",
     "options.js",
+    "reader.js",
     "background.js",
     "content.js",
-    "shared.js"
+    "shared.js",
+    "study.js"
   ];
   const used = new Set(["htmlLang"]);
 

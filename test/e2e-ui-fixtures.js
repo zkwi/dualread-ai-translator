@@ -2,6 +2,7 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
+const { STUDY_LESSON } = require("./fixtures/study-lesson.js");
 
 const extensionDir = path.resolve(__dirname, "..");
 
@@ -22,6 +23,10 @@ async function main() {
       await testOptionsOnlyShowsEssentialSettings(browser);
       await testOptionsEnterRunsApiTestWhenReady(browser);
       await testOptionsApiFallbackExplainsNonStreaming(browser);
+      return;
+    }
+    if (process.env.TEST_FILTER === "study") {
+      await runStudyReaderTests(browser);
       return;
     }
     await testPopupDisablesVisibilityWithoutTranslations(browser);
@@ -77,11 +82,454 @@ async function main() {
     await testOptionsSavesCustomTranslationPrompt(browser);
     await testOptionsResetPromptRequiresConfirm(browser);
     await testOptionsAutoSavesChangedSettings(browser);
+    await runStudyReaderTests(browser);
   } finally {
     await browser.close();
   }
 
   console.log("ui fixture tests passed");
+}
+
+async function runStudyReaderTests(browser) {
+  await testPopupStudyButtonOpensReader(browser);
+  await testReaderStreamsLessonWithHighlights(browser);
+  await testReaderKeepsSelectionWhileNotesStream(browser);
+  await testReaderBilingualToggleAndVocabularyPopover(browser);
+  await testReaderLevelSwitchCancelsAndRestarts(browser);
+  await testReaderShowsBlockingStates(browser);
+  await testReaderStopAndNotices(browser);
+  await testReaderWarnsOnIncompleteLessons(browser);
+  await testReaderLayoutDoesNotOverflow(browser);
+  await testReaderPrintsLesson(browser);
+}
+
+async function testPopupStudyButtonOpensReader(browser) {
+  const page = await createPopupPage(browser, {
+    settings: { apiKey: "saved-key", model: "test-model" },
+    pageStats: { ok: true, active: false, stats: { translated: 0, failed: 0, translationVisible: true } }
+  });
+  await page.waitForFunction(() => document.getElementById("study").disabled === false);
+  assert.match(await page.locator("#study").getAttribute("title"), /新标签页/);
+  await page.evaluate(() => {
+    window.close = () => {
+      window.__closed = true;
+    };
+  });
+  await page.click("#study");
+  await page.waitForFunction(() => window.__closed === true);
+  const message = await page.evaluate(() => window.__runtimeMessages.find((item) => item.action === "open_study_mode"));
+  assert.strictEqual(message.tab.id, 1);
+  await page.close();
+
+  const unsupported = await createPopupPage(browser, {
+    tabUrl: "chrome://extensions/",
+    settings: { apiKey: "saved-key", model: "test-model" },
+    pageStats: { ok: true, active: false, stats: { translated: 0, failed: 0, translationVisible: true } }
+  });
+  await unsupported.waitForFunction(() => document.getElementById("status").textContent.includes("不支持翻译"));
+  assert.strictEqual(await unsupported.locator("#study").isDisabled(), true);
+  await unsupported.close();
+
+  const unconfigured = await createPopupPage(browser, {
+    settings: { apiKey: "", model: "test-model" },
+    pageStats: { ok: true, active: false, stats: { translated: 0, failed: 0, translationVisible: true } }
+  });
+  await unconfigured.waitForFunction(() => document.getElementById("configNotice").hidden === false);
+  assert.strictEqual(await unconfigured.locator("#study").isDisabled(), true);
+  assert.match(await unconfigured.locator("#study").getAttribute("title"), /API Key/);
+  await unconfigured.close();
+}
+
+async function testReaderStreamsLessonWithHighlights(browser) {
+  const page = await createReaderPage(browser);
+  const start = await waitForReaderStart(page);
+  assert.strictEqual(start.sourceId, "source-1");
+  assert.strictEqual(start.level, "cet6");
+  assert.strictEqual(start.refresh, false);
+
+  const splitAt = STUDY_LESSON.indexOf("## A long wait");
+  await page.evaluate((partial) => {
+    window.__emitForLastStart({ type: "source", title: "City opens new library - Example", url: "https://example.com/news", source: "page", chars: 900, cut: false });
+    window.__emitForLastStart({ type: "started" });
+    window.__emitForLastStart({ type: "delta", delta: partial });
+  }, STUDY_LESSON.slice(0, splitAt));
+  await page.waitForFunction(() => document.querySelector("#article p[data-n='1']"));
+  assert.strictEqual(await page.locator("#article .typing").count(), 1, "正在写的段落应显示光标");
+  assert.strictEqual(await page.locator("#progress").isVisible(), true);
+  assert.match(await page.locator("#progressText").textContent(), /正在生成：正文/);
+  assert.strictEqual(await page.locator("#actionButton").textContent(), "停止");
+  assert.strictEqual(await page.locator("#study-VOCAB .pending").textContent(), "等待生成…");
+
+  await page.evaluate(({ rest, lesson }) => {
+    window.__emitForLastStart({ type: "delta", delta: rest });
+    window.__emitForLastStart({ type: "done", text: lesson, finishReason: "stop" });
+  }, { rest: STUDY_LESSON.slice(splitAt), lesson: STUDY_LESSON });
+  await page.waitForFunction(() => document.querySelectorAll(".vocab-card").length === 4);
+
+  assert.deepStrictEqual(
+    await page.locator("#article mark.term").evaluateAll((marks) => marks.map((mark) => [mark.dataset.vocab, mark.textContent])),
+    [["0", "council"], ["1", "campaigned"], ["2", "falling apart"], ["3", "host"]],
+    "词汇表里的原形要在正文中按出现顺序标到变形上"
+  );
+  assert.strictEqual(await page.locator("#article strong.key").count(), 2);
+  assert.strictEqual(await page.locator("#article strong.key mark.term").count(), 2, "关键句里的重点词要嵌套显示");
+  assert.strictEqual(await page.locator("#article h2").textContent(), "A long wait");
+  assert.strictEqual(await page.locator("#title").textContent(), "City opens new library");
+  assert.match(await page.locator("#source").textContent(), /example\.com/);
+  assert.match(await page.locator("#meta").textContent(), /4 处重点词汇 · 2 句关键句/);
+  assert.deepStrictEqual(
+    await page.locator("#study-SENTENCES .label").allTextContents(),
+    ["主干", "结构", "译文"],
+    "模型输出的英文标签按界面语言显示，大小写不敏感"
+  );
+  assert.strictEqual(await page.locator("#study-PARAGRAPHS h3 a").getAttribute("href"), "#p-1");
+  assert.strictEqual(await page.locator("#study-GRAMMAR blockquote mark").textContent(), "ending years of delays");
+  assert.strictEqual(await page.locator("#study-TRANSLATION p[data-n]").count(), 3);
+  assert.strictEqual(await page.locator("#study-TRANSLATION h3").textContent(), "漫长的等待");
+  assert.strictEqual(await page.locator("#studyNav a").count(), 5);
+  assert.strictEqual(await page.locator("#progress").isVisible(), false);
+  assert.strictEqual(await page.locator("#actionButton").textContent(), "重新生成");
+  assert.match(await page.locator("#footStatus").textContent(), /已完成 · 用时 \d+ 秒 · 模型：test-model/);
+  assert.match(await page.title(), /^City opens new library - DualRead 学习模式$/);
+  await page.close();
+}
+
+async function testReaderKeepsSelectionWhileNotesStream(browser) {
+  const page = await createReaderPage(browser);
+  await waitForReaderStart(page);
+  const grammarStart = STUDY_LESSON.indexOf("@@GRAMMAR\n") + "@@GRAMMAR\n".length;
+  await page.evaluate((partial) => {
+    window.__emitForLastStart({ type: "started" });
+    window.__emitForLastStart({ type: "delta", delta: partial });
+  }, STUDY_LESSON.slice(0, grammarStart));
+  await page.waitForFunction(() => document.querySelectorAll("#article mark.term").length === 4);
+  await page.evaluate(() => {
+    const paragraph = document.getElementById("p-2");
+    paragraph.__marker = true;
+    const range = document.createRange();
+    range.selectNodeContents(paragraph);
+    getSelection().removeAllRanges();
+    getSelection().addRange(range);
+  });
+
+  await page.evaluate((more) => window.__emitForLastStart({ type: "delta", delta: more }),
+    STUDY_LESSON.slice(grammarStart, STUDY_LESSON.indexOf("@@SENTENCES")));
+  await page.waitForFunction(() => document.querySelectorAll("#study-GRAMMAR .note-card").length === 1);
+  await page.waitForTimeout(300);
+  assert.strictEqual(await page.evaluate(() => document.getElementById("p-2").__marker === true), true, "笔记流式输出期间正文 DOM 不应反复重建");
+  assert.match(await page.evaluate(() => getSelection().toString()), /Residents had campaigned/, "读者在正文里选中的文字不应被冲掉");
+  assert.strictEqual(await page.locator("#study-GRAMMAR .typing").count(), 1, "正在写的一节显示光标");
+
+  await page.evaluate((lesson) => window.__emitForLastStart({ type: "done", text: lesson, finishReason: "stop" }), STUDY_LESSON);
+  await page.waitForFunction(() => document.getElementById("progress").hidden === true);
+  assert.strictEqual(await page.locator(".typing").count(), 0, "生成结束后不能残留光标");
+  await page.close();
+}
+
+async function testReaderBilingualToggleAndVocabularyPopover(browser) {
+  const page = await createReaderPage(browser);
+  await finishReaderLesson(page, STUDY_LESSON);
+
+  assert.strictEqual(await page.locator("#bilingualToggle").isDisabled(), false);
+  await page.check("#bilingualToggle");
+  await page.waitForFunction(() => document.querySelectorAll("#article .zh").length === 4);
+  assert.strictEqual(await page.locator("#article #p-2 + .zh").textContent(), "居民们自 2019 年起就为这个项目奔走，称旧馆已经破败不堪。");
+  assert.ok(await page.evaluate(() => window.__storageUpdates.some((update) => update.studyShowTranslation === true)));
+
+  await page.click("#article mark.term[data-vocab='2']");
+  await page.waitForFunction(() => document.getElementById("popover").hidden === false);
+  assert.match(await page.locator("#popover").textContent(), /fall apart/);
+  await page.click("#popover [data-goto-vocab]");
+  await page.waitForFunction(() => document.getElementById("popover").hidden === true);
+  assert.strictEqual(await page.locator("#v-2").evaluate((card) => card.classList.contains("flash")), true);
+
+  await page.focus("#article mark.term[data-vocab='0']");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => document.getElementById("popover").hidden === false);
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => document.getElementById("popover").hidden === true);
+  await page.close();
+}
+
+async function testReaderLevelSwitchCancelsAndRestarts(browser) {
+  const page = await createReaderPage(browser, { stored: { studyLevel: "b2" } });
+  const first = await waitForReaderStart(page);
+  assert.strictEqual(first.level, "b2", "应恢复上次选择的级别");
+  assert.strictEqual(await page.locator("[data-level='b2']").getAttribute("aria-pressed"), "true");
+
+  await page.evaluate(() => window.__emitForLastStart({ type: "started" }));
+  await page.click("[data-level='c1']");
+  await page.waitForFunction(() => window.__portMessages.filter((message) => message.type === "start").length === 2);
+  const messages = await page.evaluate(() => window.__portMessages);
+  assert.ok(messages.some((message) => message.type === "cancel" && message.requestId === first.requestId), "切换级别时要取消正在生成的旧请求");
+  assert.strictEqual(messages.at(-1).level, "c1");
+  assert.ok(await page.evaluate(() => window.__storageUpdates.some((update) => update.studyLevel === "c1")));
+
+  await page.evaluate(({ requestId, lesson }) => {
+    window.__emit({ requestId, type: "done", text: lesson });
+  }, { requestId: first.requestId, lesson: STUDY_LESSON });
+  await page.waitForTimeout(200);
+  assert.strictEqual(await page.locator(".vocab-card").count(), 0, "旧请求的结果不能覆盖新级别");
+
+  await finishReaderLesson(page, STUDY_LESSON, { skipStart: true });
+  await page.click("#actionButton");
+  await page.waitForFunction(() => window.__portMessages.filter((message) => message.type === "start").length === 3);
+  assert.strictEqual(await page.evaluate(() => window.__portMessages.at(-1).refresh), true, "重新生成要跳过缓存");
+  await page.close();
+}
+
+async function testReaderShowsBlockingStates(browser) {
+  const missing = await createReaderPage(browser);
+  await waitForReaderStart(missing);
+  await missing.evaluate(() => window.__emitForLastStart({ type: "error", code: "source-missing", error: "原网页内容已失效，请回到原网页重新打开学习模式。" }));
+  await missing.waitForFunction(() => document.getElementById("statePanel").hidden === false);
+  assert.strictEqual(await missing.locator("#stateTitle").textContent(), "原网页内容已失效");
+  assert.strictEqual(await missing.locator("#stateRetry").isVisible(), false);
+  assert.strictEqual(await missing.locator("#paper").isVisible(), false);
+  assert.strictEqual(await missing.locator("#actionButton").isDisabled(), true);
+  assert.strictEqual(await missing.locator("#study-VOCAB").isVisible(), false);
+  await missing.close();
+
+  const noSource = await createReaderPage(browser, { sourceId: null });
+  await noSource.waitForFunction(() => document.getElementById("statePanel").hidden === false);
+  assert.strictEqual(await noSource.evaluate(() => window.__portMessages.length), 0, "没有原文 ID 时不应发起请求");
+  await noSource.close();
+
+  const notEnglish = await createReaderPage(browser);
+  await finishReaderLesson(notEnglish, "@@NOT_ENGLISH");
+  await notEnglish.waitForFunction(() => document.getElementById("statePanel").hidden === false);
+  assert.strictEqual(await notEnglish.locator("#stateTitle").textContent(), "这部分内容不是英文");
+  await notEnglish.close();
+
+  const malformed = await createReaderPage(browser);
+  await finishReaderLesson(malformed, "@@TITLE\nCity opens new library\n@@VOCAB\n- ==council== n. 市议会");
+  await malformed.waitForFunction(() => document.getElementById("statePanel").hidden === false);
+  assert.match(await malformed.locator("#stateMessage").textContent(), /没有返回正文/, "格式异常、没有正文时不能留一页空白");
+  assert.strictEqual(await malformed.locator("#stateRetry").isVisible(), true);
+  await malformed.close();
+
+  const failed = await createReaderPage(browser);
+  await waitForReaderStart(failed);
+  await failed.evaluate(() => window.__emitForLastStart({ type: "error", error: "API 请求失败：401 invalid key" }));
+  await failed.waitForFunction(() => document.getElementById("statePanel").hidden === false);
+  assert.strictEqual(await failed.locator("#stateMessage").textContent(), "API 请求失败：401 invalid key");
+  await failed.click("#stateSettings");
+  assert.strictEqual(await failed.evaluate(() => window.__openedOptions), true);
+  await failed.click("#stateRetry");
+  await failed.waitForFunction(() => window.__portMessages.filter((message) => message.type === "start").length === 2);
+  assert.strictEqual(await failed.evaluate(() => window.__portMessages.at(-1).refresh), false);
+
+  await failed.evaluate(() => window.__emitForLastStart({ type: "started" }));
+  await failed.evaluate(() => window.__disconnect());
+  await failed.waitForFunction(() => document.getElementById("statePanel").hidden === false);
+  assert.match(await failed.locator("#stateMessage").textContent(), /连接中断/);
+  await failed.close();
+}
+
+async function testReaderStopAndNotices(browser) {
+  const page = await createReaderPage(browser, { settings: { thinkingStrategy: "auto" } });
+  await waitForReaderStart(page);
+  await page.evaluate((partial) => {
+    window.__emitForLastStart({ type: "source", title: "Long page", url: "https://example.com/long", source: "page", chars: 50000, cut: true });
+    window.__emitForLastStart({ type: "delta", delta: partial });
+  }, STUDY_LESSON.slice(0, 200));
+  await page.waitForFunction(() => document.querySelectorAll("#notices .notice").length === 2);
+  assert.match(await page.locator("#notices").textContent(), /只精读了前一部分/);
+  assert.match(await page.locator("#notices").textContent(), /测试 API/);
+  await page.click("#notices [data-open-settings]");
+  assert.strictEqual(await page.evaluate(() => window.__openedOptions), true);
+
+  await page.click("#actionButton");
+  await page.waitForFunction(() => window.__portMessages.some((message) => message.type === "cancel"));
+  await page.waitForFunction(() => document.getElementById("notices").textContent.includes("已停止生成"));
+  assert.strictEqual(await page.locator("#actionButton").textContent(), "重新生成");
+  assert.strictEqual(await page.locator("#article p[data-n='1']").count(), 1, "停止后保留已生成的内容");
+  await page.close();
+
+  const repeated = await createReaderPage(browser);
+  await finishReaderLesson(repeated, STUDY_LESSON.replace("@@END", ""), { done: { finishReason: "repetition", repetition: true } });
+  await repeated.waitForFunction(() => document.getElementById("notices").textContent.includes("出现重复"));
+  await repeated.close();
+
+  const truncated = await createReaderPage(browser);
+  await finishReaderLesson(truncated, STUDY_LESSON.replace("@@TRANSLATION", "@@TRANSLATION").replace("@@END", ""), { done: { finishReason: "length" } });
+  await truncated.waitForFunction(() => document.getElementById("notices").textContent.includes("输出不完整"));
+  assert.doesNotMatch(await truncated.locator("#footStatus").textContent(), /已完成/);
+  await truncated.close();
+}
+
+async function testReaderWarnsOnIncompleteLessons(browser) {
+  const cases = [
+    { text: STUDY_LESSON.replace("@@END", ""), finishReason: "" },
+    { text: STUDY_LESSON.replace("¶3 官员表示，图书馆将开设课程并提供免费上网服务。", ""), finishReason: "stop" }
+  ];
+  for (const { text, finishReason } of cases) {
+    const page = await createReaderPage(browser);
+    await finishReaderLesson(page, text, { done: { finishReason } });
+    assert.match(await page.locator("#notices").textContent(), /输出不完整/);
+    assert.doesNotMatch(await page.locator("#footStatus").textContent(), /已完成/);
+    assert.strictEqual(await page.locator("#article p[data-n]").count(), 3, "半成品也要保留正文");
+    assert.strictEqual(await page.locator("#actionButton").textContent(), "重新生成");
+    await page.close();
+  }
+}
+
+async function testReaderPrintsLesson(browser) {
+  const page = await createReaderPage(browser);
+  await finishReaderLesson(page, STUDY_LESSON);
+  await page.check("#bilingualToggle");
+  await page.click("#article mark.term[data-vocab='1']");
+  await page.focus("#article mark.term[data-vocab='1']");
+  await page.keyboard.press("Enter");
+  await page.emulateMedia({ media: "print", colorScheme: "dark" });
+  for (const selector of [".toolbar", "#studyNav", "#popover"]) {
+    assert.strictEqual(await page.locator(selector).isVisible(), false, `${selector} 不应出现在打印中`);
+  }
+  for (const selector of ["#paper", "#study-VOCAB", "#study-GRAMMAR", "#study-SENTENCES", "#study-PARAGRAPHS", "#study-TRANSLATION"]) {
+    assert.strictEqual(await page.locator(selector).isVisible(), true, `${selector} 打印时应保留`);
+  }
+  assert.deepStrictEqual(await page.evaluate(() => {
+    const term = getComputedStyle(document.querySelector("#article mark.term"));
+    return {
+      background: getComputedStyle(document.body).backgroundColor,
+      termBackground: term.backgroundColor,
+      printColorAdjust: term.printColorAdjust,
+      hasKeyHighlight: getComputedStyle(document.querySelector("#article strong.key")).backgroundImage !== "none",
+      termOutline: getComputedStyle(document.querySelector("#article mark.term.active")).outlineStyle,
+      termShadow: getComputedStyle(document.querySelector("#article mark.term.active")).boxShadow,
+      sectionBreak: getComputedStyle(document.querySelector(".study h2")).breakAfter
+    };
+  }), { background: "rgb(255, 255, 255)", termBackground: "rgb(255, 226, 122)", printColorAdjust: "exact", hasKeyHighlight: true, termOutline: "none", termShadow: "none", sectionBreak: "avoid" });
+  assert.strictEqual(await page.locator("#article .zh").count(), 4);
+  await page.close();
+}
+
+async function testReaderLayoutDoesNotOverflow(browser) {
+  for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 }]) {
+    for (const uiLanguage of ["auto", "en", "ja"]) {
+      const page = await createReaderPage(browser, {
+        viewport,
+        settings: { uiLanguage },
+        localeMessages: uiLanguage === "auto" ? undefined : readAllLocaleMessages()[uiLanguage]
+      });
+      await finishReaderLesson(page, STUDY_LESSON);
+      await page.check("#bilingualToggle");
+      await page.click("#article mark.term[data-vocab='1']");
+      const overflow = await page.evaluate(() => {
+        const width = document.documentElement.clientWidth;
+        const offenders = Array.from(document.querySelectorAll(".toolbar-inner > *, .level-tabs, #actionButton, .paper, .card, #popover"))
+          .filter((node) => !node.hidden && node.getBoundingClientRect().right > width + 1)
+          .map((node) => node.id || node.className);
+        return { scrollWidth: document.documentElement.scrollWidth, width, offenders };
+      });
+      assert.ok(overflow.scrollWidth <= overflow.width + 1, `reader overflows at ${viewport.width}px (${uiLanguage}): ${JSON.stringify(overflow)}`);
+      assert.deepStrictEqual(overflow.offenders, [], `reader elements overflow at ${viewport.width}px (${uiLanguage})`);
+      if (uiLanguage === "en") {
+        assert.strictEqual(await page.locator("[data-level='cet4']").textContent(), "CET-4");
+        assert.strictEqual(await page.locator("#study-SENTENCES .label").first().textContent(), "Core");
+      }
+      await page.close();
+    }
+  }
+}
+
+async function waitForReaderStart(page) {
+  await page.waitForFunction(() => window.__portMessages.some((message) => message.type === "start"));
+  return page.evaluate(() => window.__portMessages.filter((message) => message.type === "start").at(-1));
+}
+
+async function finishReaderLesson(page, text, options = {}) {
+  if (!options.skipStart) await waitForReaderStart(page);
+  await page.evaluate(({ text, done }) => {
+    window.__emitForLastStart({ type: "source", title: "City opens new library", url: "https://example.com/news", source: "page", chars: 900, cut: false });
+    window.__emitForLastStart({ type: "started" });
+    window.__emitForLastStart({ type: "done", text, finishReason: "stop", ...(done || {}) });
+  }, { text, done: options.done });
+  await page.waitForFunction(() => document.getElementById("progress").hidden === true);
+}
+
+async function createReaderPage(browser, options = {}) {
+  const page = await browser.newPage({ viewport: options.viewport || { width: 1366, height: 900 } });
+  const html = readHtml("reader.html");
+  // 阅读页依赖 location.search 里的原文 ID，用一个假地址托管页面，避免 about:blank 不能带查询参数。
+  await page.route("https://reader.test/**", (route) => route.fulfill({
+    status: 200,
+    contentType: "text/html; charset=utf-8",
+    body: route.request().url().includes("reader.html") ? html : ""
+  }));
+  const search = options.sourceId === null ? "" : `?source=${options.sourceId || "source-1"}`;
+  await page.goto(`https://reader.test/reader.html${search}`);
+  const allLocaleMessages = readAllLocaleMessages();
+  await page.evaluate(({ allLocaleMessages, settings, stored, localeMessages }) => {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (url, fetchOptions) => {
+      const match = String(url || "").match(/^locale:\/\/_locales\/([^/]+)\/messages\.json$/);
+      if (match) {
+        return new Response(JSON.stringify(allLocaleMessages[match[1]] || {}), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      return nativeFetch(url, fetchOptions);
+    };
+    const getLocaleMessage = (name, substitutions = []) => {
+      const template = localeMessages?.[name]?.message || "";
+      const values = Array.isArray(substitutions) ? substitutions : [substitutions];
+      return template.replace(/\$(\d+)/g, (_, index) => values[Number(index) - 1] ?? "");
+    };
+    window.__portMessages = [];
+    window.__storageUpdates = [];
+    window.__ports = [];
+    window.__emit = (message) => window.__ports.at(-1)?.listeners.forEach((listener) => listener(message));
+    window.__emitForLastStart = (message) => {
+      const start = window.__portMessages.filter((item) => item.type === "start").at(-1);
+      window.__emit({ requestId: start?.requestId, ...message });
+    };
+    window.__disconnect = () => window.__ports.at(-1)?.disconnectListeners.forEach((listener) => listener());
+    window.chrome = {
+      i18n: { getMessage: getLocaleMessage },
+      storage: {
+        local: {
+          async get(defaults) {
+            return { ...defaults, ...(stored || {}) };
+          },
+          async set(updates) {
+            window.__storageUpdates.push(updates);
+          }
+        }
+      },
+      runtime: {
+        getURL(filePath) {
+          return `locale://${filePath}`;
+        },
+        async sendMessage(request) {
+          if (request.action === "get_settings") {
+            return { model: "test-model", disableThinking: true, thinkingStrategy: "omit", ...(settings || {}) };
+          }
+          return { ok: true };
+        },
+        connect({ name }) {
+          const port = {
+            name,
+            listeners: [],
+            disconnectListeners: [],
+            onMessage: { addListener(listener) { port.listeners.push(listener); } },
+            onDisconnect: { addListener(listener) { port.disconnectListeners.push(listener); } },
+            postMessage(message) { window.__portMessages.push(message); }
+          };
+          window.__ports.push(port);
+          return port;
+        },
+        openOptionsPage() {
+          window.__openedOptions = true;
+        }
+      }
+    };
+  }, { allLocaleMessages, settings: options.settings, stored: options.stored, localeMessages: options.localeMessages });
+  await page.evaluate(readText("shared.js"));
+  await page.evaluate(readText("study.js"));
+  await page.evaluate(readText("reader.js"));
+  return page;
 }
 
 async function testPopupDisablesVisibilityWithoutTranslations(browser) {

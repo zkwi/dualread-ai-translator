@@ -7,6 +7,7 @@ const toggleBtn = document.getElementById("toggle");
 const scanBtn = document.getElementById("scan");
 const visibilityBtn = document.getElementById("visibility");
 const clearBtn = document.getElementById("clear");
+const studyBtn = document.getElementById("study");
 const optionsBtn = document.getElementById("options");
 const quickOptionsBtn = document.getElementById("quickOptions");
 const autoTranslateToggle = document.getElementById("autoTranslateToggle");
@@ -237,6 +238,26 @@ displayModeButtons.forEach((button) => {
       }
       await refreshStats();
     });
+  });
+});
+
+studyBtn.addEventListener("click", async () => {
+  await runPopupAction(t("popupStudyOpening", [], "正在读取页面文字..."), async () => {
+    const response = await chrome.runtime.sendMessage({
+      action: "open_study_mode",
+      tab: currentTab
+    });
+
+    if (!response?.ok) {
+      setStatus(response?.error || t("popupStatusActionFailed", [], "操作失败。"));
+      return;
+    }
+    // 新标签页打开后弹窗通常会自动关闭，这里兜底关闭。
+    window.close();
+  }, {
+    button: studyBtn,
+    pendingText: t("popupStudyOpeningShort", [], "打开中..."),
+    getFinalText: () => t("popupStudyMode", [], "AI 学习模式")
   });
 });
 
@@ -502,6 +523,7 @@ function updateButtonState() {
   scanBtn.disabled = busy || !currentTab?.id || !canTranslatePage || !hasConfig;
   clearBtn.disabled = busy || !currentTab?.id || !canTranslatePage || !hasTranslations;
   visibilityBtn.disabled = busy || !currentTab?.id || !canTranslatePage || !hasTranslations;
+  studyBtn.disabled = busy || !currentTab?.id || !canTranslatePage || !hasConfig;
   autoTranslateToggle.disabled = busy || !currentTab?.id || !hasConfig;
   autoTranslateRow?.classList.toggle("is-disabled", autoTranslateToggle.disabled);
   displayModeButtons.forEach((button) => {
@@ -531,6 +553,11 @@ function updateButtonState() {
     : (!canTranslatePage
       ? unsupportedTitle
       : (!hasTranslations ? noTranslationsTitle : t("tooltipClearTranslations", [], "移除当前页面已插入的译文，本地缓存不会被清空。")));
+  studyBtn.title = !currentTab?.id
+    ? t("tooltipCurrentPageUnavailable", [], "当前页面不可用。")
+    : (!canTranslatePage
+      ? unsupportedTitle
+      : (!hasConfig ? configTitle : t("tooltipStudyMode", [], "在新标签页按英语级别精读当前网页：标出重点词汇和关键句，附语法、长难句和全文翻译。")));
   autoTranslateToggle.title = autoTranslateToggle.disabled && !hasConfig
     ? configTitle
     : (!canTranslatePage ? t("tooltipAutoTranslateGlobalOnly", [], "会保存为全局设置，打开普通外文网页后生效。") : t("tooltipAutoTranslate", [], "保存为全局开关，打开外文网页时自动开始翻译。"));
@@ -541,6 +568,7 @@ function disablePopupControls() {
   scanBtn.disabled = true;
   visibilityBtn.disabled = true;
   clearBtn.disabled = true;
+  studyBtn.disabled = true;
   autoTranslateToggle.disabled = true;
   autoTranslateRow?.classList.add("is-disabled");
   displayModeButtons.forEach((button) => {

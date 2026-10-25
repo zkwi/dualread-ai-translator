@@ -347,10 +347,13 @@ function assertI18nLocaleCoverage() {
     "manifest.json",
     "popup.html",
     "options.html",
+    "reader.html",
     "popup.js",
     "options.js",
+    "reader.js",
     "background.js",
-    "content.js"
+    "content.js",
+    "study.js"
   ];
   const keys = new Set(["htmlLang"]);
 

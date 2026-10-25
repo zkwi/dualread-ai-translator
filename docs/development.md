@@ -20,6 +20,7 @@ npm install
 npm run check            # 发布审计 + 所有 JavaScript 语法检查
 npm run test:shared      # 共享纯函数
 npm run test:background  # API、SSE、缓存和 Chrome 生命周期
+npm run test:study       # 学习模式提示词、输出解析和高亮定位
 npm run test:ui          # popup/options 浏览器 fixture
 npm run test:local       # 页面扫描与布局 fixture
 npm run test:smoke       # 加载真实 MV3 扩展
@@ -43,7 +44,11 @@ node test/e2e-local-fixtures.js
 Remove-Item Env:TEST_FILTER
 ```
 
-可用值见该文件 `main()` 开头的分支，例如 `streaming`、`layout-adapter`、`translation-records`、`selection-card`。
+可用值见该文件 `main()` 开头的分支，例如 `streaming`、`layout-adapter`、`translation-records`、`selection-card`。`test/e2e-ui-fixtures.js` 同样支持 `TEST_FILTER="study"`，只跑学习模式阅读页和弹窗入口。
+
+### 学习模式
+
+提示词和输出格式集中在 `study.js`。改动后先跑 `npm run test:study`，再用真实模型抽查几类页面：新闻、长百科（会截断）、选中的短段落、非文章页（应返回 `@@NO_CONTENT`）和非英文页。重点看正文是否逐字照抄、词汇表和关键句能否在正文中定位、译文段号是否对齐、语法术语有没有硬套。改变输出格式时同步递增 `STUDY_PROMPT_VERSION`，让旧缓存失效。测试用的课程样例放在 `test/fixtures/study-lesson.js`，是自编短文，不要换成真实新闻原文。
 
 Reddit、Quora 等站点可能在测试网络返回验证页。样本会标记 `siteBlocked=true`，这表示站点未提供正文，不等同于抽取逻辑通过或失败。
 
@@ -51,7 +56,7 @@ Reddit、Quora 等站点可能在测试网络返回验证页。样本会标记 `
 
 `.github/workflows/ci.yml` 在 push 到 `main`、Pull Request 和手动触发时运行：
 
-- `audit-and-unit`：`npm run check`、`test:shared`、`test:background`、`test:samples:config`。
+- `audit-and-unit`：`npm run check`、`test:shared`、`test:background`、`test:study`、`test:samples:config`。
 - `browser`：安装 Chromium 后用 `xvfb-run` 运行 `test:ui`、`test:local`、`test:layout`、`test:smoke`；扩展 smoke 必须加载真实 MV3 扩展，不能用无界面模式。
 
 `npm run test:samples` 依赖真实站点，结果受网络和验证页影响，不进 CI，发布前本地执行。

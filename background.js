@@ -1,4 +1,4 @@
-importScripts("shared.js");
+importScripts("shared.js", "study.js");
 
 const { i18n: t } = LLMTranslatorShared;
 const DEFAULT_SETTINGS = LLMTranslatorShared.DEFAULT_SETTINGS;
@@ -6,6 +6,14 @@ const LEGACY_DEFAULT_API_TIMEOUT_MS = LLMTranslatorShared.LEGACY_DEFAULT_API_TIM
 const THINKING_STRATEGIES = LLMTranslatorShared.THINKING_STRATEGIES;
 const CONTEXT_MENU_TRANSLATE_PAGE = "llm_translate_page";
 const CONTEXT_MENU_TRANSLATE_SELECTION = "llm_translate_selection";
+const CONTEXT_MENU_STUDY_MODE = "llm_study_mode";
+const STUDY_PORT_NAME = "llm-study-stream";
+const STUDY_SOURCE_PREFIX = "study_source:";
+const STUDY_SOURCE_INDEX_KEY = "study_source_ids";
+const MAX_STUDY_SOURCES = 8;
+// 一份课程约 20KB，单独限量，不占用 2000 条段落缓存的配额。
+const MAX_STUDY_CACHE_ENTRIES = 20;
+const STUDY_DELTA_FLUSH_MS = 80;
 const CACHE_PRUNE_INTERVAL_MS = 30000;
 const API_TEST_TIMEOUT_MS = 20000;
 const THINKING_DETECTION_CANDIDATES = Object.freeze([
@@ -170,10 +178,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false;
   }
 
+  if (request.action === "open_study_mode") {
+    openStudyMode(request.tab)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
   return false;
 });
 
 chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === STUDY_PORT_NAME) {
+    handleStudyPort(port);
+    return;
+  }
   if (port.name !== "llm-translation-stream") return;
 
   const controllers = new Map();
@@ -264,6 +283,376 @@ async function streamTranslationToPort(port, message, controller, isConnected) {
   } catch (error) {
     if (controller.signal.aborted || error?.name === "AbortError") return;
     post({ type: "error", id: item.id, error: error.message || String(error) });
+  }
+}
+
+// 学习模式：抓取页面文字后在新标签页打开阅读页，阅读页再通过 Port 请求整篇课程。
+async function openStudyMode(tab, options = {}) {
+  if (!isInjectableTab(tab)) {
+    return { ok: false, error: t("errorUnsupportedTab", [], "当前页面不支持注入脚本。") };
+  }
+
+  const configured = await ensureTranslationConfigured(tab);
+  if (!configured.ok) return configured;
+
+  let capture = null;
+  try {
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: captureStudySourceInPage,
+      args: [LLMStudyMode.STUDY_CAPTURE_MAX_CHARS, options.minSelectionChars || LLMStudyMode.STUDY_MIN_SELECTION_CHARS]
+    });
+    capture = injection?.result || null;
+  } catch (error) {
+    return { ok: false, error: t("errorStudyCaptureFailed", [], "无法读取当前页面的文字。") };
+  }
+
+  const text = String(capture?.text || "").trim();
+  if (text.length < LLMStudyMode.STUDY_MIN_SOURCE_CHARS) {
+    return { ok: false, error: t("errorStudyTooShort", [], "页面上没有足够的文字可以精读。") };
+  }
+  if (!LLMStudyMode.isMostlyEnglishText(text)) {
+    return { ok: false, error: t("errorStudyNotEnglish", [], "学习模式目前只支持英文内容。") };
+  }
+
+  const sourceId = crypto.randomUUID();
+  await saveStudySource(sourceId, {
+    title: String(capture.title || tab.title || "").trim(),
+    url: String(capture.url || tab.url || ""),
+    source: capture.source === "selection" ? "selection" : "page",
+    text,
+    capturedAt: Date.now()
+  });
+
+  const createOptions = { url: chrome.runtime.getURL(`reader.html?source=${encodeURIComponent(sourceId)}`) };
+  if (typeof tab.index === "number") createOptions.index = tab.index + 1;
+  if (typeof tab.windowId === "number") createOptions.windowId = tab.windowId;
+  createOptions.openerTabId = tab.id;
+  await chrome.tabs.create(createOptions);
+  return { ok: true, sourceId };
+}
+
+// 该函数通过 chrome.scripting 注入页面执行，不能引用后台作用域里的其他函数。
+function captureStudySourceInPage(maxChars, minSelectionChars) {
+  // 已插入的译文和扩展浮层不属于原文：读取前用行内样式临时隐藏（不受页面 CSP 限制），读完立即恢复。
+  const hidden = Array.from(document.querySelectorAll(
+    ".llm-bilingual-translation, .llm-bilingual-selection-card, .llm-bilingual-page-notice, .llm-bilingual-reload-notice"
+  )).map((node) => ({
+    node,
+    value: node.style.getPropertyValue("display"),
+    priority: node.style.getPropertyPriority("display")
+  }));
+  hidden.forEach(({ node }) => node.style.setProperty("display", "none", "important"));
+
+  try {
+    const clean = (value) => String(value || "")
+      .replace(/\u00a0/g, " ")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    const selection = clean(window.getSelection?.()?.toString());
+    if (selection.length >= minSelectionChars) {
+      return { title: document.title, url: location.href, source: "selection", text: selection.slice(0, maxChars) };
+    }
+
+    // 有足够长的 main/article 就只取它，少带导航和页脚；否则退回整页，由 AI 自己提取正文。
+    let best = "";
+    for (const element of document.querySelectorAll("main, [role='main'], article")) {
+      // 隐藏的模板或折叠区没有布局，innerText 会退化成全部文字，不能当作正文。
+      if (element.getClientRects().length === 0) continue;
+      const text = clean(element.innerText);
+      if (text.length > best.length) best = text;
+    }
+    const text = best.length >= 1000 ? best : clean(document.body?.innerText);
+    return { title: document.title, url: location.href, source: "page", text: text.slice(0, maxChars) };
+  } finally {
+    hidden.forEach(({ node, value, priority }) => {
+      if (value) node.style.setProperty("display", value, priority);
+      else node.style.removeProperty("display");
+    });
+  }
+}
+
+// 原文只放在会话存储里：浏览器关闭即清除，同时最多保留最近几篇，避免占满配额。
+async function saveStudySource(sourceId, source) {
+  const stored = await chrome.storage.session.get(STUDY_SOURCE_INDEX_KEY);
+  const ids = (Array.isArray(stored[STUDY_SOURCE_INDEX_KEY]) ? stored[STUDY_SOURCE_INDEX_KEY] : [])
+    .filter((id) => id !== sourceId);
+  ids.push(sourceId);
+  const expired = ids.splice(0, Math.max(0, ids.length - MAX_STUDY_SOURCES));
+  await chrome.storage.session.set({
+    [`${STUDY_SOURCE_PREFIX}${sourceId}`]: source,
+    [STUDY_SOURCE_INDEX_KEY]: ids
+  });
+  if (expired.length > 0) {
+    await chrome.storage.session.remove(expired.map((id) => `${STUDY_SOURCE_PREFIX}${id}`));
+  }
+}
+
+async function loadStudySource(sourceId) {
+  const key = `${STUDY_SOURCE_PREFIX}${String(sourceId || "")}`;
+  const stored = await chrome.storage.session.get(key);
+  return stored[key] || null;
+}
+
+function handleStudyPort(port) {
+  let controller = null;
+  let connected = true;
+
+  port.onMessage.addListener((message) => {
+    if (message?.type === "cancel") {
+      controller?.abort();
+      return;
+    }
+    // ping 只用来在长时间生成时保持 service worker 活跃，不需要处理。
+    if (message?.type !== "start") return;
+
+    // 每个阅读页同时只跑一份课程，切换级别或重新生成时取消上一份，避免白白消耗 token。
+    controller?.abort();
+    const current = new AbortController();
+    controller = current;
+    streamStudyLessonToPort(port, message, current, () => connected).finally(() => {
+      if (controller === current) controller = null;
+    });
+  });
+
+  port.onDisconnect.addListener(() => {
+    connected = false;
+    controller?.abort();
+  });
+}
+
+async function streamStudyLessonToPort(port, message, controller, isConnected) {
+  const requestId = String(message.requestId || "");
+  const post = (payload) => {
+    if (!isConnected() || controller.signal.aborted) return;
+    try {
+      port.postMessage({ requestId, ...payload });
+    } catch (error) {
+      controller.abort();
+    }
+  };
+
+  let pending = "";
+  let flushTimer = null;
+  const flush = () => {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+    if (!pending) return;
+    post({ type: "delta", delta: pending });
+    pending = "";
+  };
+
+  try {
+    const source = await loadStudySource(message.sourceId);
+    if (!source) {
+      post({
+        type: "error",
+        code: "source-missing",
+        error: t("errorStudySourceExpired", [], "原网页内容已失效，请回到原网页重新打开学习模式。")
+      });
+      return;
+    }
+
+    const prepared = LLMStudyMode.prepareStudySource(source.text);
+    post({
+      type: "source",
+      title: source.title,
+      url: source.url,
+      source: source.source,
+      chars: source.text.length,
+      cut: prepared.cut
+    });
+
+    const baseSettings = await getSettings();
+    validateSettings(baseSettings);
+    const settings = withOpenCodeSession(baseSettings, message.sessionId);
+    const level = LLMStudyMode.normalizeStudyLevel(message.level);
+    const cacheKey = LLMStudyMode.createStudyCacheKey(settings, level, prepared.text, source.source);
+
+    if (message.refresh !== true) {
+      const cached = await readStudyCache(cacheKey, settings);
+      if (cached) {
+        post({ type: "cached", text: cached.text, savedAt: cached.savedAt });
+        return;
+      }
+    }
+
+    post({ type: "started" });
+    const messages = LLMStudyMode.buildStudyMessages({
+      title: source.title,
+      url: source.url,
+      text: prepared.text,
+      cut: prepared.cut,
+      source: source.source,
+      level,
+      targetLanguage: settings.targetLanguage
+    });
+    // 模型每次只吐出一两个 token，攒 80ms 再发，减少几千次跨进程消息。
+    const result = await requestStudyLesson(settings, messages, {
+      signal: controller.signal,
+      onDelta(delta) {
+        pending += delta;
+        if (!flushTimer) flushTimer = setTimeout(flush, STUDY_DELTA_FLUSH_MS);
+      }
+    });
+    flush();
+    if (controller.signal.aborted) return;
+
+    const finished = !result.repetition && result.finishReason !== "length";
+    if (finished && LLMStudyMode.isCompleteStudyOutput(result.text)) {
+      try {
+        await saveStudyCache(cacheKey, result.text, source);
+      } catch (error) {
+        console.warn("Failed to save study lesson cache:", error);
+      }
+    }
+    post({ type: "done", text: result.text, finishReason: result.finishReason, repetition: result.repetition });
+  } catch (error) {
+    clearTimeout(flushTimer);
+    if (controller.signal.aborted || error?.name === "AbortError") return;
+    post({ type: "error", error: error.message || String(error) });
+  }
+}
+
+async function requestStudyLesson(settings, messages, options = {}) {
+  const url = LLMTranslatorShared.normalizeChatCompletionsUrl(settings.apiUrl);
+  let useMaxTokens = true;
+  let useThinkingControl = true;
+  let stream = true;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const body = { model: settings.model, temperature: 0.2, stream, messages };
+    if (useMaxTokens) body.max_tokens = LLMStudyMode.STUDY_MAX_TOKENS;
+    if (useThinkingControl) applyThinkingControl(body, settings);
+
+    try {
+      return await sendStudyCompletion(url, settings, body, options);
+    } catch (error) {
+      const detail = String(error?.responseText || "");
+      const badRequest = error?.status === 400 || error?.status === 422;
+      // 有的服务商不接受这么大的 max_tokens、不认识 Thinking 字段或不支持流式：去掉对应参数重试，其他错误直接报出。
+      if (badRequest && useMaxTokens && /max_tokens|max_completion_tokens|maximum.{0,40}tokens|tokens.{0,40}(exceed|too large|limit)/i.test(detail)) {
+        useMaxTokens = false;
+        continue;
+      }
+      if (useThinkingControl && hasThinkingControl(body) && isUnsupportedThinkingControlError(error)) {
+        useThinkingControl = false;
+        continue;
+      }
+      if (stream && error?.streamUnsupported === true) {
+        stream = false;
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error(t("errorApiRequestGeneric", [], "API 请求失败。"));
+}
+
+async function sendStudyCompletion(url, settings, body, options = {}) {
+  const controller = new AbortController();
+  const idleMs = getApiTimeoutMs(settings);
+  let idleTimer = null;
+  let timedOut = false;
+  let repetition = false;
+  let finishReason = "";
+  let latestText = "";
+  let checkedLength = 0;
+  // 课程要连续生成几十秒，超时按“多久没收到新数据”计算，而不是限制总时长。
+  const touch = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, idleMs);
+  };
+  const abortFromCaller = () => controller.abort();
+  if (options.signal?.aborted) {
+    controller.abort();
+  } else {
+    options.signal?.addEventListener?.("abort", abortFromCaller, { once: true });
+  }
+  touch();
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: buildApiHeaders(settings),
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    await throwForPlainTranslationHttpError(response);
+    touch();
+
+    const contentType = String(response.headers?.get?.("content-type") || "").toLowerCase();
+    if (!body.stream || contentType.includes("application/json") || !response.body?.getReader) {
+      const data = await response.json();
+      const content = String(data?.choices?.[0]?.message?.content || "").trim();
+      if (!content) {
+        throw new Error(t("errorApiMissingContent", [], "API 返回中没有 choices[0].message.content。"));
+      }
+      options.onDelta?.(content);
+      return { text: content, finishReason: String(data?.choices?.[0]?.finish_reason || ""), repetition: false };
+    }
+
+    const text = await consumeChatCompletionStream(response, (delta, fullText) => {
+      touch();
+      latestText = fullText;
+      options.onDelta?.(delta);
+      if (fullText.length - checkedLength < 200) return;
+      checkedLength = fullText.length;
+      if (LLMStudyMode.hasRepetitionLoop(fullText)) {
+        repetition = true;
+        controller.abort();
+      }
+    }, (chunk) => {
+      // 思考模型先只发 reasoning 块，同样算作有数据，避免误判超时。
+      touch();
+      const reason = chunk?.choices?.[0]?.finish_reason;
+      if (reason) finishReason = String(reason);
+    });
+    return { text, finishReason, repetition: false };
+  } catch (error) {
+    if (repetition) {
+      return { text: LLMStudyMode.trimRepetitionLoop(latestText), finishReason: "repetition", repetition: true };
+    }
+    if (error?.name === "AbortError" && !options.signal?.aborted && timedOut) {
+      const seconds = String(Math.round(idleMs / 1000));
+      const timeoutError = new Error(t("errorApiTimeout", [seconds], `API 请求超时（${seconds} 秒）。`));
+      timeoutError.name = "TimeoutError";
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(idleTimer);
+    options.signal?.removeEventListener?.("abort", abortFromCaller);
+  }
+}
+
+async function readStudyCache(cacheKey, settings) {
+  const stored = await chrome.storage.local.get(cacheKey);
+  const value = stored[cacheKey];
+  if (LLMTranslatorShared.isTranslationCacheEntryFresh(value, settings)
+      && LLMStudyMode.isCompleteStudyOutput(value.text)) return value;
+  if (value) await chrome.storage.local.remove(cacheKey);
+  return null;
+}
+
+async function saveStudyCache(cacheKey, text, source) {
+  await chrome.storage.local.set({
+    [cacheKey]: { text, savedAt: Date.now(), title: source.title, url: source.url }
+  });
+
+  const all = await chrome.storage.local.get(null);
+  const entries = Object.entries(all)
+    .filter(([key, value]) => key.startsWith(LLMStudyMode.STUDY_CACHE_PREFIX) && value?.text)
+    .map(([key, value]) => ({ key, savedAt: Number(value.savedAt) || 0 }))
+    .sort((a, b) => a.savedAt - b.savedAt);
+  const removeKeys = entries.slice(0, Math.max(0, entries.length - MAX_STUDY_CACHE_ENTRIES)).map((entry) => entry.key);
+  if (removeKeys.length > 0) {
+    await chrome.storage.local.remove(removeKeys);
   }
 }
 
@@ -394,6 +783,11 @@ async function setupContextMenus() {
     title: t("contextTranslateSelection", [], "翻译选中文本"),
     contexts: ["selection"]
   });
+  await createContextMenu({
+    id: CONTEXT_MENU_STUDY_MODE,
+    title: t("contextStudyMode", [], "用 AI 学习模式阅读"),
+    contexts: ["page", "selection"]
+  });
 }
 
 function removeAllContextMenus() {
@@ -453,6 +847,16 @@ async function handleContextMenuClick(info, tab) {
 
   if (info.menuItemId === CONTEXT_MENU_TRANSLATE_SELECTION) {
     await translateSelection(tab, info.selectionText || "");
+    return;
+  }
+
+  if (info.menuItemId === CONTEXT_MENU_STUDY_MODE) {
+    const response = await openStudyMode(tab, info.selectionText
+      ? { minSelectionChars: LLMStudyMode.STUDY_MIN_CONTEXT_SELECTION_CHARS }
+      : {});
+    if (!response.ok) {
+      await showPageNotice(tab, response.error || t("errorStudyCaptureFailed", [], "无法读取当前页面的文字。"), true);
+    }
   }
 }
 
@@ -1352,7 +1756,7 @@ async function throwForPlainTranslationHttpError(response) {
   throw error;
 }
 
-async function consumeChatCompletionStream(response, onDelta) {
+async function consumeChatCompletionStream(response, onDelta, onChunk) {
   const reader = response.body?.getReader?.();
   if (!reader) {
     throw new Error(t("errorApiMissingContent", [], "API 没有返回可读取的流式内容。"));
@@ -1382,6 +1786,7 @@ async function consumeChatCompletionStream(response, onDelta) {
     } catch (error) {
       return;
     }
+    onChunk?.(data);
     const delta = data?.choices?.[0]?.delta?.content;
     if (typeof delta !== "string" || delta.length === 0) return;
     translatedText += delta;

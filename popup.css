@@ -43,7 +43,7 @@ body {
 
 main {
   position: relative;
-  padding: 16px;
+  padding: 14px 16px 12px;
   overflow-x: hidden;
 }
 
@@ -52,7 +52,7 @@ main {
   grid-template-columns: 38px minmax(0, 1fr) auto;
   gap: 11px;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .brand-bar > div {
@@ -154,14 +154,14 @@ p {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .summary-panel div {
   position: relative;
   min-width: 0;
-  min-height: 54px;
-  padding: 10px 11px;
+  min-height: 50px;
+  padding: 8px 11px;
   overflow: hidden;
   border: 1px solid rgba(201, 214, 230, 0.86);
   border-radius: 12px;
@@ -182,7 +182,7 @@ p {
 
 .summary-panel .summary-wide {
   grid-column: 1 / -1;
-  min-height: 48px;
+  min-height: 44px;
 }
 
 .summary-panel span,
@@ -221,9 +221,9 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 50px;
+  min-height: 46px;
   margin-bottom: 8px;
-  padding: 10px 11px;
+  padding: 8px 11px;
 }
 
 .switch-row > span {
@@ -294,8 +294,8 @@ p {
   grid-template-columns: minmax(70px, auto) minmax(0, 1fr);
   gap: 10px;
   align-items: center;
-  margin-bottom: 10px;
-  padding: 8px 9px 8px 11px;
+  margin-bottom: 8px;
+  padding: 6px 9px 6px 11px;
 }
 
 .mode-panel > span {
@@ -341,8 +341,8 @@ p {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 5px;
-  margin-bottom: 9px;
-  padding: 7px;
+  margin-bottom: 8px;
+  padding: 6px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.66);
@@ -379,8 +379,8 @@ p {
 
 .action-hint {
   min-height: 0;
-  margin: 0 0 10px;
-  padding: 9px 11px;
+  margin: 0 0 8px;
+  padding: 8px 11px;
   border: 1px solid rgba(23, 105, 224, 0.12);
   border-radius: 10px;
   background: rgba(237, 245, 255, 0.86);
@@ -393,7 +393,7 @@ p {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 
 button {
@@ -446,6 +446,26 @@ button.danger {
   border-color: rgba(180, 35, 24, 0.14);
   background: #fff2f0;
   color: var(--danger);
+}
+
+/* 弹窗高度已接近 Chrome 的 600px 上限，学习模式入口和设置链接并排放，不再单独占一行。 */
+.footer-row {
+  margin-bottom: 0;
+}
+
+.footer-row button.link {
+  margin-top: 0;
+}
+
+button.study {
+  border: 1px solid rgba(15, 143, 131, 0.28);
+  background: rgba(15, 143, 131, 0.08);
+  color: #0b6f66;
+  box-shadow: none;
+}
+
+button.study:hover:not(:disabled) {
+  box-shadow: 0 6px 14px rgba(15, 143, 131, 0.14);
 }
 
 button.link {
@@ -577,6 +597,12 @@ button.link:hover:not(:disabled) {
     border-color: rgba(255, 170, 163, 0.16);
     background: rgba(127, 29, 29, 0.3);
     color: #ffc4bf;
+  }
+
+  button.study {
+    border-color: rgba(88, 210, 197, 0.26);
+    background: rgba(15, 143, 131, 0.16);
+    color: #8be3d8;
   }
 }
 
