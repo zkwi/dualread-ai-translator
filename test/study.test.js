@@ -88,6 +88,7 @@ function testParseOutputSectionsAndFlags() {
   assert.strictEqual(study.isCompleteStudyOutput(LESSON.replace("@@END", "")), false, "没有结束标记的半成品不能当作完整课程");
   assert.strictEqual(study.isCompleteStudyOutput(LESSON.replace("¶3 官员表示，图书馆将开设课程并提供免费上网服务。", "")), false, "漏译一段时不能缓存");
   assert.strictEqual(study.isCompleteStudyOutput(LESSON.replace("¶3 官员表示", "¶4 官员表示")), false, "正文和译文段号必须逐段对应");
+  assert.strictEqual(study.isCompleteStudyOutput(LESSON.replaceAll("¶3 ", "¶2 ")), false, "两边都重复段号时也不能缓存，否则段落对照会串段");
   assert.strictEqual(study.isCompleteStudyOutput(LESSON.replace("@@END", "@@TRUNCATED\n@@END")), true, "原文截断后生成的课程仍可完整结束");
 
   const streaming = study.parseStudyOutput("@@TITLE\nCity\n@@ARTICLE\n¶1 First paragraph.\n@@VOC", false);

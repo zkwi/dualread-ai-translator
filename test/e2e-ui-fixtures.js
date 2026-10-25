@@ -405,7 +405,7 @@ async function testReaderPrintsLesson(browser) {
 }
 
 async function testReaderLayoutDoesNotOverflow(browser) {
-  for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 }]) {
+  for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 }, { width: 320, height: 720 }]) {
     for (const uiLanguage of ["auto", "en", "ja"]) {
       const page = await createReaderPage(browser, {
         viewport,

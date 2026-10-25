@@ -715,9 +715,20 @@ strong.key {
   }
 
   .toolbar-actions {
+    flex-wrap: wrap;
     justify-content: space-between;
     width: 100%;
     margin-left: 0;
+  }
+
+  .toolbar-actions .toggle {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .toolbar-actions .action {
+    margin-left: auto;
   }
 
   .level-tabs {
