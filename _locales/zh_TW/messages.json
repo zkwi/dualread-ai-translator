@@ -807,13 +807,13 @@
     "message": "關鍵句"
   },
   "studyLegendKeyHint": {
-    "message": "粗體 + 藍色底線"
+    "message": "細底線"
   },
   "studyLegendTerm": {
     "message": "重點詞彙"
   },
   "studyLegendTermHint": {
-    "message": "粗體 + 黃色底，點一下看釋義"
+    "message": "淡色標記，點一下看釋義"
   },
   "studyLevelAria": {
     "message": "英語程度"

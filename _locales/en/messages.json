@@ -807,13 +807,13 @@
     "message": "Key sentences"
   },
   "studyLegendKeyHint": {
-    "message": "bold with a blue band"
+    "message": "a fine underline"
   },
   "studyLegendTerm": {
     "message": "Key words"
   },
   "studyLegendTermHint": {
-    "message": "bold on yellow, click for the meaning"
+    "message": "soft highlight, click for the meaning"
   },
   "studyLevelAria": {
     "message": "English level"

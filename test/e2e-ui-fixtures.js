@@ -95,6 +95,8 @@ async function runStudyReaderTests(browser) {
   await testReaderStreamsLessonWithHighlights(browser);
   await testReaderKeepsSelectionWhileNotesStream(browser);
   await testReaderBilingualToggleAndVocabularyPopover(browser);
+  await testReaderPopoverFitsViewport(browser);
+  await testReaderChapterLinksClearToolbar(browser);
   await testReaderLevelSwitchCancelsAndRestarts(browser);
   await testReaderShowsBlockingStates(browser);
   await testReaderStopAndNotices(browser);
@@ -246,8 +248,46 @@ async function testReaderBilingualToggleAndVocabularyPopover(browser) {
   await page.focus("#article mark.term[data-vocab='0']");
   await page.keyboard.press("Enter");
   await page.waitForFunction(() => document.getElementById("popover").hidden === false);
+  assert.strictEqual(await page.locator("#popover [data-close-popover]").evaluate((button) => button === document.activeElement), true);
+  assert.strictEqual(await page.locator("#article mark.term[data-vocab='0']").getAttribute("aria-expanded"), "true");
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.getElementById("popover").hidden === true);
+  assert.strictEqual(await page.locator("#article mark.term[data-vocab='0']").evaluate((mark) => mark === document.activeElement), true);
+  assert.strictEqual(await page.locator("#article mark.term[data-vocab='0']").getAttribute("aria-expanded"), "false");
+  await page.close();
+}
+
+async function testReaderPopoverFitsViewport(browser) {
+  for (const viewport of [{ width: 1000, height: 420 }, { width: 320, height: 480 }]) {
+    const page = await createReaderPage(browser, { viewport });
+    const lesson = STUDY_LESSON.replace("v. 发起运动；争取", `v. 发起运动；争取 ${"A longer explanation that stays readable on a small screen. ".repeat(40)}`);
+    await finishReaderLesson(page, lesson);
+    const mark = page.locator("#article mark.term[data-vocab='1']");
+    await mark.click();
+    const box = await page.locator("#popover").boundingBox();
+    assert.ok(box.x >= 8 && box.x + box.width <= viewport.width - 8);
+    assert.ok(box.y >= 8 && box.y + box.height <= viewport.height - 8, `popover must fit the viewport: ${JSON.stringify(box)}`);
+    assert.strictEqual(await page.locator("#popover").evaluate((node) => node.scrollHeight > node.clientHeight), true, "长释义应在弹层内滚动");
+    await page.click("#popover [data-close-popover]");
+    assert.strictEqual(await page.locator("#popover").isVisible(), false);
+    assert.strictEqual(await mark.evaluate((node) => node === document.activeElement), true);
+    await mark.click();
+    await mark.click();
+    assert.strictEqual(await page.locator("#popover").isVisible(), false, "再次点击词汇可收起释义");
+    await page.close();
+  }
+}
+
+async function testReaderChapterLinksClearToolbar(browser) {
+  const page = await createReaderPage(browser, { viewport: { width: 320, height: 720 } });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await finishReaderLesson(page, STUDY_LESSON);
+  await page.locator("#studyNav a[href='#study-GRAMMAR']").click();
+  const bounds = await page.evaluate(() => ({
+    heading: document.getElementById("study-GRAMMAR").getBoundingClientRect().top,
+    toolbar: document.querySelector(".toolbar").getBoundingClientRect().bottom
+  }));
+  assert.ok(bounds.heading >= bounds.toolbar, `章节标题不能被固定工具栏挡住：${JSON.stringify(bounds)}`);
   await page.close();
 }
 
@@ -394,12 +434,12 @@ async function testReaderPrintsLesson(browser) {
       background: getComputedStyle(document.body).backgroundColor,
       termBackground: term.backgroundColor,
       printColorAdjust: term.printColorAdjust,
-      hasKeyHighlight: getComputedStyle(document.querySelector("#article strong.key")).backgroundImage !== "none",
+      hasKeyHighlight: getComputedStyle(document.querySelector("#article strong.key")).textDecorationLine.includes("underline"),
       termOutline: getComputedStyle(document.querySelector("#article mark.term.active")).outlineStyle,
       termShadow: getComputedStyle(document.querySelector("#article mark.term.active")).boxShadow,
       sectionBreak: getComputedStyle(document.querySelector(".study h2")).breakAfter
     };
-  }), { background: "rgb(255, 255, 255)", termBackground: "rgb(255, 226, 122)", printColorAdjust: "exact", hasKeyHighlight: true, termOutline: "none", termShadow: "none", sectionBreak: "avoid" });
+  }), { background: "rgb(255, 255, 255)", termBackground: "rgb(242, 234, 216)", printColorAdjust: "exact", hasKeyHighlight: true, termOutline: "none", termShadow: "none", sectionBreak: "avoid" });
   assert.strictEqual(await page.locator("#article .zh").count(), 4);
   await page.close();
 }

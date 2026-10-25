@@ -807,13 +807,13 @@
     "message": "重要文"
   },
   "studyLegendKeyHint": {
-    "message": "太字＋青いライン"
+    "message": "細い下線"
   },
   "studyLegendTerm": {
     "message": "重要語句"
   },
   "studyLegendTermHint": {
-    "message": "太字＋黄背景、クリックで意味を表示"
+    "message": "淡い色のマーク、クリックで意味を表示"
   },
   "studyLevelAria": {
     "message": "英語レベル"

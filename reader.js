@@ -115,7 +115,18 @@ function bindEvents() {
   elements.stateRetry.addEventListener("click", () => start());
   elements.stateSettings.addEventListener("click", openSettings);
 
+  // 手机工具栏会随语言和宽度换行，按实际高度为章节跳转留出空间。
+  const toolbar = document.querySelector(".toolbar");
+  const syncToolbarHeight = () => document.documentElement.style.setProperty("--toolbar-height", `${Math.ceil(toolbar.getBoundingClientRect().height)}px`);
+  new ResizeObserver(syncToolbarHeight).observe(toolbar);
+  syncToolbarHeight();
+  window.addEventListener("resize", () => hidePopover());
+
   document.addEventListener("click", (event) => {
+    if (event.target.closest("[data-close-popover]")) {
+      hidePopover({ restoreFocus: true });
+      return;
+    }
     const settingsButton = event.target.closest("[data-open-settings]");
     if (settingsButton) {
       openSettings();
@@ -128,7 +139,8 @@ function bindEvents() {
     }
     const mark = event.target.closest("#article mark.term[data-vocab]");
     if (mark) {
-      showPopover(mark);
+      if (mark.classList.contains("active")) hidePopover();
+      else showPopover(mark);
       return;
     }
     if (!event.target.closest("#popover")) hidePopover();
@@ -136,12 +148,12 @@ function bindEvents() {
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      hidePopover();
+      hidePopover({ restoreFocus: true });
       return;
     }
     if ((event.key === "Enter" || event.key === " ") && event.target.matches?.("mark.term[data-vocab]")) {
       event.preventDefault();
-      showPopover(event.target);
+      showPopover(event.target, { focus: true });
     }
   });
 }
@@ -511,7 +523,7 @@ function renderHighlightedText(text, ranges) {
     inKey = key;
     const segment = escapeHtml(text.slice(start, end));
     html += term
-      ? `<mark class="term" tabindex="0" role="button" data-vocab="${term.index}">${segment}</mark>`
+      ? `<mark class="term" tabindex="0" role="button" aria-controls="popover" aria-expanded="false" data-vocab="${term.index}">${segment}</mark>`
       : segment;
   }
   if (inKey) html += "</strong>";
@@ -742,26 +754,37 @@ function isThinkingControlPending(settings) {
   return !detectionKey || settings.thinkingStrategyDetectionKey !== detectionKey;
 }
 
-function showPopover(mark) {
+function showPopover(mark, options = {}) {
   const index = Number(mark.dataset.vocab);
   const item = state.vocab[index];
   if (!item) return;
   hidePopover();
   const popover = elements.popover;
-  popover.innerHTML = renderVocabCard(item, index, true);
+  popover.innerHTML = `<button type="button" class="popover-close" data-close-popover aria-label="${escapeHtml(t("close", [], "关闭"))}">×</button>`
+    + renderVocabCard(item, index, true);
   popover.hidden = false;
   mark.classList.add("active");
+  mark.setAttribute("aria-expanded", "true");
+  if (options.focus) popover.querySelector("[data-close-popover]").focus({ preventScroll: true });
   if (window.matchMedia("(max-width: 720px)").matches) return;
   const rect = mark.getBoundingClientRect();
   const width = popover.offsetWidth;
   const maxLeft = window.scrollX + document.documentElement.clientWidth - width - 16;
   popover.style.left = `${Math.max(16, Math.min(rect.left + window.scrollX, maxLeft))}px`;
-  popover.style.top = `${rect.bottom + window.scrollY + 8}px`;
+  const height = popover.offsetHeight;
+  const below = rect.bottom + 8;
+  const preferredTop = below + height <= window.innerHeight - 16 ? below : rect.top - height - 8;
+  popover.style.top = `${window.scrollY + Math.max(16, Math.min(preferredTop, window.innerHeight - height - 16))}px`;
 }
 
-function hidePopover() {
+function hidePopover(options = {}) {
   elements.popover.hidden = true;
-  document.querySelectorAll("mark.term.active").forEach((mark) => mark.classList.remove("active"));
+  const active = document.querySelector("mark.term.active");
+  document.querySelectorAll("mark.term.active").forEach((mark) => {
+    mark.classList.remove("active");
+    mark.setAttribute("aria-expanded", "false");
+  });
+  if (options.restoreFocus) active?.focus({ preventScroll: true });
 }
 
 function showVocabCard(index) {

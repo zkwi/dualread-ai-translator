@@ -1,22 +1,22 @@
 :root {
   color-scheme: light;
-  --ink: #10233f;
+  --ink: #253247;
   --muted: #66768c;
-  --line: #dce5f0;
+  --line: #e1e4e2;
   --line-strong: #c7d4e4;
   --surface: #ffffff;
   --surface-soft: #f6f9fc;
   --surface-tint: #edf5ff;
-  --canvas: #edf2f8;
+  --canvas: #f5f5f2;
   --accent: #1769e0;
   --accent-strong: #0f55bd;
   --warning: #b45309;
   --danger: #b42318;
-  --term-bg: #ffe27a;
-  --term-ink: #3a2a00;
-  --key-bg: #c4dbff;
+  --term-bg: #f2ead8;
+  --term-ink: #55452d;
+  --key-line: #9eb8ae;
   --zh-ink: #3b4b61;
-  --shadow-soft: 0 8px 26px rgba(28, 49, 77, 0.07);
+  --shadow-soft: 0 4px 18px rgba(25, 34, 40, 0.035);
   --font-ui: "Aptos", "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
   --font-read: "Iowan Old Style", "Charter", Georgia, "Times New Roman", "Microsoft YaHei", "PingFang SC", serif;
 }
@@ -36,9 +36,9 @@
     --accent-strong: #8dc0ff;
     --warning: #fdba74;
     --danger: #ffaaa3;
-    --term-bg: rgba(250, 204, 21, 0.3);
-    --term-ink: #fff3bf;
-    --key-bg: rgba(93, 163, 255, 0.4);
+    --term-bg: #39352c;
+    --term-ink: #eddbb8;
+    --key-line: #7d9f98;
     --zh-ink: #b9c7d9;
     --shadow-soft: 0 8px 26px rgba(0, 0, 0, 0.22);
   }
@@ -52,7 +52,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 84px;
+  scroll-padding-top: calc(var(--toolbar-height, 64px) + 20px);
 }
 
 body {
@@ -298,11 +298,10 @@ main {
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  gap: 8px 24px;
   margin: 16px 0 22px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: var(--surface-soft);
+  padding: 12px 0;
+  border-block: 1px solid var(--line);
   color: var(--muted);
   font-size: 13px;
 }
@@ -382,8 +381,8 @@ main {
 }
 
 mark.term {
-  padding: 0.04em 0.16em;
-  border-radius: 4px;
+  padding: 0.02em 0.12em;
+  border-radius: 3px;
   background: var(--term-bg);
   color: var(--term-ink);
   font-weight: 700;
@@ -396,12 +395,14 @@ mark.term.active {
   box-shadow: 0 0 0 2px var(--accent);
 }
 
-/* 新闻导语常常一句就是一段，整段铺满底色会很压抑：关键句用加粗加底部色带，和词汇的整块黄底区分开。 */
+/* 关键句常常占满整段：用细线强调，保留正常字重，让词汇高亮成为第一视觉层级。 */
 strong.key {
-  background: linear-gradient(transparent 60%, var(--key-bg) 60%);
-  font-weight: 650;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
+  font-weight: 500;
+  text-decoration-line: underline;
+  text-decoration-color: var(--key-line);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+  text-decoration-skip-ink: auto;
 }
 
 .article-body .zh {
@@ -670,6 +671,9 @@ strong.key {
   position: absolute;
   z-index: 30;
   width: min(360px, calc(100vw - 32px));
+  max-height: min(400px, calc(100dvh - 32px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 12px 14px;
   border: 1px solid var(--line-strong);
   border-radius: 12px;
@@ -683,6 +687,10 @@ strong.key {
   font-size: 14px;
 }
 
+.popover .vocab-head {
+  padding-right: 24px;
+}
+
 .popover button {
   margin-top: 8px;
   padding: 0;
@@ -691,6 +699,31 @@ strong.key {
   color: var(--accent);
   font-size: 13px;
   cursor: pointer;
+}
+
+.popover .popover-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 21px;
+  line-height: 1;
+}
+
+.popover .popover-close:hover {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.popover button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -805,9 +838,9 @@ strong.key {
     --accent-strong: #0f55bd;
     --warning: #b45309;
     --danger: #b42318;
-    --term-bg: #ffe27a;
-    --term-ink: #3a2a00;
-    --key-bg: #c4dbff;
+    --term-bg: #f2ead8;
+    --term-ink: #55452d;
+    --key-line: #778e86;
     --zh-ink: #2f3e52;
   }
 

@@ -807,13 +807,13 @@
     "message": "关键句"
   },
   "studyLegendKeyHint": {
-    "message": "加粗 + 蓝色底线"
+    "message": "细下划线"
   },
   "studyLegendTerm": {
     "message": "重点词汇"
   },
   "studyLegendTermHint": {
-    "message": "加粗 + 黄色底，点击看释义"
+    "message": "浅色标记，点击看释义"
   },
   "studyLevelAria": {
     "message": "英语级别"
