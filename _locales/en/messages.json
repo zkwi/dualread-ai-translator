@@ -822,7 +822,7 @@
     "message": "soft highlight with a short gloss, click for details"
   },
   "studyLegendTranslateHint": {
-    "message": "click a paragraph for its translation"
+    "message": "click the button at the end of a paragraph for its translation"
   },
   "studyLevelAria": {
     "message": "English level"

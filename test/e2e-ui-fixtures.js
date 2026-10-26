@@ -25,6 +25,11 @@ async function main() {
       await testOptionsApiFallbackExplainsNonStreaming(browser);
       return;
     }
+    if (process.env.TEST_FILTER === "settings-races") {
+      await testOptionsIgnoresStaleApiTestResults(browser);
+      await testOptionsApiTestFollowsCurrentUiLanguage(browser);
+      return;
+    }
     if (process.env.TEST_FILTER === "study") {
       await runStudyReaderTests(browser);
       return;
@@ -51,6 +56,8 @@ async function main() {
     await testPopupDisplayModeToggleSavesAndApplies(browser);
     await testPopupExplainsUnsupportedPages(browser);
     await testOptionsDisablesTestButtonWhilePending(browser);
+    await testOptionsIgnoresStaleApiTestResults(browser);
+    await testOptionsApiTestFollowsCurrentUiLanguage(browser);
     await testOptionsActionsKeepTestApiPrimary(browser);
     await testUiDefinesKeyboardFocusStyles(browser);
     await testOptionsSetupStatusGuidesConnection(browser);
@@ -95,6 +102,7 @@ async function runStudyReaderTests(browser) {
   await testReaderStreamsLessonWithHighlights(browser);
   await testReaderKeepsSelectionWhileNotesStream(browser);
   await testReaderParagraphTranslationAndVocabularyPopover(browser);
+  await testReaderParagraphTranslationAndVocabularyPopover(browser, { width: 390, height: 844 });
   await testReaderPopoverFitsViewport(browser);
   await testReaderChapterLinksClearToolbar(browser);
   await testReaderLevelSwitchCancelsAndRestarts(browser);
@@ -235,20 +243,33 @@ async function testReaderKeepsSelectionWhileNotesStream(browser) {
   await page.close();
 }
 
-async function testReaderParagraphTranslationAndVocabularyPopover(browser) {
-  const page = await createReaderPage(browser);
+async function testReaderParagraphTranslationAndVocabularyPopover(browser, viewport) {
+  const page = await createReaderPage(browser, { viewport });
   await finishReaderLesson(page, STUDY_LESSON);
 
   await page.click("#p-2", { position: { x: 6, y: 12 } });
-  await page.waitForFunction(() => document.getElementById("zh-2").hidden === false);
+  await page.waitForTimeout(400);
+  assert.strictEqual(await page.locator("#zh-2").isVisible(), false, "点击原文不能展开译文");
+  assert.strictEqual(await page.locator("#article [data-tr='2']").getAttribute("aria-expanded"), "false");
+  await page.click("#p-1 strong.key", { position: { x: 6, y: 12 } });
+  await page.locator("#article .gloss").first().click();
+  await page.waitForTimeout(400);
+  assert.strictEqual(await page.locator("#article .zh:visible").count(), 0, "点击关键句或词义旁注不能展开译文");
+
+  await page.click("#article [data-tr='2']");
   assert.strictEqual(await page.locator("#zh-2").textContent(), "居民们自 2019 年起就为这个项目奔走，称旧馆已经破败不堪。");
   assert.strictEqual(await page.locator("#article [data-tr='2']").getAttribute("aria-expanded"), "true");
-  assert.strictEqual(await page.locator("#article .zh:visible").count(), 1, "只展开点击的那一段");
+  assert.strictEqual(await page.locator("#article .zh:visible").count(), 1, "只展开点击「译」按钮的那一段");
+  await page.click("#p-2", { position: { x: 6, y: 12 } });
+  await page.waitForTimeout(400);
+  assert.strictEqual(await page.locator("#zh-2").isVisible(), true, "点击原文也不能收起已展开的译文");
   await page.click("#article [data-tr='2']");
   assert.strictEqual(await page.locator("#zh-2").isVisible(), false, "再点「译」收起");
   await page.focus("#article [data-tr='1']");
   await page.keyboard.press("Enter");
   assert.strictEqual(await page.locator("#zh-1").isVisible(), true, "键盘也能展开译文");
+  await page.keyboard.press("Space");
+  assert.strictEqual(await page.locator("#zh-1").isVisible(), false, "空格键也能收起译文");
   await page.dblclick("#p-3", { position: { x: 6, y: 12 } });
   await page.waitForTimeout(400);
   assert.strictEqual(await page.locator("#zh-3").isVisible(), false, "双击选词时不切换译文");
@@ -348,9 +369,18 @@ async function testReaderLevelSwitchCancelsAndRestarts(browser) {
   assert.strictEqual(await page.locator(".vocab-card").count(), 0, "旧请求的结果不能覆盖新级别");
 
   await finishReaderLesson(page, STUDY_LESSON, { skipStart: true });
+  await page.click("#article [data-tr='1']");
+  await page.click("#translationToggle");
   await page.click("#actionButton");
   await page.waitForFunction(() => window.__portMessages.filter((message) => message.type === "start").length === 3);
   assert.strictEqual(await page.evaluate(() => window.__portMessages.at(-1).refresh), true, "重新生成要跳过缓存");
+  await finishReaderLesson(page, STUDY_LESSON, { skipStart: true });
+  assert.strictEqual(await page.locator("#article .zh:visible").count(), 0, "重新生成后段落译文应收起");
+  assert.strictEqual(await page.locator("#translationBody").isVisible(), false, "重新生成后全文翻译应收起");
+  await page.click("#translationToggle");
+  await page.click("[data-level='cet4']");
+  await finishReaderLesson(page, STUDY_LESSON, { skipStart: true });
+  assert.strictEqual(await page.locator("#translationBody").isVisible(), false, "切换级别后全文翻译应收起");
   await page.close();
 }
 
@@ -1673,6 +1703,40 @@ async function testOptionsDisablesTestButtonWhilePending(browser) {
   await page.close();
 }
 
+async function testOptionsIgnoresStaleApiTestResults(browser) {
+  for (const response of [{ ok: true, text: "旧连接译文", detectedThinkingStrategy: "omit", thinkingStrategyDetectionKey: "old-connection" }, { ok: false, error: "旧连接失败" }, null]) {
+    const page = await createOptionsPage(browser);
+    await page.fill("#apiKey", "first-key");
+    await page.click("#test");
+    await page.waitForFunction(() => window.__runtimeMessages.some((message) => message.action === "test_api"));
+    await page.fill("#model", "new-model");
+    await page.evaluate((result) => {
+      if (result) window.__resolveTestApi(result);
+      else window.__rejectTestApi(new Error("旧连接网络失败"));
+    }, response);
+    await page.waitForFunction(() => document.getElementById("test").disabled === false);
+    assert.strictEqual(await page.locator("#setupStatus").evaluate((node) => node.classList.contains("is-ready")), true, "旧连接的结果不能更改新连接的测试状态");
+    assert.doesNotMatch(await page.locator("#message").textContent(), /旧连接/);
+    assert.strictEqual(await page.evaluate(() => window.__setCalls.some((update) => update.thinkingStrategyDetectionKey === "old-connection")), false, "不能保存过期的 Thinking 探测结果");
+    await page.waitForFunction(() => window.__lastSavedSettings?.model === "new-model");
+    await page.close();
+  }
+}
+
+async function testOptionsApiTestFollowsCurrentUiLanguage(browser) {
+  const page = await createOptionsPage(browser);
+  await page.fill("#apiKey", "test-key");
+  await page.click("#test");
+  await page.waitForFunction(() => window.__runtimeMessages.some((message) => message.action === "test_api"));
+  await page.click("#advancedSettings summary");
+  await page.selectOption("#uiLanguage", "en");
+  await page.waitForFunction(() => document.querySelector("[data-i18n='optionsTitle']").textContent === "DualRead AI Settings");
+  await page.evaluate(() => window.__resolveTestApi({ ok: true, text: "Hello" }));
+  await page.waitForFunction(() => document.getElementById("test").disabled === false);
+  assert.strictEqual(await page.locator("#test").textContent(), "Test API", "测试结束后按钮应使用当前界面语言");
+  await page.close();
+}
+
 async function testOptionsActionsKeepTestApiPrimary(browser) {
   const page = await createOptionsPage(browser);
 
@@ -1930,12 +1994,14 @@ async function createOptionsPage(browser, options = {}) {
       return nativeFetch(url, fetchOptions);
     };
     let resolveTestApi;
+    let rejectTestApi;
     window.__events = [];
     window.__setCalls = [];
     window.__runtimeMessages = [];
     window.__confirmCalls = [];
     window.__confirmResult = true;
     window.__resolveTestApi = (response) => resolveTestApi(response);
+    window.__rejectTestApi = (error) => rejectTestApi(error);
     window.confirm = (message) => {
       window.__confirmCalls.push(message);
       return window.__confirmResult;
@@ -1966,8 +2032,9 @@ async function createOptionsPage(browser, options = {}) {
           }
           if (request.action === "test_api") {
             window.__events.push("test_api");
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
               resolveTestApi = resolve;
+              rejectTestApi = reject;
             });
           }
           return { ok: true, count: 0 };

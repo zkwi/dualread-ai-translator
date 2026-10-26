@@ -822,7 +822,7 @@
     "message": "淡い色のマークと短い語注、クリックで詳しく表示"
   },
   "studyLegendTranslateHint": {
-    "message": "段落をクリックすると訳文を表示"
+    "message": "段落末尾のボタンをクリックすると訳文を表示"
   },
   "studyLevelAria": {
     "message": "英語レベル"

@@ -253,6 +253,8 @@ async function streamTranslationToPort(port, message, controller, isConnected) {
     }
 
     const cachedResults = await getCachedResults(settings, [item]);
+    // 读设置和缓存期间可能已经收到取消，不再发起新的付费请求。
+    if (controller.signal.aborted) return;
     const cached = cachedResults.get(item.id);
     if (cached?.text) {
       post({ type: "cached", id: item.id, text: cached.text });
@@ -1490,16 +1492,12 @@ async function testApi(settings) {
         detectedThinkingStrategy: "",
         thinkingStrategyDetectionKey: ""
       }, "Hello world.", { stream: true });
-      const detectedResult = {
+      // 设置页确认连接仍是本次测试的配置后再保存，后台不写入可能已经过期的探测结果。
+      return {
         ...createApiTestResult(result),
         detectedThinkingStrategy: strategy,
         thinkingStrategyDetectionKey: detectionKey
       };
-      await chrome.storage.local.set({
-        detectedThinkingStrategy: strategy,
-        thinkingStrategyDetectionKey: detectionKey
-      });
-      return detectedResult;
     } catch (error) {
       if (!isUnsupportedThinkingControlError(error)) throw error;
     }
@@ -1698,7 +1696,11 @@ async function requestPlainTranslation(settings, text, options = {}) {
   const timeoutMs = getApiTimeoutMs(settings);
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const abortFromCaller = () => controller.abort();
-  options.signal?.addEventListener?.("abort", abortFromCaller, { once: true });
+  if (options.signal?.aborted) {
+    controller.abort();
+  } else {
+    options.signal?.addEventListener?.("abort", abortFromCaller, { once: true });
+  }
 
   try {
     const response = await fetch(url, {

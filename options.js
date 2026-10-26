@@ -60,6 +60,7 @@ let hasLoadedSettings = false;
 let apiTestPassed = false;
 let apiTestError = "";
 let apiTestRunning = false;
+let connectionRevision = 0;
 let detectedThinkingStrategy = "";
 let thinkingStrategyDetectionKey = "";
 
@@ -295,7 +296,8 @@ function clearPendingAutoSave() {
 }
 
 async function testApi() {
-  const originalText = actionButtons.test.textContent;
+  if (optionActionRunning) return;
+  const testRevision = connectionRevision;
   actionButtons.test.textContent = t("optionsTesting", [], "测试中...");
 
   try {
@@ -317,11 +319,17 @@ async function testApi() {
       updateSetupStatus();
       showMessage(t("messageTestingApi", [], "正在测试 API..."), false, "testing");
       await chrome.storage.local.set(settings);
+      if (testRevision !== connectionRevision) return;
 
       const response = await chrome.runtime.sendMessage({
         action: "test_api",
         settings
+      }).catch((error) => {
+        // 测试期间允许继续编辑连接；旧连接的失败也不能覆盖新配置的状态。
+        if (testRevision === connectionRevision) throw error;
+        return null;
       });
+      if (testRevision !== connectionRevision) return;
 
       if (!response.ok) {
         apiTestRunning = false;
@@ -339,6 +347,7 @@ async function testApi() {
           detectedThinkingStrategy,
           thinkingStrategyDetectionKey
         });
+        if (testRevision !== connectionRevision) return;
         updateHelperText();
       }
 
@@ -352,7 +361,7 @@ async function testApi() {
         : t("messageApiTestSuccess", [compactText], `API 可用，测试译文：${compactText}`));
     });
   } finally {
-    actionButtons.test.textContent = originalText || t("optionsTestApi", [], "测试 API");
+    actionButtons.test.textContent = t("optionsTestApi", [], "测试 API");
   }
 }
 
@@ -462,6 +471,7 @@ function updateApiKeyToggleText() {
 }
 
 function markApiTestDirty() {
+  connectionRevision += 1;
   apiTestRunning = false;
   apiTestPassed = false;
   apiTestError = "";

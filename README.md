@@ -26,7 +26,7 @@ It is designed as a lightweight OpenAI-compatible web translator: bring your own
 - **Responsive reading styles**: adapt spacing for compact cards, mobile screens, and long articles while respecting RTL and vertical writing modes.
 - **Auto translate with language skip**: translate foreign-language pages automatically and skip pages already dominated by the target language.
 - **Right-click translation**: translate the current webpage or selected text from the context menu.
-- **AI study mode**: open an English page as a clean lesson for your level (CET-4, CET-6, B2, or C1), with soft vocabulary highlights and short in-line glosses, underlined key sentences, and a translation for any paragraph you click, plus a word list and brief grammar, long-sentence, and outline notes.
+- **AI study mode**: open an English page as a clean lesson for your level (CET-4, CET-6, B2, or C1), with soft vocabulary highlights and short in-line glosses, underlined key sentences, and paragraph translations available through each paragraph's **Tr** button, plus a word list and brief grammar, long-sentence, and outline notes.
 - **Responsive and cost-aware**: plain-text streaming per paragraph, small concurrency, per-page budgets, and local paragraph cache.
 - **Privacy-conscious**: no project server, no analytics, no bundled developer API key.
 
@@ -101,7 +101,7 @@ Page translation first checks the page language. Pages already in the target lan
 
 ### AI study mode
 
-Study mode sends the page text to your configured model once and opens the result in a new tab. The AI extracts the article from the page, copies it word for word, and writes the study notes; DualRead then marks the listed key words (bold with a soft amber highlight, a short gloss right after the word, click for details) and key sentences (a fine underline) in the article. Translations stay hidden until you click a paragraph or its **Tr** button. Below the article you get the key words and phrases, short grammar, long-sentence, and outline notes, and a full translation that is collapsed until you open it.
+Study mode sends the page text to your configured model once and opens the result in a new tab. The AI extracts the article from the page, copies it word for word, and writes the study notes; DualRead then marks the listed key words (bold with a soft amber highlight, a short gloss right after the word, click for details) and key sentences (a fine underline) in the article. Translations stay hidden until you click the **Tr** button at the end of a paragraph; only that button shows or hides its translation. Below the article you get the key words and phrases, short grammar, long-sentence, and outline notes, and a full translation that is collapsed until you open it.
 
 - Choose CET-4, CET-6, B2, or C1 at the top of the reader. Each level is generated once per page and cached locally; switching back is instant, and **Regenerate** asks the AI again.
 - Select a passage first to study only that part. From the context menu a sentence or two is enough; the popup button needs about 80 characters, so a word left selected earlier is ignored. Otherwise DualRead reads the page's main article area, or the whole page when there is none.

@@ -34,6 +34,7 @@ async function main() {
   await testTranslateBatchTimesOutSlowApi();
   await testApiStreamsPlainTextAcrossSplitSseChunks();
   await testApiAutoDetectsNextSupportedThinkingStrategy();
+  await testApiDoesNotOverwriteCurrentConnectionDetection();
   await testApiAutoDetectionStopsOnAuthenticationError();
   await testApiManualThinkingStrategyDoesNotProbe();
   await testApiFallsBackToPlainNonStreamingWhenStreamUnsupported();
@@ -41,6 +42,7 @@ async function main() {
   await testStreamingPortEmitsDeltaBeforeDone();
   await testStreamingPortIgnoresMalformedSseChunks();
   await testStreamingPortCancelAbortsNonStreamingRequest();
+  await testStreamingPortCancelBeforeFetchSkipsRequest();
   await testTranslateBatchRejectsInvalidApiUrl();
   await testOpenCodeSessionSurvivesReconnectAndSeparatesTasks();
   await testOpenCodeApiProbeAndFallbackReuseSession();
@@ -1358,8 +1360,33 @@ async function testApiAutoDetectsNextSupportedThinkingStrategy() {
     "detectedThinkingStrategy",
     "thinkingStrategyDetectionKey"
   ]);
-  assert.strictEqual(saved.detectedThinkingStrategy, "dashscope_enable_thinking");
-  assert.strictEqual(saved.thinkingStrategyDetectionKey, response.thinkingStrategyDetectionKey);
+  assert.strictEqual(saved.detectedThinkingStrategy, undefined, "探测结果由设置页确认连接未变后保存");
+  assert.strictEqual(saved.thinkingStrategyDetectionKey, undefined);
+}
+
+async function testApiDoesNotOverwriteCurrentConnectionDetection() {
+  let resolveFetch;
+  const context = createBackgroundContext({
+    fetch: async () => new Promise((resolve) => { resolveFetch = resolve; })
+  });
+  loadBackground(context);
+  const pending = sendRuntimeMessage(context, {
+    action: "test_api",
+    settings: { apiUrl: "https://api.example.com/v1", apiKey: "test-key", model: "old-model", disableThinking: true, thinkingStrategy: "auto" }
+  });
+  await waitFor(() => resolveFetch);
+  const currentDetection = {
+    model: "new-model",
+    detectedThinkingStrategy: "dashscope_enable_thinking",
+    thinkingStrategyDetectionKey: "https://api.example.com/v1/chat/completions\nnew-model"
+  };
+  await context.chrome.storage.local.set(currentDetection);
+  resolveFetch(createSseResponse("旧连接测试结果"));
+  const response = await pending;
+  assert.strictEqual(response.ok, true);
+  assert.match(response.thinkingStrategyDetectionKey, /old-model$/);
+  const saved = await context.chrome.storage.local.get(Object.keys(currentDetection));
+  assert.deepStrictEqual(saved, currentDetection, "旧后台测试不能覆盖新连接的 Thinking 探测结果");
 }
 
 async function testApiAutoDetectionStopsOnAuthenticationError() {
@@ -1583,6 +1610,28 @@ async function testStreamingPortIgnoresMalformedSseChunks() {
   const doneMessage = port.postedMessages.find((message) => message.type === "done");
   assert.strictEqual(doneMessage.text, "完整译文");
   assert.strictEqual(port.postedMessages.some((message) => message.type === "error"), false);
+}
+
+async function testStreamingPortCancelBeforeFetchSkipsRequest() {
+  for (const disconnect of [false, true]) {
+    let fetchCount = 0;
+    const context = createBackgroundContext({
+      fetch: async () => {
+        fetchCount += 1;
+        return createSseChunksResponse([{ choices: [{ delta: { content: "不应请求" } }] }]);
+      }
+    });
+    loadBackground(context);
+    const port = createMockRuntimePort("llm-translation-stream");
+    context.runtimeConnectListener(port);
+    port.send({ type: "translate", requestId: "cancel-before-fetch", runId: 1, item: { id: "item-1", text: "Cancel while loading settings." } });
+    if (disconnect) port.disconnect();
+    else port.send({ type: "cancel", requestId: "cancel-before-fetch" });
+    // 等待设置和缓存读取的微任务完成，确认取消后没有继续发起付费请求。
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.strictEqual(fetchCount, 0, "读取设置期间取消或断开连接，不应请求 API");
+    assert.strictEqual(port.postedMessages.length, 0);
+  }
 }
 
 async function testStreamingPortCancelAbortsNonStreamingRequest() {

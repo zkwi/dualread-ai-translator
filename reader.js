@@ -6,10 +6,8 @@ const STUDY_PORT_NAME = "llm-study-stream";
 const RENDER_INTERVAL_MS = 120;
 // 生成要几十秒，定时给后台发消息，避免 service worker 因空闲被回收而中断流式请求。
 const PING_INTERVAL_MS = 20000;
-// 译文排在词汇之后输出，正文的“点击看译文”能尽早可用；语法等补充内容最后生成。
+// 译文排在词汇之后输出，段末的“译”按钮能尽早可用；语法等补充内容最后生成。
 const PROGRESS_SECTIONS = ["ARTICLE", "KEY", "VOCAB", "TRANSLATION", "GRAMMAR", "SENTENCES", "PARAGRAPHS"];
-// 单击段落才切换译文；双击选词（查词典）时取消，避免译文闪一下。
-const PARAGRAPH_CLICK_DELAY_MS = 220;
 const NOTE_SECTIONS = ["VOCAB", "GRAMMAR", "SENTENCES", "PARAGRAPHS", "TRANSLATION"];
 
 const elements = {
@@ -46,7 +44,6 @@ const state = {
   showGloss: true,
   revealed: new Set(),
   translationOpen: false,
-  paragraphClickTimer: null,
   port: null,
   requestId: "",
   phase: "idle",
@@ -156,21 +153,17 @@ function bindEvents() {
       else showPopover(mark);
       return;
     }
-    const popoverOpen = !elements.popover.hidden;
     if (!event.target.closest("#popover")) hidePopover();
     if (event.target.closest("#studyNav a[href='#study-TRANSLATION']") && !state.translationOpen) {
       state.translationOpen = true;
       render();
       return;
     }
-    const toggle = event.target.closest("#article [data-tr]");
+    const toggle = event.target.closest("#article button[data-tr]");
     if (toggle) {
       toggleParagraphTranslation(Number(toggle.dataset.tr));
       return;
     }
-    const paragraph = event.target.closest("#article p[data-n]");
-    // 释义弹层打开时，点正文只是关掉弹层，不顺带展开译文。
-    if (paragraph && !popoverOpen && !event.target.closest("a")) handleParagraphClick(event, Number(paragraph.dataset.n));
   });
 
   document.addEventListener("keydown", (event) => {
@@ -211,6 +204,7 @@ function start(options = {}) {
   state.requestId = createId("study");
   Object.assign(state, {
     phase: "loading",
+    translationOpen: false,
     text: "",
     cached: false,
     finishReason: "",
@@ -462,7 +456,7 @@ function renderArticle(parsed) {
     if (block.type === "heading") return `<h2 class="${typing.trim()}">${escapeHtml(block.text)}</h2>`;
     const highlighted = renderHighlightedText(block.text, ranges[paragraphIndex]);
     paragraphIndex += 1;
-    // 译文默认收起，点段落或段末的“译”再展开；revealed 记录展开状态，重绘时保持一致。
+    // 译文默认收起，只由段末的“译”按钮切换；revealed 记录展开状态，重绘时保持一致。
     const translated = translation.paragraphs.get(block.n) || "";
     const open = Boolean(translated) && state.revealed.has(block.n);
     const toggle = translated
@@ -650,18 +644,6 @@ function renderOutlineItem(item) {
   if (!item.from) return `<li>${renderInline(item.text)}</li>`;
   const range = item.to > item.from ? `¶${item.from}–${item.to}` : `¶${item.from}`;
   return `<li><a href="#p-${item.from}">${range}</a><span>${renderInline(item.text)}</span></li>`;
-}
-
-function handleParagraphClick(event, n) {
-  clearTimeout(state.paragraphClickTimer);
-  state.paragraphClickTimer = null;
-  if (event.detail > 1) return;
-  state.paragraphClickTimer = setTimeout(() => {
-    state.paragraphClickTimer = null;
-    // 拖选文字结束时也会触发 click，有选区就不切换。
-    if (String(getSelection?.() || "").trim()) return;
-    toggleParagraphTranslation(n);
-  }, PARAGRAPH_CLICK_DELAY_MS);
 }
 
 // 直接改 DOM 而不整段重绘，保留焦点和读者的选区；状态同步记在 revealed 里，之后的重绘结果与此一致。

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.1
+
+- Prevented accidental translation toggles in study mode: only a paragraph's **Tr** button shows or hides its translation. Clicking the article, key sentences, or inline glosses leaves translations unchanged. Updated the hints and documentation in all supported languages.
+- Collapsed the full translation when regenerating a lesson or switching study levels, so a new lesson starts with its translations hidden.
+- Ignored API test responses from a connection edited while the test was running, including failures and Thinking detection results. The test button now follows the current interface language when a pending test completes.
+- Stopped cancelled page translations from starting an API request after settings or cache lookup, and preserved cancellation signals already aborted before streaming begins.
+- Used the installed, lockfile-managed Playwright dependency directly in browser test scripts, avoiding unnecessary `npx` resolution.
+
 ## 0.13.0
 
 - Refocused AI study mode on annotating the article itself. Each vocabulary entry now carries a short context gloss that appears right after the highlighted word (toggle **Inline glosses** in the toolbar), and the prompt asks for about one to three entries per paragraph instead of one per paragraph or two.
