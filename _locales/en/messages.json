@@ -758,6 +758,9 @@
   "studyCachedStatus": {
     "message": "Loaded from the local cache. Click Regenerate to ask the AI again."
   },
+  "studyCollapse": {
+    "message": "Hide"
+  },
   "studyCountItems": {
     "message": "$1 items"
   },
@@ -775,6 +778,9 @@
   },
   "studyErrorTitle": {
     "message": "Generation failed"
+  },
+  "studyExpand": {
+    "message": "Show"
   },
   "studyFooterModel": {
     "message": "Model: $1"
@@ -813,7 +819,10 @@
     "message": "Key words"
   },
   "studyLegendTermHint": {
-    "message": "soft highlight, click for the meaning"
+    "message": "soft highlight with a short gloss, click for details"
+  },
+  "studyLegendTranslateHint": {
+    "message": "click a paragraph for its translation"
   },
   "studyLevelAria": {
     "message": "English level"
@@ -887,6 +896,9 @@
   "studyPageTitle": {
     "message": "DualRead Study Mode"
   },
+  "studyParagraphTranslationAria": {
+    "message": "Paragraph translation"
+  },
   "studyPendingSection": {
     "message": "Waiting…"
   },
@@ -918,10 +930,10 @@
     "message": "Key sentences"
   },
   "studySectionParagraphs": {
-    "message": "Paragraph notes"
+    "message": "Article outline"
   },
   "studySectionParagraphsHint": {
-    "message": "gist and notes for each paragraph"
+    "message": "the gist of each part"
   },
   "studySectionSentences": {
     "message": "Long sentences"
@@ -932,8 +944,8 @@
   "studySectionVocab": {
     "message": "Key words and phrases"
   },
-  "studyShowTranslation": {
-    "message": "Show translation under paragraphs"
+  "studyShowGloss": {
+    "message": "Inline glosses"
   },
   "studySourceLabel": {
     "message": "Source"
@@ -949,6 +961,9 @@
   },
   "studyStop": {
     "message": "Stop"
+  },
+  "studyTranslateButton": {
+    "message": "Tr"
   },
   "summaryWithDot": {
     "message": "$1 · $2"

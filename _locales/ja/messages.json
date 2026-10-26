@@ -758,6 +758,9 @@
   "studyCachedStatus": {
     "message": "ローカルキャッシュから表示しています。「再生成」で AI にもう一度依頼できます。"
   },
+  "studyCollapse": {
+    "message": "閉じる"
+  },
   "studyCountItems": {
     "message": "$1 件"
   },
@@ -775,6 +778,9 @@
   },
   "studyErrorTitle": {
     "message": "生成に失敗しました"
+  },
+  "studyExpand": {
+    "message": "表示"
   },
   "studyFooterModel": {
     "message": "モデル：$1"
@@ -813,7 +819,10 @@
     "message": "重要語句"
   },
   "studyLegendTermHint": {
-    "message": "淡い色のマーク、クリックで意味を表示"
+    "message": "淡い色のマークと短い語注、クリックで詳しく表示"
+  },
+  "studyLegendTranslateHint": {
+    "message": "段落をクリックすると訳文を表示"
   },
   "studyLevelAria": {
     "message": "英語レベル"
@@ -887,6 +896,9 @@
   "studyPageTitle": {
     "message": "DualRead 学習モード"
   },
+  "studyParagraphTranslationAria": {
+    "message": "この段落の訳文"
+  },
   "studyPendingSection": {
     "message": "生成待ち…"
   },
@@ -918,10 +930,10 @@
     "message": "重要文"
   },
   "studySectionParagraphs": {
-    "message": "段落ごとの解説"
+    "message": "文章の流れ"
   },
   "studySectionParagraphsHint": {
-    "message": "各段落の要旨とポイント"
+    "message": "各部分の要旨"
   },
   "studySectionSentences": {
     "message": "長文の構造"
@@ -932,8 +944,8 @@
   "studySectionVocab": {
     "message": "重要語句とフレーズ"
   },
-  "studyShowTranslation": {
-    "message": "段落の下に訳文を表示"
+  "studyShowGloss": {
+    "message": "本文に語注を表示"
   },
   "studySourceLabel": {
     "message": "出典"
@@ -949,6 +961,9 @@
   },
   "studyStop": {
     "message": "停止"
+  },
+  "studyTranslateButton": {
+    "message": "訳"
   },
   "summaryWithDot": {
     "message": "$1・$2"

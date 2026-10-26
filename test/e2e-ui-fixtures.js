@@ -94,7 +94,7 @@ async function runStudyReaderTests(browser) {
   await testPopupStudyButtonOpensReader(browser);
   await testReaderStreamsLessonWithHighlights(browser);
   await testReaderKeepsSelectionWhileNotesStream(browser);
-  await testReaderBilingualToggleAndVocabularyPopover(browser);
+  await testReaderParagraphTranslationAndVocabularyPopover(browser);
   await testReaderPopoverFitsViewport(browser);
   await testReaderChapterLinksClearToolbar(browser);
   await testReaderLevelSwitchCancelsAndRestarts(browser);
@@ -175,19 +175,26 @@ async function testReaderStreamsLessonWithHighlights(browser) {
   );
   assert.strictEqual(await page.locator("#article strong.key").count(), 2);
   assert.strictEqual(await page.locator("#article strong.key mark.term").count(), 2, "关键句里的重点词要嵌套显示");
+  assert.deepStrictEqual(await page.locator("#article .gloss").allTextContents(), ["市议会", "奔走争取", "破败", "举办"], "词汇后要旁注语境短义，漏写时取第一个义项");
   assert.strictEqual(await page.locator("#article h2").textContent(), "A long wait");
   assert.strictEqual(await page.locator("#title").textContent(), "City opens new library");
   assert.match(await page.locator("#source").textContent(), /example\.com/);
   assert.match(await page.locator("#meta").textContent(), /4 处重点词汇 · 2 句关键句/);
   assert.deepStrictEqual(
     await page.locator("#study-SENTENCES .label").allTextContents(),
-    ["主干", "结构", "译文"],
+    ["主干", "结构"],
     "模型输出的英文标签按界面语言显示，大小写不敏感"
   );
-  assert.strictEqual(await page.locator("#study-PARAGRAPHS h3 a").getAttribute("href"), "#p-1");
+  assert.deepStrictEqual(
+    await page.locator("#study-PARAGRAPHS .outline a").evaluateAll((links) => links.map((link) => [link.getAttribute("href"), link.textContent])),
+    [["#p-1", "¶1–2"], ["#p-3", "¶3"]]
+  );
   assert.strictEqual(await page.locator("#study-GRAMMAR blockquote mark").textContent(), "ending years of delays");
   assert.strictEqual(await page.locator("#study-TRANSLATION p[data-n]").count(), 3);
   assert.strictEqual(await page.locator("#study-TRANSLATION h3").textContent(), "漫长的等待");
+  assert.strictEqual(await page.locator("#translationBody").isVisible(), false, "全文翻译默认折叠");
+  assert.strictEqual(await page.locator("#article .zh:visible").count(), 0, "段落译文默认不显示");
+  assert.strictEqual(await page.locator("#article [data-tr]").count(), 3);
   assert.strictEqual(await page.locator("#studyNav a").count(), 5);
   assert.strictEqual(await page.locator("#progress").isVisible(), false);
   assert.strictEqual(await page.locator("#actionButton").textContent(), "重新生成");
@@ -228,19 +235,47 @@ async function testReaderKeepsSelectionWhileNotesStream(browser) {
   await page.close();
 }
 
-async function testReaderBilingualToggleAndVocabularyPopover(browser) {
+async function testReaderParagraphTranslationAndVocabularyPopover(browser) {
   const page = await createReaderPage(browser);
   await finishReaderLesson(page, STUDY_LESSON);
 
-  assert.strictEqual(await page.locator("#bilingualToggle").isDisabled(), false);
-  await page.check("#bilingualToggle");
-  await page.waitForFunction(() => document.querySelectorAll("#article .zh").length === 4);
-  assert.strictEqual(await page.locator("#article #p-2 + .zh").textContent(), "居民们自 2019 年起就为这个项目奔走，称旧馆已经破败不堪。");
-  assert.ok(await page.evaluate(() => window.__storageUpdates.some((update) => update.studyShowTranslation === true)));
+  await page.click("#p-2", { position: { x: 6, y: 12 } });
+  await page.waitForFunction(() => document.getElementById("zh-2").hidden === false);
+  assert.strictEqual(await page.locator("#zh-2").textContent(), "居民们自 2019 年起就为这个项目奔走，称旧馆已经破败不堪。");
+  assert.strictEqual(await page.locator("#article [data-tr='2']").getAttribute("aria-expanded"), "true");
+  assert.strictEqual(await page.locator("#article .zh:visible").count(), 1, "只展开点击的那一段");
+  await page.click("#article [data-tr='2']");
+  assert.strictEqual(await page.locator("#zh-2").isVisible(), false, "再点「译」收起");
+  await page.focus("#article [data-tr='1']");
+  await page.keyboard.press("Enter");
+  assert.strictEqual(await page.locator("#zh-1").isVisible(), true, "键盘也能展开译文");
+  await page.dblclick("#p-3", { position: { x: 6, y: 12 } });
+  await page.waitForTimeout(400);
+  assert.strictEqual(await page.locator("#zh-3").isVisible(), false, "双击选词时不切换译文");
+
+  await page.click("#study-TRANSLATION .section-toggle");
+  assert.strictEqual(await page.locator("#translationBody").isVisible(), true);
+  assert.strictEqual(await page.locator("#study-TRANSLATION .section-toggle").getAttribute("aria-expanded"), "true");
+  await page.click("#study-TRANSLATION .section-toggle");
+  assert.strictEqual(await page.locator("#translationBody").isVisible(), false);
+  await page.click("#studyNav a[href='#study-TRANSLATION']");
+  assert.strictEqual(await page.locator("#translationBody").isVisible(), true, "从章节导航跳到全文翻译时自动展开");
+
+  assert.strictEqual(await page.locator("#article .gloss").first().isVisible(), true);
+  await page.uncheck("#glossToggle");
+  assert.strictEqual(await page.locator("#article .gloss").first().isVisible(), false);
+  assert.ok(await page.evaluate(() => window.__storageUpdates.some((update) => update.studyShowGloss === false)));
+  await page.check("#glossToggle");
 
   await page.click("#article mark.term[data-vocab='2']");
   await page.waitForFunction(() => document.getElementById("popover").hidden === false);
   assert.match(await page.locator("#popover").textContent(), /fall apart/);
+  await page.click("#p-3", { position: { x: 6, y: 12 } });
+  await page.waitForTimeout(400);
+  assert.strictEqual(await page.locator("#popover").isVisible(), false);
+  assert.strictEqual(await page.locator("#zh-3").isVisible(), false, "弹层打开时点正文只关闭弹层");
+  await page.click("#article mark.term[data-vocab='2']");
+  await page.waitForFunction(() => document.getElementById("popover").hidden === false);
   await page.click("#popover [data-goto-vocab]");
   await page.waitForFunction(() => document.getElementById("popover").hidden === true);
   assert.strictEqual(await page.locator("#v-2").evaluate((card) => card.classList.contains("flash")), true);
@@ -271,8 +306,9 @@ async function testReaderPopoverFitsViewport(browser) {
     await page.click("#popover [data-close-popover]");
     assert.strictEqual(await page.locator("#popover").isVisible(), false);
     assert.strictEqual(await mark.evaluate((node) => node === document.activeElement), true);
-    await mark.click();
-    await mark.click();
+    // 超长释义在矮视口里会盖住词汇本身，这里直接派发点击，只验证“再点一次收起”的逻辑。
+    await mark.dispatchEvent("click");
+    await mark.dispatchEvent("click");
     assert.strictEqual(await page.locator("#popover").isVisible(), false, "再次点击词汇可收起释义");
     await page.close();
   }
@@ -417,15 +453,15 @@ async function testReaderWarnsOnIncompleteLessons(browser) {
 async function testReaderPrintsLesson(browser) {
   const page = await createReaderPage(browser);
   await finishReaderLesson(page, STUDY_LESSON);
-  await page.check("#bilingualToggle");
+  await page.click("#article [data-tr='2']");
   await page.click("#article mark.term[data-vocab='1']");
   await page.focus("#article mark.term[data-vocab='1']");
   await page.keyboard.press("Enter");
   await page.emulateMedia({ media: "print", colorScheme: "dark" });
-  for (const selector of [".toolbar", "#studyNav", "#popover"]) {
+  for (const selector of [".toolbar", "#studyNav", "#popover", "#article [data-tr='1']", "#study-TRANSLATION .section-toggle"]) {
     assert.strictEqual(await page.locator(selector).isVisible(), false, `${selector} 不应出现在打印中`);
   }
-  for (const selector of ["#paper", "#study-VOCAB", "#study-GRAMMAR", "#study-SENTENCES", "#study-PARAGRAPHS", "#study-TRANSLATION"]) {
+  for (const selector of ["#paper", "#study-VOCAB", "#study-GRAMMAR", "#study-SENTENCES", "#study-PARAGRAPHS", "#study-TRANSLATION", "#translationBody", "#zh-2"]) {
     assert.strictEqual(await page.locator(selector).isVisible(), true, `${selector} 打印时应保留`);
   }
   assert.deepStrictEqual(await page.evaluate(() => {
@@ -440,7 +476,7 @@ async function testReaderPrintsLesson(browser) {
       sectionBreak: getComputedStyle(document.querySelector(".study h2")).breakAfter
     };
   }), { background: "rgb(255, 255, 255)", termBackground: "rgb(242, 234, 216)", printColorAdjust: "exact", hasKeyHighlight: true, termOutline: "none", termShadow: "none", sectionBreak: "avoid" });
-  assert.strictEqual(await page.locator("#article .zh").count(), 4);
+  assert.strictEqual(await page.locator("#zh-1").isVisible(), false, "打印只带出已展开的段落译文");
   await page.close();
 }
 
@@ -453,7 +489,8 @@ async function testReaderLayoutDoesNotOverflow(browser) {
         localeMessages: uiLanguage === "auto" ? undefined : readAllLocaleMessages()[uiLanguage]
       });
       await finishReaderLesson(page, STUDY_LESSON);
-      await page.check("#bilingualToggle");
+      for (const toggle of await page.locator("#article [data-tr]").all()) await toggle.click();
+      await page.click("#study-TRANSLATION .section-toggle");
       await page.click("#article mark.term[data-vocab='1']");
       const overflow = await page.evaluate(() => {
         const width = document.documentElement.clientWidth;

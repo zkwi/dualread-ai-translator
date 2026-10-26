@@ -22,8 +22,8 @@
       </div>
       <div class="toolbar-actions">
         <label class="toggle">
-          <input type="checkbox" id="bilingualToggle">
-          <span data-i18n="studyShowTranslation">段落下显示译文</span>
+          <input type="checkbox" id="glossToggle">
+          <span data-i18n="studyShowGloss">原文旁注词义</span>
         </label>
         <button type="button" class="action" id="actionButton" data-i18n="studyRegenerate">重新生成</button>
       </div>
@@ -50,8 +50,9 @@
         <h1 id="title"></h1>
         <p class="meta" id="meta"></p>
         <div class="legend">
-          <span><mark class="term" data-i18n="studyLegendTerm">重点词汇</mark> <span data-i18n="studyLegendTermHint">浅色标记，点击看释义</span></span>
+          <span><mark class="term" data-i18n="studyLegendTerm">重点词汇</mark> <span data-i18n="studyLegendTermHint">旁注语境词义，点击看详解</span></span>
           <span><strong class="key" data-i18n="studyLegendKey">关键句</strong> <span data-i18n="studyLegendKeyHint">细下划线</span></span>
+          <span><span class="tr-toggle" data-i18n="studyTranslateButton">译</span> <span data-i18n="studyLegendTranslateHint">点击段落查看译文</span></span>
         </div>
       </header>
       <div class="notices" id="notices"></div>
@@ -63,21 +64,24 @@
       <h2><span data-i18n="studySectionVocab">重点词汇与词组</span> <small></small></h2>
       <div class="vocab-grid" data-container></div>
     </section>
-    <section class="study" id="study-GRAMMAR">
+    <section class="study minor" id="study-GRAMMAR">
       <h2><span data-i18n="studySectionGrammar">重点语法</span> <small></small></h2>
       <div class="notes" data-container></div>
     </section>
-    <section class="study" id="study-SENTENCES">
+    <section class="study minor" id="study-SENTENCES">
       <h2><span data-i18n="studySectionSentences">长难句结构</span> <small></small></h2>
       <div class="notes" data-container></div>
     </section>
-    <section class="study" id="study-PARAGRAPHS">
-      <h2><span data-i18n="studySectionParagraphs">中英详解</span> <small data-i18n="studySectionParagraphsHint">逐段大意与要点</small></h2>
-      <div class="notes" data-container></div>
+    <section class="study minor" id="study-PARAGRAPHS">
+      <h2><span data-i18n="studySectionParagraphs">文章脉络</span> <small data-i18n="studySectionParagraphsHint">各部分大意</small></h2>
+      <div data-container></div>
     </section>
     <section class="study translation" id="study-TRANSLATION">
-      <h2><span data-i18n="studySectionTranslation">全文翻译</span> <small></small></h2>
-      <div class="card" data-container></div>
+      <h2>
+        <span data-i18n="studySectionTranslation">全文翻译</span> <small></small>
+        <button type="button" class="section-toggle" id="translationToggle" aria-expanded="false" aria-controls="translationBody" data-i18n="studyExpand">展开</button>
+      </h2>
+      <div class="card is-collapsed" id="translationBody" data-container></div>
     </section>
 
     <footer class="foot">

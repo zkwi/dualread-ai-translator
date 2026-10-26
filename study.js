@@ -2,7 +2,7 @@
   const shared = root.LLMTranslatorShared || (typeof require === "function" ? require("./shared.js") : null);
 
   // 提示词或输出格式变化时递增，避免读到旧格式的缓存课程。
-  const STUDY_PROMPT_VERSION = "1";
+  const STUDY_PROMPT_VERSION = "2";
   const STUDY_CACHE_PREFIX = `${shared.CACHE_PREFIX}study:`;
   // 页面最多抓 60000 字符，发给模型的再截到 12000：长文实测会让模型后半篇漏标，输出也更慢。
   const STUDY_CAPTURE_MAX_CHARS = 60000;
@@ -33,7 +33,7 @@
         "The learner knows about 4,500 common words (the CET-4 syllabus).",
         "Pick words and phrases beyond CET-4 that matter for understanding, plus common but important phrasal verbs and collocations.",
         "Explain mainly in the learner's language, in simple terms. Give IPA for single words.",
-        "Pick 15-25 items."
+        "Pick 20-35 items."
       ]
     },
     cet6: {
@@ -42,7 +42,7 @@
         "The learner knows about 6,000 words (the CET-6 syllabus).",
         "Pick words beyond CET-6 and expressions useful for writing and translation.",
         "Explain in the learner's language, each followed by a short English definition. Give IPA for single words.",
-        "Pick 15-25 items."
+        "Pick 18-30 items."
       ]
     },
     b2: {
@@ -50,7 +50,7 @@
       guide: [
         "Pick C1/C2 vocabulary, collocations, phrasal verbs and idioms. Skip everyday B1/B2 words.",
         "Give a short English definition first, then a brief gloss in the learner's language.",
-        "Pick 12-20 items."
+        "Pick 15-25 items."
       ]
     },
     c1: {
@@ -59,7 +59,7 @@
         "Skip common words. Pick only advanced or low-frequency vocabulary, idioms, nuanced word choices, figurative and journalistic expressions.",
         "Explain mainly in English, with a brief gloss in the learner's language.",
         "Pay attention to style, tone and how sentences are built.",
-        "Pick 10-18 items."
+        "Pick 12-20 items."
       ]
     }
   };
@@ -115,7 +115,7 @@
         : "1. Find the main article (title and body) in the raw page text below. Drop everything else: navigation, menus, bylines, timestamps, share buttons, image or video captions, related links, ads, comments, footers and code blocks.",
       "2. Copy the article body VERBATIM. Do not rewrite, simplify, summarize or skip sentences. Only join broken line wraps and drop citation marks such as [1]. Add no markup, IPA or notes inside the article.",
       "   Start every body paragraph with its number: ¶1, ¶2, ... Use \"## \" only for real subheadings (short standalone lines, usually under 12 words, no final period); subheadings get no number.",
-      "3. Write the study notes in the sections below. Scale every section to the length of the text: a short passage needs only a few items, so never pad with weak ones. Accuracy matters more than quantity: choose only grammar points and structures that really occur in the article and label them correctly. Only call something inversion when an auxiliary or verb really comes before the subject, and only call it subjunctive or unreal when the verb form really shows it. If you are not sure a label is right, pick a different point.",
+      "3. Write the study notes in the sections below. The vocabulary list is the heart of the lesson; grammar, long sentences and the outline are short extras. Scale every section to the length of the text: a short passage needs only a few items, so never pad with weak ones. Accuracy matters more than quantity: choose only grammar points and structures that really occur in the article and label them correctly. Only call something inversion when an auxiliary or verb really comes before the subject, and only call it subjunctive or unreal when the verb form really shows it. If you are not sure a label is right, pick a different point.",
       "",
       "If the main content is not in English, output only the line: @@NOT_ENGLISH",
       "If there is no readable main content (for example only a list of links), output only the line: @@NO_CONTENT",
@@ -130,28 +130,24 @@
       "3-6 key sentences spread over the article (the main claim, turning points and the conclusion, at most one per paragraph), each copied exactly from the article:",
       "- the exact sentence",
       "@@VOCAB",
-      "the key words and phrases the learner should learn, in order of appearance. Go through the article from the first paragraph to the last and take about one item from every paragraph or two, so the items cover the whole article. Start each item with the words exactly as they appear in the article. Give at most two short meanings per item:",
-      "- ==the words as they appear in the article== (base form, only if different) /IPA/ part of speech meaning in the learner's language; short English definition — collocation or usage note",
+      "the key words and phrases the learner should learn, in order of appearance. Go through the article from the first paragraph to the last and take about one to three items from every paragraph, so the items cover the whole article. Start each item with the words exactly as they appear in the article, then a short gloss in square brackets: the meaning in this context, in the learner's language, at most 8 characters or 3 words. Give at most two short meanings per item after that:",
+      "- ==the words as they appear in the article== [short gloss] (base form, only if different) /IPA/ part of speech meaning in the learner's language; short English definition — collocation or usage note",
+      "@@TRANSLATION",
+      "a faithful translation of the whole article into the learner's language, block by block in the same order: keep each paragraph's ¶ number and write subheadings as \"## \"; one blank line between blocks",
       "@@GRAMMAR",
-      "2-4 grammar points. For each:",
+      "1-2 grammar points (none for a passage of only a few sentences). For each:",
       "### the point's name in the learner's language and in English",
       "> the sentence from the article, with the relevant part in ==...==",
-      "- Explain: how the structure works here and how to use it",
+      "- Explain: one or two sentences on how the structure works here",
       "@@SENTENCES",
-      "2-4 long or difficult sentences from the article. For each:",
+      "1-2 of the hardest sentences (none if no sentence is really hard). For each:",
       "### a short label",
       "> the sentence",
       "- Core: the main clause",
-      "- Structure: the clauses and modifiers and what they attach to",
-      "- Translation: the sentence in the learner's language",
+      "- Structure: one line on the clauses and modifiers and what they attach to",
       "@@PARAGRAPHS",
-      "For each paragraph or group of related paragraphs, using the ¶ numbers from the article:",
-      "### ¶1-2",
-      "- EN: the gist in one simple English sentence",
-      "- Gist: the gist in the learner's language",
-      "- Notes: the logic, writing technique or background worth noticing",
-      "@@TRANSLATION",
-      "a faithful translation of the whole article into the learner's language, block by block in the same order: keep each paragraph's ¶ number and write subheadings as \"## \"; one blank line between blocks",
+      "a brief outline of the article in 2-5 lines, each covering one paragraph or a group of related paragraphs by their ¶ numbers:",
+      "- ¶1-2: the gist in one short sentence in the learner's language",
       "@@END",
       "",
       `Page title: ${String(title || "").trim()}`,
@@ -288,12 +284,18 @@
     return parseListLines(md).map((line) => {
       let rest = line;
       let term = "";
+      let gloss = "";
       let base = "";
       let ipa = "";
       const termMatch = rest.match(/^==([^=]+)==\s*/) || rest.match(/^\*\*([^*]+)\*\*\s*/);
       if (termMatch) {
         term = termMatch[1].trim();
         rest = rest.slice(termMatch[0].length);
+      }
+      const glossMatch = rest.match(/^[[【]([^\]】]{1,40})[\]】]\s*/);
+      if (glossMatch) {
+        gloss = glossMatch[1].trim();
+        rest = rest.slice(glossMatch[0].length);
       }
       const baseMatch = rest.match(/^[(（]([^)）]{1,60})[)）]\s*/);
       if (baseMatch) {
@@ -309,12 +311,34 @@
       if (!term) term = meaning.split(/\s+/)[0] || "";
       return {
         term,
+        gloss: gloss || deriveGloss(meaning),
         base: base.toLowerCase() === term.toLowerCase() ? "" : base,
         ipa,
         meaning: meaning.trim(),
         note: note.join(" — ").trim()
       };
     }).filter((item) => item.term);
+  }
+
+  // 模型偶尔漏写 [短义]：取释义里词性之后的第一个义项；以英文开头（C1 级别的英文释义）就不硬取，避免旁注过长。
+  function deriveGloss(meaning) {
+    const first = String(meaning || "")
+      .replace(/^(?:(?:[a-z]{1,6}\.|phr|idiom)[\s/&]*)+/i, "")
+      .split(/[;；,，、]/)[0]
+      .replace(/==|\*\*/g, "")
+      .trim();
+    return first && first.length <= 10 && !/[A-Za-z]/.test(first) ? first : "";
+  }
+
+  // 文章脉络：每行 “¶1-2: 大意”，段号转成可跳转的范围；没有段号的行原样保留。
+  function parseOutlineItems(md) {
+    return parseListLines(md).map((line) => {
+      const match = line.match(/^¶\s*(\d+)(?:\s*[-–—~]\s*¶?\s*(\d+))?\s*[:：]?\s*/);
+      if (!match) return { from: 0, to: 0, text: line };
+      const from = Number(match[1]);
+      const to = match[2] ? Number(match[2]) : from;
+      return { from, to: Math.max(from, to), text: line.slice(match[0].length).trim() };
+    });
   }
 
   function parseNoteItems(md) {
@@ -510,6 +534,7 @@
     parseKeySentences,
     parseTitle,
     parseVocabItems,
+    parseOutlineItems,
     parseNoteItems,
     parseLabeledLine,
     buildParagraphHighlights,

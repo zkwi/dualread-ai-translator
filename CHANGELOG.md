@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.0
+
+- Refocused AI study mode on annotating the article itself. Each vocabulary entry now carries a short context gloss that appears right after the highlighted word (toggle **Inline glosses** in the toolbar), and the prompt asks for about one to three entries per paragraph instead of one per paragraph or two.
+- Translations are hidden by default: click a paragraph, or its small **Tr** button (keyboard accessible), to reveal that paragraph's translation. Double-clicking a word to select it, dragging a selection, or closing a vocabulary card does not toggle it. This replaces the "show translation under paragraphs" switch. The full translation section is collapsed until opened, opens automatically from the chapter link, and is still included when printing.
+- Shortened the supporting notes: 1-2 grammar points, 1-2 hard sentences with only the core and structure, and a 2-5 line article outline that replaces the paragraph-by-paragraph notes. These sections use a smaller heading. The model now writes the translation right after the vocabulary, so paragraph translations become available before the extras finish.
+- Bumped the study prompt version, so lessons cached by 0.12.0 are regenerated in the new format.
+
 ## 0.12.0
 
 - Added AI study mode: the popup button or the **Read in AI study mode** context menu opens the current English page (or the selected text) in a new tab as a lesson for CET-4, CET-6, B2, or C1. The AI extracts the article and writes the notes in one streamed request; key words are marked bold with a soft amber highlight and a click-for-meaning card, key sentences use a fine underline, and the page adds key grammar, long-sentence breakdowns, paragraph notes, and a full translation that can also be shown under each paragraph.

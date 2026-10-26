@@ -16,6 +16,7 @@
   --term-ink: #55452d;
   --key-line: #9eb8ae;
   --zh-ink: #3b4b61;
+  --gloss-ink: #8a6d3b;
   --shadow-soft: 0 4px 18px rgba(25, 34, 40, 0.035);
   --font-ui: "Aptos", "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
   --font-read: "Iowan Old Style", "Charter", Georgia, "Times New Roman", "Microsoft YaHei", "PingFang SC", serif;
@@ -40,6 +41,7 @@
     --term-ink: #eddbb8;
     --key-line: #7d9f98;
     --zh-ink: #b9c7d9;
+    --gloss-ink: #d2b98a;
     --shadow-soft: 0 8px 26px rgba(0, 0, 0, 0.22);
   }
 }
@@ -136,6 +138,8 @@ button {
 .action:focus-visible,
 mark.term:focus-visible,
 .toggle input:focus-visible,
+.tr-toggle:focus-visible,
+.section-toggle:focus-visible,
 .study-nav a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -395,6 +399,52 @@ mark.term.active {
   box-shadow: 0 0 0 2px var(--accent);
 }
 
+/* 语境短义紧跟在词后：用小号无衬线、暖色区分于正文；inline-block 避免继承关键句的下划线，复制原文时也不带上。 */
+.gloss {
+  display: inline-block;
+  margin: 0 0.3em 0 0.18em;
+  color: var(--gloss-ink);
+  font: 500 0.66em/1.2 var(--font-ui);
+  letter-spacing: 0;
+  vertical-align: 0.12em;
+  user-select: none;
+}
+
+.gloss.tight {
+  margin-right: 0.08em;
+}
+
+.hide-gloss .gloss {
+  display: none;
+}
+
+.tr-toggle {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.6em;
+  height: 1.45em;
+  margin-left: 0.4em;
+  padding: 0 0.3em;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+  font: 12px/1 var(--font-ui);
+  vertical-align: 0.15em;
+  cursor: pointer;
+}
+
+.article-body p:hover > .tr-toggle,
+.tr-toggle[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.legend .tr-toggle {
+  margin-left: 0;
+  cursor: default;
+}
+
 /* 关键句常常占满整段：用细线强调，保留正常字重，让词汇高亮成为第一视觉层级。 */
 strong.key {
   font-weight: 500;
@@ -415,10 +465,6 @@ strong.key {
   line-height: 1.85;
 }
 
-.article-body .zh-heading {
-  margin-top: -0.3em;
-  font-weight: 600;
-}
 
 .typing::after {
   display: inline-block;
@@ -487,6 +533,31 @@ strong.key {
   color: var(--muted);
   font-size: 13px;
   font-weight: 500;
+}
+
+/* 语法、长难句、脉络是补充内容，标题和卡片比词汇表收小一档。 */
+.study.minor h2 {
+  font-size: 17px;
+}
+
+.study.minor .note-card {
+  padding: 12px 14px;
+}
+
+.section-toggle {
+  margin-left: auto;
+  padding: 3px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.card.is-collapsed {
+  display: none;
 }
 
 .vocab-grid {
@@ -608,6 +679,33 @@ strong.key {
   border-radius: 3px;
   background: var(--term-bg);
   color: var(--term-ink);
+}
+
+.outline {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  list-style: none;
+}
+
+.outline li {
+  display: flex;
+  gap: 10px;
+  font-size: 14.5px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.outline a {
+  flex: none;
+  min-width: 3.4em;
+  color: var(--accent);
+  font-size: 13px;
+  text-decoration: none;
 }
 
 .label {
@@ -842,14 +940,22 @@ strong.key {
     --term-ink: #55452d;
     --key-line: #778e86;
     --zh-ink: #2f3e52;
+    --gloss-ink: #7a5f30;
   }
 
   .toolbar,
   .study-nav,
   .popover,
   .state-actions,
-  .notice button {
+  .notice button,
+  .tr-toggle,
+  .section-toggle {
     display: none !important;
+  }
+
+  /* 打印讲义时附上全文翻译，即使页面上是折叠的。 */
+  .card.is-collapsed {
+    display: block;
   }
 
   main {

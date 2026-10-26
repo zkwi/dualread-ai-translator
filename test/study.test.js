@@ -60,6 +60,13 @@ function testPromptMessages() {
   assert.doesNotMatch(prompt, /example\.com\/news/, "不发送完整 URL，路径和查询参数可能含隐私信息");
   assert.doesNotMatch(prompt, /Typical grammar/, "级别说明不能点名语法结构，实测会诱导模型硬套倒装、虚拟语气");
   assert.match(prompt, /short passage needs only a few items/, "短段落不能按固定条数硬凑");
+  assert.match(prompt, /vocabulary list is the heart of the lesson/, "词汇标注是重点，语法等只是补充");
+  assert.match(prompt, /\[short gloss\]/, "词条要带可旁注在原文里的语境短义");
+  assert.match(prompt, /1-2 grammar points/);
+  assert.match(prompt, /1-2 of the hardest sentences/);
+  assert.match(prompt, /outline of the article in 2-5 lines/);
+  const order = ["@@ARTICLE", "@@KEY", "@@VOCAB", "@@TRANSLATION", "@@GRAMMAR", "@@SENTENCES", "@@PARAGRAPHS", "@@END"].map((marker) => prompt.indexOf(`\n${marker}\n`));
+  assert.ok(order.every((index, i) => index > 0 && (i === 0 || index > order[i - 1])), "译文要排在语法等补充内容之前，正文点击看译文才能尽早可用");
 
   const selection = study.buildStudyMessages({ text: "Picked text", source: "selection", level: "c1" })[1].content;
   assert.match(selection, /passage the learner selected/);
@@ -81,7 +88,7 @@ function testCacheKey() {
 
 function testParseOutputSectionsAndFlags() {
   const parsed = study.parseStudyOutput(LESSON);
-  assert.deepStrictEqual(Object.keys(parsed.sections), ["TITLE", "ARTICLE", "KEY", "VOCAB", "GRAMMAR", "SENTENCES", "PARAGRAPHS", "TRANSLATION"]);
+  assert.deepStrictEqual(Object.keys(parsed.sections), ["TITLE", "ARTICLE", "KEY", "VOCAB", "TRANSLATION", "GRAMMAR", "SENTENCES", "PARAGRAPHS"]);
   assert.ok(parsed.flags.has("END"));
   assert.strictEqual(parsed.sections.TITLE, "City opens new library");
   assert.strictEqual(study.isCompleteStudyOutput(LESSON), true);
@@ -136,6 +143,7 @@ function testParseListsAndNotes() {
   const vocab = study.parseVocabItems(sections.VOCAB);
   assert.deepStrictEqual(vocab[0], {
     term: "council",
+    gloss: "市议会",
     base: "",
     ipa: "ˈkaʊnsl",
     meaning: "n. 委员会；市政会",
@@ -143,6 +151,19 @@ function testParseListsAndNotes() {
   });
   assert.strictEqual(vocab[3].base, "", "与词条相同的原形不重复显示");
   assert.strictEqual(vocab[3].note, "");
+  assert.strictEqual(vocab[2].gloss, "破败", "全角方括号的短义也要识别");
+  assert.strictEqual(vocab[3].gloss, "举办", "漏写短义时取释义的第一个义项");
+  assert.strictEqual(study.parseVocabItems("- ==resilient== /rɪˈzɪliənt/ adj. able to recover quickly; 有韧性的")[0].gloss, "", "英文释义不硬取短义，避免旁注过长");
+  assert.strictEqual(study.parseVocabItems("- ==mar== (mar) v./n. 损害；破坏")[0].gloss, "损害");
+
+  assert.deepStrictEqual(study.parseOutlineItems(sections.PARAGRAPHS), [
+    { from: 1, to: 2, text: "图书馆在长期争取后终于开放。" },
+    { from: 3, to: 3, text: "官员介绍新馆的用途。" }
+  ]);
+  assert.deepStrictEqual(study.parseOutlineItems("- ¶4–¶6 Middle part\n- No number"), [
+    { from: 4, to: 6, text: "Middle part" },
+    { from: 0, to: 0, text: "No number" }
+  ]);
 
   const grammar = study.parseNoteItems(sections.GRAMMAR);
   assert.strictEqual(grammar.length, 1);

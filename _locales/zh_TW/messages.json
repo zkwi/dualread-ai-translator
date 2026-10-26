@@ -758,6 +758,9 @@
   "studyCachedStatus": {
     "message": "來自本機快取，點「重新產生」可重新請求 AI。"
   },
+  "studyCollapse": {
+    "message": "收合"
+  },
   "studyCountItems": {
     "message": "$1 條"
   },
@@ -775,6 +778,9 @@
   },
   "studyErrorTitle": {
     "message": "產生失敗"
+  },
+  "studyExpand": {
+    "message": "展開"
   },
   "studyFooterModel": {
     "message": "模型：$1"
@@ -813,7 +819,10 @@
     "message": "重點詞彙"
   },
   "studyLegendTermHint": {
-    "message": "淡色標記，點一下看釋義"
+    "message": "旁註語境詞義，點一下看詳解"
+  },
+  "studyLegendTranslateHint": {
+    "message": "點一下段落查看譯文"
   },
   "studyLevelAria": {
     "message": "英語程度"
@@ -887,6 +896,9 @@
   "studyPageTitle": {
     "message": "DualRead 學習模式"
   },
+  "studyParagraphTranslationAria": {
+    "message": "本段譯文"
+  },
   "studyPendingSection": {
     "message": "等待產生…"
   },
@@ -918,10 +930,10 @@
     "message": "關鍵句"
   },
   "studySectionParagraphs": {
-    "message": "中英詳解"
+    "message": "文章脈絡"
   },
   "studySectionParagraphsHint": {
-    "message": "逐段大意與重點"
+    "message": "各部分大意"
   },
   "studySectionSentences": {
     "message": "長難句結構"
@@ -932,8 +944,8 @@
   "studySectionVocab": {
     "message": "重點詞彙與片語"
   },
-  "studyShowTranslation": {
-    "message": "段落下顯示譯文"
+  "studyShowGloss": {
+    "message": "原文旁註詞義"
   },
   "studySourceLabel": {
     "message": "來源"
@@ -949,6 +961,9 @@
   },
   "studyStop": {
     "message": "停止"
+  },
+  "studyTranslateButton": {
+    "message": "譯"
   },
   "summaryWithDot": {
     "message": "$1 · $2"
